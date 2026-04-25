@@ -1,7 +1,0 @@
-# Make sure git-xet is installed (https://hf.co/docs/hub/git-xet)
-git xet install
-
-git clone https://huggingface.co/Therealsickonechase-bit/rabbit-2.2.8-ML-AUTO-ADAPT-OS-VIRTUAL-AI-COMMUNITY-DISCORD-LLM-ENHANCED-CLI
-
-# You'll be prompted for your HF credentials
-git push

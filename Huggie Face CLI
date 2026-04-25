@@ -1,9 +1,0 @@
-
-# Install the Hugging Face CLI
-powershell -ExecutionPolicy ByPass -c "irm https://hf.co/cli/install.ps1 | iex"
-
-# (optional) Login with your Hugging Face credentials
-hf auth login
-
-# Push your model files
-hf upload Therealsickonechase-bit/rabbit-2.2.8-ML-AUTO-ADAPT-OS-VIRTUAL-AI-COMMUNITY-DISCORD-LLM-ENHANCED-CLI . 
