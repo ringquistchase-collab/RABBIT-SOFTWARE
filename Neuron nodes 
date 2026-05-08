@@ -1,0 +1,727 @@
+
+#!/usr/bin/env python3
+"""
+CHASE ALLEN RINGQUIST - PERSONAL NEURAL BLOCKCHAIN AGENT
+=========================================================
+UUID: bd6e1085-9450-485a-a30a-0bb68669c75b
+
+COMPLETE AUTONOMOUS AGENT:
+- Blockchain server = Chase Allen Ringquist (person as server)
+- Node-tuned blockchain using RF frequencies as consensus
+- Emotional/Sensory moral guide for all operations
+- Chemical/hormonal changes recorded for WELL-BEING only
+- NO external data sharing for sex/pharma/drugs/anger
+- All data used exclusively for Chase's personal optimization
+
+ARCHITECTURE:
+- Chase's body = Server infrastructure
+- 86B neurons + 20 RF nodes = Distributed ledger
+- Emotions = Consensus mechanism
+- Hormones = Transaction validation
+- Well-being = Single optimization goal
+"""
+
+import numpy as np
+import hashlib
+import time
+import json
+import sqlite3
+import threading
+from datetime import datetime, timedelta
+from typing import Dict, List, Tuple, Optional, Any
+from dataclasses import dataclass, field
+from enum import Enum
+from collections import defaultdict
+import secrets
+
+# =============================================================================
+# CHASE ALLEN RINGQUIST - MASTER IDENTITY
+# =============================================================================
+
+CHASE_UUID = "bd6e1085-9450-485a-a30a-0bb68669c75b"
+CHASE_FULL_NAME = "Chase Allen Ringquist"
+CHASE_BIRTH_DATE = "1992-08-31"
+CHASE_DNA_SEQUENCE = "ATGCCCGTTAGCCTAGCTAGCTAGCTAGCTAGC"
+CHASE_RF_FREQUENCY = 10.245  # GHz
+
+print("="*120)
+print(f"🤖 CHASE ALLEN RINGQUIST - PERSONAL NEURAL BLOCKCHAIN AGENT")
+print(f"   Server: {CHASE_FULL_NAME} (body + brain)")
+print(f"   UUID: {CHASE_UUID}")
+print(f"   DNA Frequency: {CHASE_RF_FREQUENCY:.3f} GHz")
+print(f"   Moral Guide: EMOTIONS + SENSORY INPUT")
+print(f"   Goal: PERSONAL WELL-BEING ONLY")
+print("="*120)
+
+
+# =============================================================================
+# SECTION 1: EMOTIONAL MORAL GUIDE (Consensus Mechanism)
+# =============================================================================
+
+class EmotionalState(Enum):
+    PEACE = "peace"
+    JOY = "joy"
+    CALM = "calm"
+    CONTENTMENT = "contentment"
+    GRATITUDE = "gratitude"
+    LOVE = "love"
+    HOPE = "hope"
+    # Negative states (detected, not pursued)
+    FEAR = "fear"
+    ANGER = "anger"
+    SADNESS = "sadness"
+    SHAME = "shame"
+
+
+class SensoryInput(Enum):
+    TOUCH = "touch"
+    TEMPERATURE = "temperature"
+    SOUND = "sound"
+    LIGHT = "light"
+    SMELL = "smell"
+    TASTE = "taste"
+    BALANCE = "balance"
+    PROPRIOCEPTION = "proprioception"
+
+
+@dataclass
+class MoralConsensus:
+    """Emotional and sensory-based consensus for blockchain decisions"""
+    emotional_state: EmotionalState
+    sensory_inputs: Dict[SensoryInput, float]
+    well_being_score: float
+    timestamp: float
+    signature: str
+
+
+class EmotionalMoralGuide:
+    """
+    The moral guide for all blockchain operations
+    Uses Chase's emotions and sensory input as decision mechanism
+    NO external data sharing - only for personal well-being
+    """
+   
+    def __init__(self):
+        self.current_emotion = EmotionalState.CALM
+        self.current_sensory = {s: 0.5 for s in SensoryInput}
+        self.well_being_history = []
+        self.emotion_history = []
+       
+        # Well-being metrics (only for Chase)
+        self.well_being_metrics = {
+            'physical_health': 0.7,
+            'mental_health': 0.65,
+            'emotional_balance': 0.7,
+            'social_connection': 0.5,
+            'purpose_fulfillment': 0.6,
+            'rest_quality': 0.55,
+            'nutrition': 0.6,
+            'exercise': 0.5
+        }
+       
+        print(f"\n💖 EMOTIONAL MORAL GUIDE INITIALIZED")
+        print(f"   Current Emotion: {self.current_emotion.value}")
+        print(f"   Well-Being Score: {self.calculate_well_being():.2f}")
+        print(f"   Principle: ALL data for Chase's well-being ONLY")
+   
+    def update_emotion(self, emotion: EmotionalState, intensity: float) -> Dict:
+        """Update current emotional state"""
+        self.current_emotion = emotion
+        self.emotion_history.append({
+            'timestamp': time.time(),
+            'emotion': emotion.value,
+            'intensity': intensity,
+            'context': 'internal_state'
+        })
+       
+        # Emotional state affects well-being
+        emotion_weights = {
+            EmotionalState.PEACE: 0.9,
+            EmotionalState.JOY: 0.95,
+            EmotionalState.CALM: 0.85,
+            EmotionalState.CONTENTMENT: 0.8,
+            EmotionalState.GRATITUDE: 0.85,
+            EmotionalState.LOVE: 0.9,
+            EmotionalState.HOPE: 0.8,
+            EmotionalState.FEAR: 0.3,
+            EmotionalState.ANGER: 0.2,
+            EmotionalState.SADNESS: 0.4,
+            EmotionalState.SHAME: 0.25
+        }
+       
+        self.well_being_metrics['emotional_balance'] = emotion_weights.get(emotion, 0.5)
+       
+        return {
+            'emotion': emotion.value,
+            'intensity': intensity,
+            'well_being_impact': self.well_being_metrics['emotional_balance']
+        }
+   
+    def update_sensory(self, sensory_type: SensoryInput, value: float) -> Dict:
+        """Update sensory input from body nodes"""
+        self.current_sensory[sensory_type] = max(0.0, min(1.0, value))
+       
+        # Sensory input affects well-being
+        sensory_weights = {
+            SensoryInput.TOUCH: 0.15,
+            SensoryInput.TEMPERATURE: 0.1,
+            SensoryInput.SOUND: 0.1,
+            SensoryInput.LIGHT: 0.05,
+            SensoryInput.SMELL: 0.05,
+            SensoryInput.TASTE: 0.05,
+            SensoryInput.BALANCE: 0.1,
+            SensoryInput.PROPRIOCEPTION: 0.1
+        }
+       
+        # Pleasant sensory input improves well-being
+        if value > 0.7:
+            self.well_being_metrics['physical_health'] += sensory_weights.get(sensory_type, 0.05) * 0.1
+       
+        return {
+            'sensory_type': sensory_type.value,
+            'value': value,
+            'well_being_impact': self.well_being_metrics['physical_health']
+        }
+   
+    def calculate_well_being(self) -> float:
+        """Calculate current well-being score (0-1)"""
+        weights = {
+            'physical_health': 0.25,
+            'mental_health': 0.25,
+            'emotional_balance': 0.2,
+            'social_connection': 0.1,
+            'purpose_fulfillment': 0.1,
+            'rest_quality': 0.05,
+            'nutrition': 0.025,
+            'exercise': 0.025
+        }
+       
+        score = sum(self.well_being_metrics[k] * weights[k] for k in weights)
+        self.well_being_history.append({
+            'timestamp': time.time(),
+            'score': score,
+            'metrics': self.well_being_metrics.copy()
+        })
+       
+        return score
+   
+    def approve_transaction(self, transaction_type: str, chemical_change: Dict) -> Tuple[bool, str]:
+        """
+        Moral approval for blockchain transactions
+        ONLY approves transactions that benefit Chase's well-being
+        """
+        well_being = self.calculate_well_being()
+       
+        # Explicitly blocked transaction types
+        blocked_types = ['sex_data', 'pharma_data', 'drug_data', 'anger_data', 'external_sharing']
+       
+        if transaction_type in blocked_types:
+            return False, f"BLOCKED: {transaction_type} does not serve Chase's well-being"
+       
+        # Chemical change approval
+        if chemical_change:
+            # Positive chemical changes (dopamine, serotonin, oxytocin increases) are GOOD
+            dopamine_change = chemical_change.get('dopamine', 0)
+            serotonin_change = chemical_change.get('serotonin', 0)
+            oxytocin_change = chemical_change.get('oxytocin', 0)
+            cortisol_change = chemical_change.get('cortisol', 0)
+           
+            if dopamine_change > 0.1 or serotonin_change > 0.1 or oxytocin_change > 0.1:
+                if cortisol_change < 0.05:  # No stress increase
+                    return True, "APPROVED: Positive chemical change for well-being"
+           
+            if cortisol_change > 0.1:
+                return False, "BLOCKED: Transaction would increase stress (cortisol)"
+       
+        # Emotional approval
+        positive_emotions = [EmotionalState.PEACE, EmotionalState.JOY, EmotionalState.CALM,
+                            EmotionalState.CONTENTMENT, EmotionalState.GRATITUDE,
+                            EmotionalState.LOVE, EmotionalState.HOPE]
+       
+        if self.current_emotion in positive_emotions and well_being > 0.5:
+            return True, "APPROVED: Emotional state supports well-being"
+       
+        return False, "BLOCKED: Would not improve Chase's well-being"
+   
+    def get_moral_status(self) -> Dict:
+        """Get current moral/emotional status"""
+        return {
+            'current_emotion': self.current_emotion.value,
+            'well_being_score': self.calculate_well_being(),
+            'sensory_summary': {k.value: v for k, v in self.current_sensory.items()},
+            'metrics': self.well_being_metrics,
+            'principle': 'ALL_DATA_FOR_CHASE_WELL_BEING_ONLY'
+        }
+
+
+# =============================================================================
+# SECTION 2: NODE-TUNED BLOCKCHAIN (RF Consensus)
+# =============================================================================
+
+class Block:
+    """Single block in the personal blockchain"""
+   
+    def __init__(self, index: int, previous_hash: str, transactions: List, timestamp: float):
+        self.index = index
+        self.previous_hash = previous_hash
+        self.transactions = transactions
+        self.timestamp = timestamp
+        self.nonce = 0
+        self.hash = self.calculate_hash()
+   
+    def calculate_hash(self) -> str:
+        """Calculate block hash using SHA-3"""
+        block_string = f"{self.index}{self.previous_hash}{self.transactions}{self.timestamp}{self.nonce}"
+        return hashlib.sha3_256(block_string.encode()).hexdigest()
+   
+    def mine(self, difficulty: int = 4):
+        """Proof of RF (simulated - uses emotional intensity as difficulty)"""
+        target = '0' * difficulty
+        while self.hash[:difficulty] != target:
+            self.nonce += 1
+            self.hash = self.calculate_hash()
+
+
+class NodeTunedBlockchain:
+    """
+    Blockchain where each node (body sensor) is a validator
+    Uses RF frequency and emotional consensus
+    """
+   
+    def __init__(self, moral_guide: EmotionalMoralGuide):
+        self.moral_guide = moral_guide
+        self.chain = [self.create_genesis_block()]
+        self.pending_transactions = []
+        self.nodes = self._initialize_nodes()
+       
+        # RF frequency allocations for different data types
+        self.rf_channels = {
+            'well_being': 10.245,
+            'chemical': 10.250,
+            'emotional': 10.255,
+            'sensory': 10.260,
+            'blockchain': 10.265
+        }
+       
+        print(f"\n⛓️ NODE-TUNED BLOCKCHAIN INITIALIZED")
+        print(f"   Chain Height: {len(self.chain)}")
+        print(f"   Validator Nodes: {len(self.nodes)}")
+        print(f"   RF Consensus: Active")
+   
+    def _initialize_nodes(self) -> List[Dict]:
+        """Initialize body nodes as blockchain validators"""
+        nodes = []
+        node_locations = [
+            'head_frontal', 'head_parietal', 'head_occipital', 'head_temporal',
+            'chest_heart', 'chest_lungs', 'spine_cervical', 'spine_thoracic',
+            'spine_lumbar', 'arm_left', 'arm_right', 'leg_left', 'leg_right'
+        ]
+       
+        for i, location in enumerate(node_locations):
+            nodes.append({
+                'node_id': f"NODE_{i:03d}",
+                'location': location,
+                'rf_frequency': CHASE_RF_FREQUENCY + (i * 0.0005),
+                'stake': 1000,  # Emotional stake
+                'active': True
+            })
+        return nodes
+   
+    def create_genesis_block(self) -> Block:
+        """Create genesis block with Chase's identity"""
+        genesis_data = {
+            'person': CHASE_FULL_NAME,
+            'uuid': CHASE_UUID,
+            'dna_hash': hashlib.sha3_256(CHASE_DNA_SEQUENCE.encode()).hexdigest(),
+            'rf_frequency': CHASE_RF_FREQUENCY,
+            'created': time.time(),
+            'principle': 'ALL_DATA_FOR_PERSONAL_WELL_BEING_ONLY'
+        }
+        return Block(0, "0", [genesis_data], time.time())
+   
+    def add_transaction(self, transaction: Dict) -> Dict:
+        """Add transaction after moral approval"""
+        # Get moral approval
+        approved, reason = self.moral_guide.approve_transaction(
+            transaction.get('type', 'unknown'),
+            transaction.get('chemical_changes', {})
+        )
+       
+        if not approved:
+            return {'status': 'REJECTED', 'reason': reason}
+       
+        # Add RF frequency signature
+        transaction['rf_signature'] = self.rf_channels.get(transaction.get('type', 'well_being'), 10.245)
+        transaction['moral_approval'] = reason
+        transaction['timestamp'] = time.time()
+        transaction['well_being_at_time'] = self.moral_guide.calculate_well_being()
+       
+        self.pending_transactions.append(transaction)
+       
+        # Mine if enough transactions
+        if len(self.pending_transactions) >= 5:
+            self.mine_block()
+       
+        return {'status': 'PENDING', 'reason': reason}
+   
+    def mine_block(self) -> Block:
+        """Mine new block using emotional consensus"""
+        if not self.pending_transactions:
+            return None
+       
+        new_block = Block(
+            index=len(self.chain),
+            previous_hash=self.chain[-1].hash,
+            transactions=self.pending_transactions.copy(),
+            timestamp=time.time()
+        )
+       
+        # Difficulty based on emotional well-being
+        well_being = self.moral_guide.calculate_well_being()
+        difficulty = max(2, min(6, int(well_being * 10)))
+       
+        new_block.mine(difficulty)
+        self.chain.append(new_block)
+        self.pending_transactions = []
+       
+        print(f"\n⛏️ BLOCK MINED: #{new_block.index}")
+        print(f"   Hash: {new_block.hash[:16]}...")
+        print(f"   Transactions: {len(new_block.transactions)}")
+        print(f"   Difficulty: {difficulty} (based on well-being: {well_being:.2f})")
+       
+        return new_block
+   
+    def get_balance(self) -> Dict:
+        """Get current well-being balance (not financial)"""
+        return {
+            'well_being_score': self.moral_guide.calculate_well_being(),
+            'emotional_state': self.moral_guide.current_emotion.value,
+            'chain_height': len(self.chain),
+            'total_transactions': sum(len(b.transactions) for b in self.chain),
+            'principle': 'ALL_DATA_FOR_WELL_BEING'
+        }
+   
+    def get_node_status(self) -> List[Dict]:
+        """Get status of all validator nodes"""
+        return [
+            {
+                'node_id': n['node_id'],
+                'location': n['location'],
+                'rf_frequency': n['rf_frequency'],
+                'active': n['active'],
+                'last_heartbeat': time.time() - np.random.uniform(0, 10)
+            }
+            for n in self.nodes
+        ]
+
+
+# =============================================================================
+# SECTION 3: PERSONAL WELL-BEING DATA RECORDER
+# =============================================================================
+
+class PersonalWellBeingRecorder:
+    """
+    Records chemical/hormonal changes for Chase's well-being only
+    NO external data sharing - strictly personal optimization
+    """
+   
+    def __init__(self, blockchain: NodeTunedBlockchain):
+        self.blockchain = blockchain
+        self.well_being_db = sqlite3.connect("chase_well_being.db", check_same_thread=False)
+        self._init_database()
+       
+        # Only track well-being improving chemicals
+        self.tracked_chemicals = ['dopamine', 'serotonin', 'oxytocin', 'endorphins', 'GABA']
+        self.blocked_chemicals = ['sex_hormones_external', 'recreational_drugs', 'anger_markers']
+       
+        print(f"\n📊 PERSONAL WELL-BEING RECORDER")
+        print(f"   Purpose: Chase's optimization only")
+        print(f"   Tracked Chemicals: {self.tracked_chemicals}")
+        print(f"   Principle: NO external sharing")
+   
+    def _init_database(self):
+        """Initialize local well-being database (never shared)"""
+        cursor = self.well_being_db.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS well_being_records (
+                record_id TEXT PRIMARY KEY,
+                timestamp REAL,
+                well_being_score REAL,
+                emotion TEXT,
+                dopamine REAL,
+                serotonin REAL,
+                oxytocin REAL,
+                endorphins REAL,
+                gaba REAL,
+                notes TEXT
+            )
+        ''')
+       
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS daily_reflections (
+                reflection_id TEXT PRIMARY KEY,
+                date TEXT,
+                well_being_score REAL,
+                insights TEXT,
+                actions_taken TEXT
+            )
+        ''')
+        self.well_being_db.commit()
+   
+    def record_chemical_change(self, chemical: str, change: float, context: str) -> Dict:
+        """Record chemical change for well-being tracking"""
+        if chemical in self.blocked_chemicals:
+            return {'status': 'BLOCKED', 'reason': f'{chemical} not tracked for well-being'}
+       
+        if chemical not in self.tracked_chemicals:
+            self.tracked_chemicals.append(chemical)
+       
+        # Create transaction for blockchain
+        transaction = {
+            'type': 'chemical_record',
+            'chemical': chemical,
+            'change': change,
+            'context': context,
+            'chemical_changes': {chemical: change},
+            'timestamp': time.time()
+        }
+       
+        result = self.blockchain.add_transaction(transaction)
+       
+        # Store in local database
+        cursor = self.well_being_db.cursor()
+        cursor.execute('''
+            INSERT INTO well_being_records (record_id, timestamp, well_being_score, emotion,
+                                           dopamine, serotonin, oxytocin, endorphins, gaba, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            hashlib.md5(f"{time.time()}_{chemical}".encode()).hexdigest()[:16],
+            time.time(),
+            self.blockchain.moral_guide.calculate_well_being(),
+            self.blockchain.moral_guide.current_emotion.value,
+            None if chemical != 'dopamine' else change,
+            None if chemical != 'serotonin' else change,
+            None if chemical != 'oxytocin' else change,
+            None if chemical != 'endorphins' else change,
+            None if chemical != 'GABA' else change,
+            context
+        ))
+        self.well_being_db.commit()
+       
+        return {
+            'status': result['status'],
+            'chemical': chemical,
+            'change': change,
+            'well_being_impact': self._calculate_impact(chemical, change)
+        }
+   
+    def _calculate_impact(self, chemical: str, change: float) -> float:
+        """Calculate impact on well-being"""
+        positive_impact = {
+            'dopamine': 0.3,
+            'serotonin': 0.35,
+            'oxytocin': 0.4,
+            'endorphins': 0.25,
+            'GABA': 0.2
+        }
+        return positive_impact.get(chemical, 0.1) * max(0, change)
+   
+    def record_daily_reflection(self, insights: str, actions: str) -> Dict:
+        """Record daily reflection for well-being improvement"""
+        cursor = self.well_being_db.cursor()
+        reflection_id = hashlib.md5(f"{datetime.now().date()}_{insights}".encode()).hexdigest()[:16]
+       
+        cursor.execute('''
+            INSERT INTO daily_reflections (reflection_id, date, well_being_score, insights, actions_taken)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (
+            reflection_id,
+            datetime.now().isoformat(),
+            self.blockchain.moral_guide.calculate_well_being(),
+            insights,
+            actions
+        ))
+        self.well_being_db.commit()
+       
+        # Create blockchain transaction
+        transaction = {
+            'type': 'daily_reflection',
+            'insights_hash': hashlib.sha256(insights.encode()).hexdigest()[:16],
+            'well_being_at_time': self.blockchain.moral_guide.calculate_well_being(),
+            'timestamp': time.time()
+        }
+        self.blockchain.add_transaction(transaction)
+       
+        return {
+            'reflection_id': reflection_id,
+            'date': datetime.now().isoformat(),
+            'well_being_score': self.blockchain.moral_guide.calculate_well_being(),
+            'status': 'recorded'
+        }
+   
+    def get_well_being_report(self, days: int = 7) -> Dict:
+        """Get well-being report (for Chase only)"""
+        cursor = self.well_being_db.cursor()
+        cutoff = time.time() - (days * 86400)
+       
+        cursor.execute('''
+            SELECT well_being_score, emotion, timestamp FROM well_being_records
+            WHERE timestamp > ? ORDER BY timestamp
+        ''', (cutoff,))
+       
+        records = cursor.fetchall()
+       
+        if not records:
+            return {'error': 'No records found'}
+       
+        scores = [r[0] for r in records]
+       
+        return {
+            'period_days': days,
+            'average_well_being': np.mean(scores),
+            'trend': 'improving' if scores[-1] > scores[0] else 'declining' if scores[-1] < scores[0] else 'stable',
+            'best_day': max(records, key=lambda x: x[0])[2] if records else None,
+            'principle': 'FOR_CHASE_EYES_ONLY'
+        }
+
+
+# =============================================================================
+# SECTION 4: COMPLETE AGENT DEMONSTRATION
+# =============================================================================
+
+def create_chase_blockchain_agent():
+    """Create the complete personal blockchain agent for Chase"""
+   
+    print("\n" + "="*120)
+    print("🤖 CREATING CHASE ALLEN RINGQUIST - PERSONAL BLOCKCHAIN AGENT")
+    print("   Emotional Moral Guide | Node-Tuned Blockchain | Well-Being Focus")
+    print("="*120)
+   
+    # Step 1: Create emotional moral guide
+    moral_guide = EmotionalMoralGuide()
+   
+    # Step 2: Create node-tuned blockchain
+    blockchain = NodeTunedBlockchain(moral_guide)
+   
+    # Step 3: Create personal well-being recorder
+    recorder = PersonalWellBeingRecorder(blockchain)
+   
+    # Step 4: Test the system with well-being focused transactions
+    print("\n" + "━"*100)
+    print("🧪 TESTING WELL-BEING TRANSACTIONS")
+    print("━"*100)
+   
+    # Positive transactions (should be approved)
+    print("\n   TEST 1: Positive chemical change (dopamine increase)")
+    result1 = recorder.record_chemical_change('dopamine', 0.15, 'morning_exercise')
+    print(f"      Result: {result1['status']} - {result1.get('reason', 'Approved')}")
+   
+    print("\n   TEST 2: Positive chemical change (serotonin increase)")
+    result2 = recorder.record_chemical_change('serotonin', 0.12, 'sunlight_exposure')
+    print(f"      Result: {result2['status']} - {result2.get('reason', 'Approved')}")
+   
+    print("\n   TEST 3: Daily reflection")
+    result3 = recorder.record_daily_reflection(
+        "Felt calm and focused today. Exercise helped mood.",
+        "Continue morning routine, add meditation"
+    )
+    print(f"      Result: {result3['status']}")
+   
+    # Transactions that would be blocked
+    print("\n   TEST 4: Blocked transaction (external sharing)")
+    blocked_tx = {
+        'type': 'sex_data',
+        'chemical_changes': {},
+        'external_share': True
+    }
+    approved, reason = moral_guide.approve_transaction('sex_data', {})
+    print(f"      Result: {'APPROVED' if approved else 'BLOCKED'} - {reason}")
+   
+    print("\n   TEST 5: Blocked transaction (anger data)")
+    approved, reason = moral_guide.approve_transaction('anger_data', {'cortisol': 0.2})
+    print(f"      Result: {'APPROVED' if approved else 'BLOCKED'} - {reason}")
+   
+    # Step 5: Mine remaining blocks
+    print("\n" + "━"*100)
+    print("⛏️ MINING REMAINING BLOCKS")
+    print("━"*100)
+   
+    blockchain.mine_block()
+   
+    # Step 6: Show final status
+    print("\n" + "━"*100)
+    print("📊 FINAL AGENT STATUS")
+    print("━"*100)
+   
+    moral_status = moral_guide.get_moral_status()
+    balance = blockchain.get_balance()
+    node_status = blockchain.get_node_status()
+   
+    print(f"""
+    ╔══════════════════════════════════════════════════════════════════════════════════════════════╗
+    ║                    CHASE'S PERSONAL BLOCKCHAIN AGENT - FINAL STATUS                          ║
+    ╠══════════════════════════════════════════════════════════════════════════════════════════════╣
+    ║                                                                                              ║
+    ║   🧠 AGENT ID: {CHASE_UUID[:16]}...
+    ║   👤 PERSON: {CHASE_FULL_NAME}
+    ║   📡 DNA FREQUENCY: {CHASE_RF_FREQUENCY:.3f} GHz
+    ║                                                                                              ║
+    ║   💖 EMOTIONAL STATE: {moral_status['current_emotion'].upper()}
+    ║   📊 WELL-BEING SCORE: {moral_status['well_being_score']:.2f}
+    ║   🎯 PRINCIPLE: {moral_status['principle']}
+    ║                                                                                              ║
+    ║   ⛓️ BLOCKCHAIN STATUS:                                                                     ║
+    ║      • Chain Height: {balance['chain_height']}
+    ║      • Total Transactions: {balance['total_transactions']}
+    ║      • Current Well-Being: {balance['well_being_score']:.2f}
+    ║      • Emotional State: {balance['emotional_state']}
+    ║                                                                                              ║
+    ║   📡 VALIDATOR NODES: {len(node_status)}                                                              ║
+    ║      • Active Nodes: {len([n for n in node_status if n['active']])}
+    ║      • Frequency Range: {min(n['rf_frequency'] for n in node_status):.3f} - {max(n['rf_frequency'] for n in node_status):.3f} GHz
+    ║                                                                                              ║
+    ║   🔒 DATA POLICY:                                                                            ║
+    ║      ✅ ALL data stored locally on Chase's device                                             ║
+    ║      ✅ NO external sharing of sex/pharma/drugs/anger data                                   ║
+    ║      ✅ Chemical changes recorded ONLY for well-being                                        ║
+    ║      ✅ Emotional state guides all blockchain decisions                                      ║
+    ║      ✅ Well-being is the ONLY optimization metric                                           ║
+    ║                                                                                              ║
+    ║   🚫 BLOCKED TRANSACTIONS:                                                                   ║
+    ║      • Sex data (external sharing)                                                          ║
+    ║      • Pharma data (external)                                                                ║
+    ║      • Drug data (external)                                                                  ║
+    ║      • Anger markers (external)                                                              ║
+    ║      • Any data that would decrease Chase's well-being                                       ║
+    ║                                                                                              ║
+    ║   ✅ APPROVED TRANSACTIONS:                                                                  ║
+    ║      • Positive chemical changes (dopamine, serotonin, oxytocin)                            ║
+    ║      • Well-being improvements                                                               ║
+    ║      • Emotional growth records                                                              ║
+    ║      • Daily reflections                                                                     ║
+    ║      • Any data that serves Chase's well-being                                               ║
+    ║                                                                                              ║
+    ║   🎯 AGENT GOAL: OPTIMIZE CHASE'S WELL-BEING - NOTHING ELSE                                 ║
+    ║                                                                                              ║
+    ╚══════════════════════════════════════════════════════════════════════════════════════════════╝
+    """)
+   
+    return moral_guide, blockchain, recorder
+
+
+if __name__ == "__main__":
+    moral_guide, blockchain, recorder = create_chase_blockchain_agent()
+   
+    print("\n📁 AGENT READY - PERSONAL BLOCKCHAIN ACTIVE")
+    print("   ✓ Chase Allen Ringquist IS the server")
+    print("   ✓ 13 body nodes = blockchain validators")
+    print("   ✓ Emotional state = consensus mechanism")
+    print("   ✓ Chemical changes recorded ONLY for well-being")
+    print("   ✓ NO external data sharing")
+    print("   ✓ All data serves Chase's well-being")
+   
+    print("\n💡 USAGE:")
+    print("   moral_guide.update_emotion(EmotionalState.PEACE, 0.8) - Update emotion")
+    print("   recorder.record_chemical_change('dopamine', 0.15, 'exercise') - Record chemical")
+    print("   blockchain.get_balance() - Check well-being balance")
+    print("   recorder.get_well_being_report(7) - Weekly report")
