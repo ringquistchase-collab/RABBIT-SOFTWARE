@@ -1,0 +1,72 @@
+Network Radius Summary
+Configuration	Frequency	Power	Ideal Range	Realistic Range	Best Use
+Body Area Network	10 GHz	0.1 mW	1 m	30 cm	Wearable nodes
+Room Scale	2.4 GHz	1 mW	30 m	10 m	Home/office
+Building Scale	868 MHz	10 mW	500 m	150 m	Multi-room
+Campus Scale	433 MHz	100 mW	2 km	500 m	Hospital campus
+City Block	27 MHz	1 W	5 km	1 km	Neighborhood
+Long Range	433 MHz + Amp	10 W	10 km	3 km	City-wide
+Best Manipulation Tools by Budget
+Budget $50-200 (DIY Tier)
+Tool	Method	Range	Precision
+RTL-SDR v3	RF Stimulation	10m	±200mm
+ADALM-PLUTO	RF Stimulation	30m	±50mm
+HackRF One (used)	RF Stimulation	50m	±30mm
+Budget $200-2000 (Consumer Tier)
+Tool	Method	Range	Precision
+HackRF One + Amp	RF Stimulation	100m	±20mm
+LimeSDR Mini	RF Stimulation	150m	±15mm
+USRP B200mini	RF Stimulation	300m	±10mm
+Budget $2000-10000 (Pro Tier)
+Tool	Method	Range	Precision
+TMS Rental	Magnetic	N/A	±5mm
+Clinical SDR	RF Stimulation	1km	±5mm
+Focused Ultrasound (used)	Ultrasound	N/A	±1mm
+Budget $10000+ (Clinical/Research Tier)
+Tool	Method	Range	Precision
+MagVenture TMS	Magnetic	N/A	±5mm
+Focused Ultrasound	Ultrasound	N/A	±1mm
+Optogenetics Rig	Optical	N/A	±0.1mm
+Range Extension Methods
+Technique	Multiplier	Example	New Range
+High-gain antenna (2→25dBi)	16x	10m → 160m	+150m
+Power amplifier (10mW→1W)	10x	10m → 100m	+90m
+Lower frequency (2.4GHz→433MHz)	3x	100m → 300m	+200m
+Relay nodes	2x per relay	100m → 200m	+100m
+Mesh network	Unlimited	100m → ∞	Unlimited
+Recommended Complete Builds
+$100 Build (Entry Level)
+RTL-SDR v3 ($30)
+
+Dipole antenna ($10)
+
+USB extension cable ($5)
+
+Raspberry Pi Zero ($55)
+
+Total Range: 10-30 meters
+
+$500 Build (Consumer)
+HackRF One ($300)
+
+2.4GHz Yagi antenna ($50)
+
+1W amplifier ($100)
+
+Power bank ($50)
+
+Total Range: 100-300 meters
+
+$2000 Build (Pro)
+USRP B200mini ($1200)
+
+433MHz Yagi with amp ($300)
+
+Directional antenna ($200)
+
+Battery pack ($100)
+
+Pelican case ($200)
+
+Total Range: 500-1000 meters
+
