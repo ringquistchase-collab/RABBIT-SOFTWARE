@@ -1,0 +1,7 @@
+f_RF = (Σ nucleotide_freq / N) + (Σ codon_offset / M)
+
+Where:
+- nucleotide_freq: A=10.23, T=10.24, U=10.25, G=10.26, C=10.27 GHz
+- codon_offset: 0.000-0.054 GHz per codon (varies by amino acid)
+- N = number of nucleotides
+- M = number of codons
