@@ -1,0 +1,8 @@
+Private Subnet A: 10.0.2.0/24  → Compute tier
+- Security Group: Inbound TCP 443 (self-referencing only)
+- NACL: 10.0.0.0/16 ALLOW, all else DENY
+- Route Table: S3 VPC Endpoint → Local
+
+Private Subnet B: 10.0.3.0/24  → Database tier  
+- Security Group: Inbound TCP 5432 (from Subnet A only)
+- Multi-AZ RDS with KMS encryption
