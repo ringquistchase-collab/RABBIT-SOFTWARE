@@ -1,0 +1,14 @@
+1. EEG: HEAD_01 → FAA=-0.23, θ/α=0.62
+2. Skin: Δφ=+0.06 rad (GSR proxy)
+3. Cardiac: HRV LF/HF=2.1
+4. Hormone: Cortisol=0.78 ng/mL (20min)
+
+5. **Emotion State** = f(EEG_skin_cardiac_hormone)
+6. **Stress Probability** = P(cortisol>0.75 | all_features)
+
+**Blockchain Token** (139 bytes):
+{
+  "fingerprint": sha256(all_features),
+  "bucket": "valence_-0.2_stress_0.8_k50",
+  "sig": "3of5:HEAD01+CHEST01+SPINE03"
+}
