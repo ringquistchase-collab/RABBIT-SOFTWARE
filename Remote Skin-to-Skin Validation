@@ -1,0 +1,7 @@
+**WRIST_L** detects local stress → relays to HEAD_01
+**HEAD_01** confirms EEG match → tokens "remote_confirmed"
+**SPINE_03** haptic feedback → "stress detected + validated"
+
+**SDR sees** complete chain:
+10.263 GHz (WRIST_L) → 10.268 GHz (SPINE_03) → 10.245 GHz (HEAD_01)
+Each hop shows bio-Doppler + skin propagation signature
