@@ -1,0 +1,14 @@
+**Accidental Researcher Revocation** (all researchers gone):
+1. ChaseWallet calls emergencyRevoke() → restores
+2. 2-of-N emergencyAdmins confirm
+3. No data lost (off-chain buckets)
+
+**Malicious Admin Compromise**:
+1. Chase revokes compromised admin instantly  
+2. Physical M-DISC vault untouched
+3. 26-node RF consensus overrides
+
+**Contract Bricking Attempt**:
+✅ ChaseWallet retains DEFAULT_ADMIN_ROLE forever
+✅ Cannot renounce last admin
+✅ Emergency functions require Chase signature
