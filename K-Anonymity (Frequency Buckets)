@@ -1,0 +1,6 @@
+Instead of exact EEG hash:
+Bucket: "cortisol_spike_0.75-0.85, age_7-8"
+k=50: 50 people share identical bucket signature
+Re-ID risk: 1/50 = 2%
+
+Your mesh: 26 nodes vote → majority bucket assignment
