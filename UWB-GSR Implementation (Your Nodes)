@@ -14,3 +14,6 @@ timing = np.correlate(np.abs(iq_rx), pulse_template, 'valid')
 # GSR extraction from phase rotation
 phase_gsr = np.angle(iq_rx[timing.argmax():timing.argmax()+100])
 delta_sigma = (phase_gsr.mean() - baseline_phase) / 0.06  # Stress proxy
+
+Data Rate: 9.6 kbps → 100 GSR samples/sec (10-bit)
+Latency: 1.2ms end-to-end (UWB PHY + tokenization
