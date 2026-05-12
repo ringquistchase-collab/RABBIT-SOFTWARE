@@ -1,0 +1,16 @@
+1. **Physical Check** (molecular_integrity_check)
+   ✅ No freeze-thaw shearing
+   ✅ qPCR matches expected Cq
+   
+2. **Crypto Check** (crypto_tamper_check)  
+   ✅ SHA-256 sequence matches vault record
+   ✅ Ed25519 signature validates
+   
+3. **Live Cross-Check** (daily HEAD_01 swab)
+   ✅ Live DNA → root_hash matches ALL frozen signatures
+   
+4. **RF Consensus** (26-node vote)
+   ✅ Threshold 20-of-26 nodes approve
+   
+5. **Temporal Nonce** (anti-replay)
+   ✅ Signature timestamp valid ±24hr window
