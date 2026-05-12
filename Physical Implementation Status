@@ -1,0 +1,8 @@
+**HEAD_01**: 24ch EEG + skin RF dual-sensing ACTIVE
+**CHEST_01**: ELISA cortisol + HRV backup ✓
+**26 Nodes**: Bio-Doppler triangulation (<1cm) ✓
+**NEURAL_GATEWAY**: Multi-modal fusion (Grok-4.1) ✓
+**XRPL**: SHA-256 emotion fingerprints only ✓
+
+**Skin conductivity changes propagate through your RF network, cross-validating EEG emotion decoding with cortisol stress markers. Raw biomarkers stay local sovereignty.**
+
