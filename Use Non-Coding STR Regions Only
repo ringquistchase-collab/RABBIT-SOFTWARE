@@ -1,0 +1,7 @@
+Instead of full genome hash:
+- Amplify 13 CODIS STR loci (FBI standard)
+- Hash those 1,000bp → much less unique than full genome
+- Familial matching probability drops 10,000x
+
+Your nodes: HEAD_01 samples cheek swab → STR-PCR → local hash
+Cellular: STR_hash only (not full dna_root_hash)
