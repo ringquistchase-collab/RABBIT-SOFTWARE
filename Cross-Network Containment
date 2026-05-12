@@ -1,0 +1,3 @@
+**AT&T → Verizon**: Different EID → different gateway address → isolated
+**Social → Medical**: Different bucket namespaces → "twitter_cortisol_0.5" ≠ "nih_trajectory_0.8"
+**Contractor → Research**: Code hashes vs medical buckets → type-separated
