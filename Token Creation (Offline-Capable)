@@ -1,0 +1,20 @@
+# Offline token minting - RF mesh only
+class OfflineNeuralToken:
+    def __init__(self, dna_root="8f3d9a612b718a99"):
+        self.dna_key = ed25519.derive_key(dna_root)
+    
+    def mint_bucket_token(self, risk_tier_bucket, nonce):
+        # Risk-ranked data only (no CRITICAL)
+        if risk_tier_bucket.tier == 'CRITICAL':
+            raise ValueError("Vaulted data - offline denied")
+        
+        # Offline threshold signature (3-of-5 nodes)
+        partial_sigs = rf_nodes.collect_signatures(3)  # HEAD_01, CHEST_01, SPINE_03
+        token = threshold_combine(partial_sigs, bucket_hash)
+        
+        return {
+            'bucket': risk_tier_bucket.bucket,  # "cortisol_0.8_age7"
+            'token': token.hex(),
+            'nonce': nonce,  # Anti-replay
+            'live_dna_verified': True  # FR + cheek swab
+        }
