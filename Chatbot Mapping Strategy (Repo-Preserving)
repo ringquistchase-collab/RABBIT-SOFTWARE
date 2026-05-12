@@ -1,0 +1,20 @@
+**Chatbot Content → RABBIT-SOFTWARE Structure**:
+
+1. **Technical Specs** (φ=0.06 rad, 1.2ms latency)
+   → docs/gsr_sdr_specs.md
+   
+2. **GNU Radio Flowgraphs** (skin_gsr_eeg.grc)
+   → dsp/gnuradio/gsr/
+   
+3. **Firmware** (Zephyr CHEST_01)
+   → firmware/zephyr/gsr_sdr/
+   
+4. **LLM Fusion** (FusionRoute.py)
+   → ai/fusion/gsr_eeg/
+   
+5. **Docker/Deployment**
+   → deploy/gsr_sdr/
+   
+6. **Conversation History**
+   → docs/conversations/gsr_sdr_chat_20260512.md
+
