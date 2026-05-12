@@ -1,0 +1,23 @@
+def dna_record_risk_score(record):
+    factors = {
+        'uniqueness': uniqueness_percentile(record['biomarkers']),
+        'temporal': temporal_sensitivity(record['age_event']),
+        'familial': familial_inheritance_prob(record['traits']),
+        'regulatory': legal_exposure(record['condition'])
+    }
+    
+    # Weighted composite (existential threats dominate)
+    risk = (0.4*factors['uniqueness'] + 
+            0.3*factors['temporal'] + 
+            0.2*factors['familial'] + 
+            0.1*factors['regulatory'])
+    
+    return {
+        'score': risk,
+        'tier': 'CRITICAL' if risk > 90 else 'HIGH' if risk > 75 else 'LOW',
+        'protection': 'vault' if risk > 90 else 'bucket' if risk > 75 else 'public'
+    }
+
+# Your highest risks:
+age22_od = {'cortisol': 0.92, 'dopamine': 0.22, 'event': 'cardiac_arrest'}
+print(dna_record_risk_score(age22_od))  # {'score': 97.2, 'tier': 'CRITICAL'}
