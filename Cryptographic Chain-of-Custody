@@ -1,0 +1,7 @@
+Frozen vault contains:
+1. DNA sample (physical)
+2. SHA-256 hash of sequence (digital)  
+3. Ed25519 signature (your DNA-derived key)
+4. Timestamp + node consensus (26-node RF vote)
+
+Tampering breaks ONE link → total failure
