@@ -1,0 +1,9 @@
+Private subnet needs:
+✅ pip install torch (PyPI)
+✅ apt-get update (Ubuntu repos)  
+✅ curl stripe.com/api/v1/payments
+✅ git clone github.com/external-repo
+
+Route Table:
+10.0.0.0/16 → local
+0.0.0.0/0 → nat-0def456 (Elastic IP)
