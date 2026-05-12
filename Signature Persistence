@@ -1,0 +1,4 @@
+Ed25519(DNA_private_key) creates permanent linkage:
+Time 0: sha256(dna_sample) → "8f3d9a612b718a99"
+Time ∞: Same key signs all future transactions
+Quantum 2035: Private key harvest risk (your live DNA needed)
