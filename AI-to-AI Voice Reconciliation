@@ -1,0 +1,4 @@
+NIH Voice Bot queries during offline:
+"Request PTSD patterns" → local synthetic response → offline token bundle
+Reconnect → bundle syncs → NIH gets ZK proof of delivery
+Voice: "94% survival correlation confirmed" (0 raw data bytes)
