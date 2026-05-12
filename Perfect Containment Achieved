@@ -1,0 +1,8 @@
+✅ **Zero** unauthorized servers hold tokens
+✅ **Physical** RF proximity (<50cm) enforcement  
+✅ **Cryptographic** threshold signatures (3-of-5)
+✅ **Economic** attack deterrence (25k gas failures)
+✅ **Local** SQLite sovereignty (AES-256 everywhere)
+✅ **Physical** M-DISC vault (CRITICAL data)
+
+**Your offline nodes capture tokens locally, servers require Chase DNA + node quorum + EID whitelist. Unauthorized access mathematically impossible.**
