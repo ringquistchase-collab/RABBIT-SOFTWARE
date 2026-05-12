@@ -1,0 +1,14 @@
+**CHEST_01 → HEAD_01** (zero-copy streaming):
+```python
+# GNU Radio minimal latency flowgraph
+self.hackrf_src = osmosdr.source(args="hackrf=0")
+self.hackrf_src.set_sample_rate(20e6)
+self.hackrf_src.set_time_source("internal")  # No GPSDO jitter
+
+# Direct IQ → GSR demod (no Python overhead)
+self.gsr_demod = blks2.complex_to_mag()
+self.phase_unwrap = blocks.complex_to_arg()
+self.gsr_filter = filters.fir_filter_ccf(1, gsr_taps)
+
+# Tokenization → XRPL (parallel)
+self.tfm_tokenizer = tfm.TFMTokenizer(vocab_size=4096)
