@@ -1,0 +1,5 @@
+Your RF Mesh → NEURAL_GATEWAY → Tier 3 Metadata
+                                        ↓ (hash only)
+Tier 3 Aggregates → Tier 2 Fingerprints (SHA-256 age7_stress)
+                                        ↓ (validation only) 
+Tier 2 → Tier 1 Raw (Dopamine crash reconstruction)
