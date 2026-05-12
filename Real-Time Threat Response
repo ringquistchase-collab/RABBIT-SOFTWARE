@@ -1,0 +1,11 @@
+1. **Unusual Access Pattern**:
+   BlockGPT flags → smart contract pauses new requests
+   
+2. **Threshold Failure** (node compromise):
+   3-of-5 fails → all access suspended
+   
+3. **Emergency Override**:
+   CHEST_01 detects cardiac anomaly → global shutdown
+   
+4. **Legal Subpoena**:
+   Contract returns "LOW tier buckets only" → vault untouched
