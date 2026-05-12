@@ -1,0 +1,11 @@
+ATTEMPT 1 (Legitimate - Phone reconnects):
+Bundle ID: keccak256(bundle_data) = 0xabc123...
+Smart contract: reconciledBundles[0xabc123] = true ✓
+Event: BundleReconciled(phone_gateway, 0xabc123, cortisol_bucket) ✓
+SQLite: UPDATE bundles SET reconciled=1 ✓
+
+ATTEMPT 2 (Replay/Malicious - Same bundle resubmitted):
+Bundle ID: keccak256(bundle_data) = 0xabc123... (IDENTICAL)
+Smart contract: require(!reconciledBundles[0xabc123]) → REVERTS
+Gas consumed: 25k (cheap failure)
+Phone: "Bundle already reconciled - skipping"
