@@ -1,0 +1,10 @@
+SQLite stores: eeg_rf_effects(timestamp, alpha_rel, z_score, sar_estimate)
+
+Daily computation:
+baseline_alpha = rolling_mean(24hr, exclude_exposure_periods)
+z_score = (current_alpha - baseline_alpha) / baseline_alpha_std
+
+Example session:
+05:00 Baseline: α_rel = 42.1%
+05:35 Exposure: α_rel = 44.3% (z=2.1 → YELLOW)
+06:00 Recovery: α_rel = 42.8% (z=0.4 → GREEN)
