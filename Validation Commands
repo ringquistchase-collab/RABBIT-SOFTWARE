@@ -1,0 +1,9 @@
+# Verify endpoint route active
+aws ec2 describe-route-tables --route-table-ids rtb-0123456789abcdef0
+
+# Test S3 access from private subnet
+aws s3 ls s3://chase-eeg-hashes/ --region us-east-1
+
+# Confirm NO internet route
+aws ec2 describe-route-tables --filters Name=vpc-id,Values=vpc-01234567 | grep -v local | grep -v pl-
+# Should return empty (no 0.0.0.0/0)
