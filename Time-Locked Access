@@ -1,0 +1,9 @@
+uint256 public unlockTime;
+bool public dataReleased;
+
+function claimData() external {
+    require(block.timestamp >= unlockTime, "Not yet");
+    require(!dataReleased, "Already claimed");
+    dataReleased = true;
+    // Release encrypted bucket
+}
