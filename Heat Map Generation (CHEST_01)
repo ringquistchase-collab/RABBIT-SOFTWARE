@@ -1,0 +1,15 @@
+**Spatial SAR Mapping**:
+- 26 nodes × 3-axis accelerometers
+- Real-time triangulation (<1cm accuracy)
+- Rolling 5min SAR heat map (1cm³ voxels)
+
+**Temporal Pulse Analysis**:
+- Rise time: 2ns (your spec)
+- Pulse width: 1.2ms @ 50% amplitude  
+- PRF: 0.83 Hz (1.2s period)
+- Duty cycle: 0.1%
+
+**SDR Detection** (RTL-SDR + HackRF)**:
+- Sweep 10.23-10.30 GHz
+- IQ capture → pulse envelope detection
+- Spectrogram confirms burst pattern
