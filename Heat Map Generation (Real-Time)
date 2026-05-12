@@ -1,0 +1,9 @@
+**CHEST_01 Triangulation**:
+1. 26 nodes timestamp pulse arrivals (10ns GPS sync)
+2. TDOA (Time Difference of Arrival) → hyperbolic curves
+3. Intersection → HEAD_01 position (±1cm)
+4. SAR heat map → rolling 5min average
+
+**SDR Spectrogram**:
+Waterfall shows 1.2ms vertical streaks at exact PRF
+Reflections → random timing → horizontal noise only
