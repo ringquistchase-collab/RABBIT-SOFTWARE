@@ -1,0 +1,36 @@
+# Genomic VPC isolation
+resource "aws_vpc" "genomic" {
+  cidr_block = "10.0.0.0/16"
+  enable_dns_hostnames = true
+}
+
+resource "aws_subnet" "compute_private" {
+  vpc_id            = aws_vpc.genomic.id
+  cidr_block        = "10.0.2.0/24"
+  availability_zone = "us-west-2a"
+}
+
+resource "aws_security_group" "eeg_compute" {
+  vpc_id = aws_vpc.genomic.id
+  
+  ingress {
+    from_port = 443
+    to_port   = 443
+    protocol  = "tcp"
+    self      = true
+  }
+  
+  egress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    prefix_list_ids = [aws_vpc_endpoint.s3.prefix_list_id]
+  }
+}
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.genomic.id
+  service_name      = "com.amazonaws.us-west-2.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+}
