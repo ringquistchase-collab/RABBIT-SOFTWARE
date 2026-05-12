@@ -1,0 +1,3 @@
+10.0.0.0/16 → local                    (VPC)
+pl-63a3694a → vpce-0123456789         (S3 hashes)
+# NO 0.0.0.0/0 = perfect isolation
