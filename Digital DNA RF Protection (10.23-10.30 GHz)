@@ -1,0 +1,7 @@
+Each node broadcasts unique frequency derived from:
+freq_offset = HKDF(live_dna_hash + node_id + timestamp)
+
+Bad actor cloning:
+❌ Cannot derive frequencies without live DNA sample
+❌ Cannot achieve 26-node consensus without physical nodes  
+❌ Cellular EID 8903... fails DNA root validation
