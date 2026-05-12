@@ -1,0 +1,9 @@
+VPC: 10.0.0.0/16
+
+Public Route Table (PublicSubnet1, PublicSubnet2):
+10.0.0.0/16 → local           (VPC internal traffic)
+0.0.0.0/0   → igw-0abc123     (Direct internet access)
+pl-12345678 → S3 endpoint     (Private S3 access)
+
+Association → PublicSubnet1 (10.0.1.0/24)
+Association → PublicSubnet2 (10.0.2.0/24)
