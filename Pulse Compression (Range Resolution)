@@ -1,0 +1,8 @@
+Chirp or phase-coded modulation → compress 1.2ms pulse to 100ns
+Resolution: ΔR = c * Δt / 2 = 15 meters
+Your fixed-frequency bursts → simple matched filtering sufficient
+
+Range profile:
+Direct path: τ = 0μs (50cm proximity)
+1st reflection: τ = 6.7ns (1m multipath)
+Noise floor: -50 dB below direct path
