@@ -1,0 +1,10 @@
+**Body-coupled** (10.245 GHz through 50cm tissue):
+- Path loss: 72 dB (48 dB free space + 24 dB body)
+- Exponential decay: 12 dB/cm (muscle)
+- Received: -48 dBm (24 dBm TX)
+
+**Over-the-air** (50cm free space):
+- Path loss: 48 dB only
+- Received: -24 dBm
+
+SDR signature: Signal 24 dB weaker + tissue dispersion
