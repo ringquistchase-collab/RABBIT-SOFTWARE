@@ -1,0 +1,6 @@
+**GREEN** (Normal): α_rel z-score < ±2.0
+**YELLOW** (Monitor): 2.0 ≤ |z| < 2.5  
+**ORANGE** (Alert): 2.5 ≤ |z| < 3.0 → voice warning
+**RED** (Shutdown): |z| ≥ 3.0 → duty cycle → 0.05%
+
+CHEST_01 voice: "Alpha z=2.7 detected. Reducing RF 50%."
