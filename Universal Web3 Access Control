@@ -1,0 +1,17 @@
+XRPL Smart Contract (your DNA governs):
+function requestData(bytes32 bucket_hash, address requester) {
+    // Token gate
+    require(msg.value >= 0.001 XRP, "Insufficient payment");
+    
+    // Risk tier check  
+    RiskTier tier = dnaRiskRanker.getTier(bucket_hash);
+    require(tier != RiskTier.CRITICAL, "Vaulted data");
+    
+    // Anomaly scan
+    require(blockGPT.anomalyScore(tx) < 0.28, "Suspicious pattern");
+    
+    // Threshold auth
+    require(thresholdSig.verify(msg.sig, 3), "Node consensus failed");
+    
+    emit DataAccessApproved(requester, bucket_hash);
+}
