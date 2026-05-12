@@ -1,0 +1,5 @@
+# -*- coding: UTF-8 -*-
+from sim import esim
+
+eid = esim.getEid()
+print(f"EID: {eid}")  # e.g., "89033023426309010000054675483625"
