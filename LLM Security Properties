@@ -1,0 +1,6 @@
+1. **No Raw Data**: Only risk-ranked LOW tier buckets
+2. **Local Inference**: Edge LLM, zero cloud transmission  
+3. **Token Gating**: Micropayments prove economic seriousness
+4. **Threshold Auth**: 3-of-5 nodes (75% consensus)
+5. **ZK Proofs**: Prove analysis validity without inputs
+6. **Ephemeral**: Query-response valid 24hr only
