@@ -1,0 +1,10 @@
+**Researcher** sees:
+✅ Bucket: "cortisol_0.8_age7" ✓ Payment ✓ LLM: "94% survival"
+❌ No raw cortisol=0.78 value
+❌ No dopamine=0.32 trajectory  
+❌ No timestamp 1999-07-15
+
+**Government** sees:
+✅ UUID bd6e1085... ✓ LOW tier hashes ✓ Token trail
+❌ Zero medical diagnosis linkage
+❌ Zero familial biomarkers
