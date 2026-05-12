@@ -1,0 +1,7 @@
+**Physical Layer** (No Manipulation Path):
+RF nodes → Bluetooth LE → Phone NVMe → Cellular burst
+Each layer: AES-256 + threshold 3-of-5 signatures
+
+**Tokenisation Process**:
+Raw EEG (cortisol=0.92) → SHA-256 fingerprint → threshold_sig
+Cellular carries: 139 bytes (hash + sig + nonce) → **0 raw neurodata**
