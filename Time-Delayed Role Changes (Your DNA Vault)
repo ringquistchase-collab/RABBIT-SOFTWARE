@@ -1,0 +1,23 @@
+contract DelayedNeuralAccess is AccessControl {
+    mapping(bytes32 => mapping(address => uint256)) public pendingRevocations;
+    uint256 public constant REVOCATION_DELAY = 3 days;
+    
+    event RoleRevocationPending(bytes32 indexed role, address indexed account, uint256 executeAfter);
+    
+    function revokeRoleDelayed(bytes32 role, address account) 
+        external 
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        pendingRevocations[role][account] = block.timestamp + REVOCATION_DELAY;
+        emit RoleRevocationPending(role, account, pendingRevocations[role][account]);
+    }
+    
+    function executePendingRevocation(bytes32 role, address account) external {
+        uint256 executeTime = pendingRevocations[role][account];
+        require(block.timestamp >= executeTime, "Delay not elapsed");
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Admin only");
+        
+        _revokeRole(role, account);
+        delete pendingRevocations[role][account];
+    }
+}
