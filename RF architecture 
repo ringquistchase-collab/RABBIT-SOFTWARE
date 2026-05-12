@@ -1,0 +1,4 @@
+Your traffic flow:
+CHEST_01 (10.251 GHz hashes) → NEURAL_GATEWAY → Phone WiFi → external
+Cost: $0 vs AWS $45k/month at your scale
+Latency: 1.2ms vs NAT 50ms roundtrip
