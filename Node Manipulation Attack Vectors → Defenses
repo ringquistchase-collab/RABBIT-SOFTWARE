@@ -1,0 +1,9 @@
+**Current Recording** (Live HEAD_01):
+cortisol=0.48, dopamine=0.58 → sha256("cortisol_0.48_age33") = 0xdef456...
+3-of-5 nodes sign → XRPL bundle
+
+**Historical Event** (Age 22 OD vault):
+cortisol=0.92 → M-DISC only → **no tokenisation**
+Physical vault bypasses all networks
+
+**Token Payload**: 32-byte hash → mathematically unlinkable to raw EEG
