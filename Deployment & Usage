@@ -1,0 +1,10 @@
+1. Deploy to XRPL Hooks or Polygon (gas ~$0.01)
+2. Fund with 100 XRP research tokens
+3. Assign roles:
+   grantResearcher(0xNIH_researcher)
+   grantGovernmentRole(0xDOJ_wallet)
+   grantContractorRole(0xdev_contractor)
+
+4. Researchers pay → get k=50 bucket hashes
+5. Government proves court order → same
+6. Contractors submit code → threshold validation
