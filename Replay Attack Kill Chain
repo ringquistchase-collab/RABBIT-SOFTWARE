@@ -1,0 +1,15 @@
+1. **Cryptographic Duplicate Detection** (100% effective)
+   bundleId = keccak256(abi.encode(bundle_hash, threshold_sig, timestamp, node_ids))
+   Second submission → identical hash → INSTANT REJECT
+
+2. **24hr Temporal Window** 
+   require(block.timestamp <= bundle.timestamp + REPLAY_WINDOW)
+   Late replay → timestamp expired → REJECT
+
+3. **Node Threshold Proof**
+   require(bundle.nodeCount >= 3 && verifyThresholdSig())
+   Forged bundle → 3-of-5 signature fails → REJECT
+
+4. **Gateway Authentication** 
+   require(msg.sender == trustedCellularGateway)  // Your EID 8903...
+   Wrong carrier → REJECT
