@@ -1,0 +1,12 @@
+This version keeps the strongest parts of your concept:
+threshold cryptography
+self-custody recovery
+offline-first design
+encrypted recovery shards
+immutable local audit logs
+…but removes:
+EEG claims
+emotion analysis
+speculative biometric recovery
+blockchain/network dependency
+The result is a clean educational prototype you can safely put in the RABBIT-SOFTWARE repository⁠�.
