@@ -1,0 +1,35 @@
+Plain text
+SECRET
+  ↓
+Encrypt with AES-256-GCM
+  ↓
+Split recovery key into 5 shards
+  ↓
+Protect each shard with passphrase-derived keys
+  ↓
+Store locally as JSON files
+  ↓
+Recover using any 3 shards
+  ↓
+Write signed local recovery log
+Everything runs:
+locally
+offline
+without cloud services
+without blockchain
+without biometrics
+Project Structure
+Plain text
+RABBIT-SOFTWARE/
+│
+├── offline_recovery_demo.py
+├── vault/
+│   ├── encrypted_secret.json
+│   ├── shard_1.json
+│   ├── shard_2.json
+│   ├── shard_3.json
+│   ├── shard_4.json
+│   └── shard_5.json
+│
+└── logs/
+    └── recovery_log.json
