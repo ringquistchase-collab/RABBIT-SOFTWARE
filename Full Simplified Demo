@@ -1,0 +1,234 @@
+import os
+import json
+import base64
+import hashlib
+import secrets
+from datetime import datetime
+
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+
+from secretsharing import PlaintextToHexSecretSharer
+
+# =========================================================
+# CONFIG
+# =========================================================
+
+THRESHOLD = 3
+TOTAL_SHARES = 5
+
+VAULT_DIR = "vault"
+LOG_DIR = "logs"
+
+os.makedirs(VAULT_DIR, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# =========================================================
+# KEY DERIVATION
+# =========================================================
+
+def derive_key(password: str, salt: bytes) -> bytes:
+
+    kdf = Argon2id(
+        salt=salt,
+        length=32,
+        iterations=3,
+        lanes=4,
+        memory_cost=65536,
+    )
+
+    return kdf.derive(password.encode())
+
+# =========================================================
+# AES-GCM
+# =========================================================
+
+def encrypt(data: bytes, key: bytes):
+
+    aes = AESGCM(key)
+
+    nonce = secrets.token_bytes(12)
+
+    ciphertext = aes.encrypt(nonce, data, None)
+
+    return {
+        "nonce": base64.b64encode(nonce).decode(),
+        "ciphertext": base64.b64encode(ciphertext).decode(),
+    }
+
+def decrypt(payload, key: bytes):
+
+    aes = AESGCM(key)
+
+    nonce = base64.b64decode(payload["nonce"])
+    ciphertext = base64.b64decode(payload["ciphertext"])
+
+    return aes.decrypt(nonce, ciphertext, None)
+
+# =========================================================
+# SETUP
+# =========================================================
+
+def create_demo_secret():
+
+    return b"HELLO WORLD -> IDENTITY -> RECOVERY"
+
+def setup_demo():
+
+    print("\n[+] Creating encrypted vault...\n")
+
+    secret = create_demo_secret()
+
+    master_key = secrets.token_bytes(32)
+
+    encrypted_secret = encrypt(secret, master_key)
+
+    with open(f"{VAULT_DIR}/encrypted_secret.json", "w") as f:
+        json.dump(encrypted_secret, f, indent=2)
+
+    key_hex = master_key.hex()
+
+    shares = PlaintextToHexSecretSharer.split_secret(
+        key_hex,
+        THRESHOLD,
+        TOTAL_SHARES,
+    )
+
+    password = input("Create recovery password: ")
+
+    for idx, share in enumerate(shares):
+
+        salt = os.urandom(16)
+
+        derived_key = derive_key(
+            f"{password}:{idx}",
+            salt,
+        )
+
+        encrypted_share = encrypt(
+            share.encode(),
+            derived_key,
+        )
+
+        payload = {
+            "salt": base64.b64encode(salt).decode(),
+            "share": encrypted_share,
+        }
+
+        with open(f"{VAULT_DIR}/shard_{idx+1}.json", "w") as f:
+            json.dump(payload, f, indent=2)
+
+    print("[+] Vault created.")
+    print("[+] 5 encrypted shards generated.")
+    print("[+] Any 3 shards can recover the secret.\n")
+
+# =========================================================
+# RECOVERY
+# =========================================================
+
+def recover_demo():
+
+    print("\n[+] Recovery started...\n")
+
+    password = input("Enter recovery password: ")
+
+    recovered_shares = []
+
+    for idx in range(THRESHOLD):
+
+        path = f"{VAULT_DIR}/shard_{idx+1}.json"
+
+        with open(path, "r") as f:
+            payload = json.load(f)
+
+        salt = base64.b64decode(payload["salt"])
+
+        derived_key = derive_key(
+            f"{password}:{idx}",
+            salt,
+        )
+
+        decrypted_share = decrypt(
+            payload["share"],
+            derived_key,
+        )
+
+        recovered_shares.append(
+            decrypted_share.decode()
+        )
+
+    recovered_key_hex = (
+        PlaintextToHexSecretSharer.recover_secret(
+            recovered_shares
+        )
+    )
+
+    recovered_key = bytes.fromhex(recovered_key_hex)
+
+    with open(f"{VAULT_DIR}/encrypted_secret.json", "r") as f:
+        encrypted_secret = json.load(f)
+
+    recovered_secret = decrypt(
+        encrypted_secret,
+        recovered_key,
+    )
+
+    print("\n[+] Secret recovered:\n")
+    print(recovered_secret.decode())
+
+    write_recovery_log(recovered_secret)
+
+# =========================================================
+# LOCAL AUDIT LOG
+# =========================================================
+
+def write_recovery_log(secret):
+
+    timestamp = datetime.utcnow().isoformat()
+
+    event = {
+        "timestamp": timestamp,
+        "event": "secret_recovered",
+        "secret_hash": hashlib.sha256(secret).hexdigest(),
+    }
+
+    path = f"{LOG_DIR}/recovery_log.json"
+
+    if os.path.exists(path):
+
+        with open(path, "r") as f:
+            logs = json.load(f)
+
+    else:
+        logs = []
+
+    logs.append(event)
+
+    with open(path, "w") as f:
+        json.dump(logs, f, indent=2)
+
+    print("\n[+] Recovery event logged locally.")
+
+# =========================================================
+# MAIN MENU
+# =========================================================
+
+def main():
+
+    print("\nOFFLINE RECOVERY DEMO\n")
+    print("1. Setup vault")
+    print("2. Recover secret")
+
+    choice = input("\nSelect option: ")
+
+    if choice == "1":
+        setup_demo()
+
+    elif choice == "2":
+        recover_demo()
+
+    else:
+        print("Invalid option.")
+
+if __name__ == "__main__":
+    main()
