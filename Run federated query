@@ -1,0 +1,10 @@
+curl -X POST http://127.0.0.1:8100/api/query \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: change-me" \
+  -d '{
+    "query_text": "tower metadata",
+    "target_node_ids": ["node-1"],
+    "policy": {
+      "mode": "approved-only"
+    }
+  }'
