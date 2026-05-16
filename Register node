@@ -1,0 +1,10 @@
+curl -X POST http://127.0.0.1:8100/api/nodes/register \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: change-me" \
+  -d '{
+    "node_id": "node-1",
+    "name": "Example Node",
+    "base_url": "http://127.0.0.1:8200",
+    "auth_type": "bearer",
+    "auth_token": "node-secret"
+  }'
