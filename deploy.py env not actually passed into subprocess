@@ -1,0 +1,3 @@
+def run(cmd, cwd=None, env=None):
+    print("+", " ".join(map(str, cmd)))
+    subprocess.run(cmd, cwd=cwd, env=env, check=True)
