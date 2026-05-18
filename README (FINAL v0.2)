@@ -1,0 +1,14 @@
+# 🐇 RabbitOS v0.2
+
+RabbitOS is a lightweight **async agent orchestration system**.
+
+## Features
+- Queue-based execution engine
+- Worker pool parallel processing
+- Plugin agents
+- CLI + API support
+
+## Run
+
+```bash
+python rabbitos/cli/rabbitctl.py start
