@@ -1,0 +1,9 @@
+# rabbitos/agents/logger_agent.py
+
+from rabbitos.agents.base import BaseAgent
+
+class LoggerAgent(BaseAgent):
+    name = "logger"
+
+    def handle(self, task: dict):
+        print(f"[LoggerAgent] Task received: {task}")
