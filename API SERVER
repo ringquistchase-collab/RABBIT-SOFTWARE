@@ -1,0 +1,24 @@
+# rabbitos/api/server.py
+
+from fastapi import FastAPI
+
+from rabbitos.core.queue import LocalQueue
+from rabbitos.core.events import EventBus
+from rabbitos.core.router import TaskRouter
+from rabbitos.workers.pool import WorkerPool
+from rabbitos.agents.logger_agent import LoggerAgent
+
+app = FastAPI()
+
+queue = LocalQueue()
+bus = EventBus()
+router = TaskRouter(queue, bus)
+
+agents = [LoggerAgent()]
+workers = WorkerPool(queue, agents)
+workers.start()
+
+@app.post("/task")
+def create_task(task: dict):
+    task_id = router.submit(task)
+    return {"task_id": task_id}
