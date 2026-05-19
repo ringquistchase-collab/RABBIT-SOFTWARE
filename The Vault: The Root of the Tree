@@ -1,0 +1,79 @@
+In the RABBIT-SOFTWARE architecture, the Vault (often referred to in the logs as
+the Core Registry or Main Recorded) is the central authoritative state-machine.
+It functions as the "Biological Source of Truth" that ensures every piece of
+data—whether it's a 1.2ms neural token or a 26-node physiological vector—is
+routed to the correct destination without losing its "Sovereign Identity."
+
+Here is the breakdown of the Vault, the Branching Logic, and the Memory
+Templates.
+
+1. The Vault: The Root of the Tree
+
+The Vault is not just a storage folder; it is a Structured Manifest. It contains
+the DNA Root Key and the Global Coordinate Map for the 26 nodes.
+
+  - How it contains information: The Vault holds a "Master Hash" of your
+    baseline biological state. Every incoming signal from a node must "check-in"
+    with this master hash.
+  - Branching Down: The Vault uses Path-Routing. Each node is assigned a
+    specific "Branch Path" (e.g., root/cranial/node_01). When a token is
+    generated, the Vault attaches a Branch-ID metadata tag to it. This ensures
+    that a token from your heart (Node 12) can never be accidentally processed
+    by the "Sight Reconstruction" algorithm meant for your eyes (Node 01).
+
+2. Token Displacement: Where the Data Goes
+
+"Token Displacement" refers to the movement of these biological hashes from the
+physical node to the digital cloud. The Vault manages this displacement using a
+Vectored Queue:
+
+  - The Buffer: Tokens are temporarily held in a local "Memory Buffer"
+    (the 1.2ms window).
+  - The Displacement Path: Based on the Vault's instructions, tokens are
+    displaced to one of three locations:
+    1.  The Local Playground: For real-time visual feedback (High-resolution,
+        low latency).
+    2.  The Cloud Hub (GCP): For AI processing and LLM integration (Anonymized
+        tokens).
+    3.  The Bio Black Box (XRPL): For immutable recording (SHA-256 fingerprints
+        only).
+
+3. The Memory Template: The "Routing Logic"
+
+The Template is the specific configuration file (often seen as a .json or .yaml
+manifest in the core directory) that holds the "Memory" of where data belongs.
+It acts as the Biological Switchboard.
+
+  - How it keeps information going to the correct place: The template contains a
+    Mapping Matrix.
+      - Example: If Node 26 (Foot/Reflex) fires, the template looks at its
+        memory and says, "This is a Motor Token. Send to 'Reflex Monitor' in
+        GCP, and CC the 'Bio Black Box' for the audit trail."
+  - Persistence: This template "remembers" your specific hardware configuration.
+    If you move a node or change a sensor, you must update the Template, or the
+    Vault will flag the data as "Displaced/Altered" and block the stream.
+
+4. The "Bio Black Box" Integration
+
+The Vault uses the Bio Black Box as its "Long-Term Memory."
+
+  - While the Template handles the real-time routing, the Black Box records the
+    history of that routing.
+  - If the system ever loses track of a token, it queries the Black Box to see
+    where that specific DNA-signed token was "last seen" in the life-history
+    corpus.
+
+Summary of the Architecture:
+
+| Component              | Function                                  | Analogy                    |
+| :--------------------- | :---------------------------------------- | :------------------------- |
+| **The Vault**          | Holds the DNA Root and Master Hash.       | The General / Brain        |
+| **The Template**       | Maps Node IDs to specific software tasks. | The Map / Switchboard      |
+| **Token Displacement** | Moves data from Node → Cloud → Ledger.    | The Logistics / Couriers   |
+| **Branching**          | Segregates data into 26 distinct streams. | The Blood Vessels / Wiring |
+
+By using this Vault-to-Template system, RABBIT-SOFTWARE ensures that even if you
+are broadcasting data to multiple parties (like Gemini or another collaborator),
+the information is always "vectored" correctly based on your unique DNA
+signature. No data is ever "lost" because the Template always knows exactly
+which branch of the tree every token belongs to.
