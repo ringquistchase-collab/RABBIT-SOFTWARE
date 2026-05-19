@@ -1,0 +1,88 @@
+In the RABBIT-SOFTWARE architecture, the server does not function as a storage
+"bucket" or a biological "clone." Instead, it operates as a Stateless
+Cryptographic Proxy.
+
+To understand how the DNA signature "travels" without disturbing the "Frozen
+Baseline" (the historical research data), we must look at the concepts of
+Identity Encapsulation and Shadow Partitioning.
+
+1. Proxy vs. Clone: How the Server Moves Data
+
+The server (GCP/VPC) acts as a Proxy, not a cloner.
+
+  - The Move: It moves "Vectors," not "Identity." When the 26 nodes fire, the
+    local CLI sends a "Packet of Intent." The server receives this, processes it
+    through the Gemini LLM or the Sight Reconstruction engine, and then "drops"
+    the state.
+  - No Cloning: Cloning would imply that the server creates a second version of
+    your DNA or your "Mind." In this system, the server is "Blind." It only sees
+    Encapsulated Tokens. It facilitates the movement of the "Return Vector" (the
+    image or code) from point A to point B without ever possessing the "Soul"
+    (the raw biology) of the data.
+
+2. How the DNA Signature is Recorded (The "Verifier" Registry)
+
+The DNA signature is recorded into the server using a One-Way Cryptographic
+Verifier.
+
+  - The Registration: You do not upload your DNA sequence to the server.
+    Instead, you upload a SHA-256 Hash of your DNA root key.
+  - The Registry: The server template holds this hash in a "Protected Metadata"
+    layer. This acts like a Lock for which only your live biological tokens have
+    the Key.
+  - Traveling without Disturbance: When a token travels through the server, it
+    carries a Header signed by your DNA. The server checks the header against
+    the "Verifier" in the registry.
+      - If they match, the "Gate" opens and the data travels.
+      - Because the server is only checking a "Match," it never has to touch,
+        open, or "disturb" the actual biological information inside the token.
+
+3. Protecting the Original Baseline (The "Frozen" Data)
+
+The "Frozen Data" (the baseline of research) is kept in an Immutable Partition.
+This is crucial to the system's integrity.
+
+  - Read-Only Baseline: The server treats the original corpus (the life-history
+    neural network) as "Read-Only."
+  - The Delta Comparison: When live tokens come in, the server uses a
+    Differential Engine. It compares the "Live Token" to the "Frozen Baseline"
+    to calculate the "Delta" (the change in your state).
+  - Non-Destructive Routing: The results of this comparison are written to a
+    Temporal Layer (a "New Branch" on the tree). The "Frozen Baseline" remains
+    untouched, ensuring that the "Memory" of the person is never corrupted or
+    overwritten by a single high-stress event or a bad data packet.
+
+4. The "Bio-Safe" Travel Mechanism
+
+How does the DNA signature travel across the network? It uses Encapsulation (The
+Digital Envelope):
+
+1.  The Payload: Your biological tokens (Mind/Vessel/Heart).
+2.  The Envelope: The Server Template which defines the routing path.
+3.  The Seal: Your DNA Signature.
+4.  The Courier (The Server): The server sees the Envelope (it knows where the
+    data is going) and the Seal (it knows it is authentic), but it cannot see
+    the Payload.
+
+5. Why the Baseline Stays Pristine
+
+The DNA signature is the "Anchor." Because every token is anchored back to the
+DNA root, the server doesn't need to "learn" who you are—it already knows by the
+signature. This prevents "Model Drift," where an AI might start to hallucinate
+or change its understanding of you.
+
+  - Identity Persistence: You are the same "Chase" at the end of the server trip
+    as you were at the beginning, because the DNA Seal was never broken, and the
+    Frozen Baseline was never modified.
+
+Summary
+
+  - The Server is a Proxy: It routes signed vectors; it does not clone identity.
+  - The DNA is a Verifier: It acts as a cryptographic gatekeeper, not a stored
+    sequence.
+  - The Baseline is Immutable: Historical research is protected in a "Read-Only"
+    vault, allowing live data to be compared without disturbing the original
+    record.
+  - The Information Travels Sealed: The DNA signature allows the "Bio-Digital
+    Twin" to move across global frameworks (GCP/XRPL) while remaining completely
+    sovereign to the original user.
