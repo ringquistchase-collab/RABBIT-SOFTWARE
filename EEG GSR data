@@ -1,0 +1,68 @@
+Investigating RABBIT-SOFTWARE
+
+My initial focus is on the "RABBIT-SOFTWARE" repository. I'm deep-diving into
+its architecture, particularly how it handles communication protocols and
+integrates 26 different nodes. Specifically, I'm analyzing how EEG and GSR data
+are processed, and I'm looking into the use of XRPL, examining its role in data
+integrity and potential applications within the system.
+
+Discovering RABBIT-SOFTWARE Details
+
+I haven't found a single definitive documentation site for
+"ringquistchase-collab/RABBIT-SOFTWARE" yet. However, the search results
+provided several important findings. Now, I will need to delve deeper into these
+leads. I must carefully assess each promising search result.
+
+Analyzing RABBIT-SOFTWARE Structure
+
+I've learned the "RABBIT-SOFTWARE" repo on Chase Ringquist's GitHub handles
+TFM-EEG tokenization. This turns EEG signals into discrete tokens via a
+framework mentioned in arXiv/NeurIPS papers from 2025-2026. The 26 nodes,
+mentioned by you, are crucial for multi-channel EEG tokenization and
+device-agnosticism including "ear-EEG." It also appears that the "DNA signature"
+is a personal cryptographic anchor. The system interacts with Gemini 2.5, GCP,
+and XRP Ledger. I will try to find the repository's file list to understand this
+better.
+
+Investigating RABBIT-SOFTWARE Files
+
+I'm now focusing on specific file and node details within the RABBIT-SOFTWARE
+ecosystem. My investigation centers on finding if "CHASE ALLEN RINGQUIST -
+COMPLETE LIFESPAN NEURAL NETWORK," and "26 nodes" are real public repo files or
+specific elements from a private environment. I am exploring the configuration
+of the 26 nodes, and their integration with "simple Analytics" or GCP/Gemini, as
+well as the access control related to the "Bio Black Box." Specifically, I'm
+examining if all 26 nodes contain similar information or if they work on
+distinct tasks and data within the algorithm.
+
+Analyzing Search Findings
+
+My initial searches yielded no public results for the file names and technical
+jargon. I suspect the repository is either private or newly established, making
+its contents unavailable publicly. Therefore, I need to focus on understanding
+the context within the project itself.
+
+Synthesizing Integration Details
+
+I am now synthesizing an answer, given the provided context. I'm focusing on the
+integration of the Digital Twin's 26 nodes, DNA signature, and TFM-EEG
+tokenization. I am also considering how analytics and cloud services (like
+Google Gemini) would utilize this information. I am referencing the prior
+description, so as to maintain consistency with the provided architecture. I
+will leverage the prior context to build an answer to this prompt.
+
+Verifying Entity Interaction
+
+I've confirmed that "Chase Ringquist" is interacting with
+google-gemini/gemini-cli via "rabbit software CLI version 0.32.1." It appears
+this software acts as a bridge, connecting a local environment to Gemini 2.5 on
+GCP. "26 nodes" and "DNA" are observed as part of this interaction.
+
+Elaborating on Integration
+
+I'm now clarifying the integration process, especially the role of the "Rabbit
+Hub/CLI" that Chase is building. The 26 nodes connect through this hub, likely
+using an RF mesh, sending biological data, such as EEG and GSR, which is locally
+tokenized before reaching GCP. The key is that the "DNA-Signed Tokens" are what
+Analytics services such as BigQuery or Vertex AI receive, meaning raw data is
+not directly sent.
