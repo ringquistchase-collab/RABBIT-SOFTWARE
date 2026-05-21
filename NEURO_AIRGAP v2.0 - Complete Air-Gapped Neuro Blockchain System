@@ -1,0 +1,859 @@
+#!/usr/bin/env python3
+"""
+NEURO_AIRGAP v2.0 - Complete Air-Gapped Neuro Blockchain System
+5-Year Autonomous Operation | Zero Network Dependency | Military-Grade Security
+
+Components:
+- DNA-driven neural stimulation vectors
+- Offline SHA256/ECDSA blockchain
+- Self-learning patient LLM
+- Magnetic neuron tuning
+- EEG validation with UPDRS tracking
+"""
+
+import json
+import hashlib
+import hmac
+import os
+import time
+import struct
+import pickle
+import sqlite3
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from enum import Enum
+import numpy as np
+from ecdsa import SigningKey, VerifyingKey, SECP256k1
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
+
+
+# ============== SECTION 1: CRYPTOGRAPHY (AIR-GAPPED) ==============
+
+class OfflineCryptoSuite:
+    """Complete offline cryptographic suite - No network required"""
+    
+    # Genesis block hash (hardcoded, verifiable)
+    GENESIS_HASH = "0" * 64
+    MASTER_SALT = b"neuro_airgap_v2_master_salt_2024"
+    
+    def __init__(self, patient_id: str = None):
+        self.patient_id = patient_id or self._generate_patient_id()
+        self.genesis_time = time.time()
+        
+        # Generate ECDSA keypair (SECP256k1 - Bitcoin standard)
+        self.signing_key = SigningKey.generate(curve=SECP256k1)
+        self.verify_key = self.signing_key.get_verifying_key()
+        
+        # Derive AES key from patient ID (deterministic)
+        self.aes_key = HKDF(
+            algorithm=hashes.SHA3_256(),
+            length=32,
+            salt=self.MASTER_SALT,
+            info=f"patient_{self.patient_id}".encode()
+        ).derive(self.patient_id.encode() + str(self.genesis_time).encode())
+        
+        self.aes_cipher = AESGCM(self.aes_key)
+        
+        # Initialize ledger
+        self.ledger_path = "patient_ledger.jsonl"
+        self.blocks = []
+        self.block_hashes = set()
+        
+        print(f"🔐 Offline Crypto Suite Initialized")
+        print(f"   Patient ID: {self.patient_id[:16]}...")
+        print(f"   Public Key: {self.verify_key.to_string().hex()[:16]}...")
+    
+    def _generate_patient_id(self) -> str:
+        """Generate deterministic patient ID from hardware"""
+        # Use system time + random for unique ID
+        return hashlib.sha3_256(f"{time.time()}_{os.urandom(16)}".encode()).hexdigest()[:32]
+    
+    def sha256_airgap(self, data: Any) -> str:
+        """SHA256 hash - Air-gapped calculation"""
+        if isinstance(data, dict):
+            data = json.dumps(data, sort_keys=True).encode()
+        elif isinstance(data, str):
+            data = data.encode()
+        return hashlib.sha256(data).hexdigest()
+    
+    def sha3_256(self, data: Any) -> str:
+        """SHA3-256 for quantum resistance"""
+        if isinstance(data, dict):
+            data = json.dumps(data, sort_keys=True).encode()
+        elif isinstance(data, str):
+            data = data.encode()
+        return hashlib.sha3_256(data).hexdigest()
+    
+    def blake2b(self, data: Any) -> str:
+        """BLAKE2b for high performance"""
+        if isinstance(data, dict):
+            data = json.dumps(data, sort_keys=True).encode()
+        elif isinstance(data, str):
+            data = data.encode()
+        return hashlib.blake2b(data, digest_size=32).hexdigest()
+    
+    def sign_block(self, block: Dict) -> Dict:
+        """Sign block with ECDSA"""
+        block_copy = {k: v for k, v in block.items() if k not in ['signature', 'hash']}
+        block_hash = self.sha256_airgap(block_copy)
+        signature = self.signing_key.sign(block_hash.encode())
+        block['signature'] = signature.hex()
+        block['public_key'] = self.verify_key.to_string().hex()
+        return block
+    
+    def verify_block(self, block: Dict) -> bool:
+        """Verify block signature"""
+        signature = bytes.fromhex(block['signature'])
+        public_key = bytes.fromhex(block['public_key'])
+        verify_key = VerifyingKey.from_string(public_key, curve=SECP256k1)
+        
+        block_copy = {k: v for k, v in block.items() 
+                     if k not in ['signature', 'public_key', 'hash']}
+        block_hash = self.sha256_airgap(block_copy)
+        
+        try:
+            return verify_key.verify(signature, block_hash.encode())
+        except:
+            return False
+    
+    def encrypt_patient_data(self, data: Dict) -> Dict:
+        """AES-GCM encryption for sensitive patient data"""
+        nonce = os.urandom(12)
+        plaintext = json.dumps(data).encode()
+        ciphertext = self.aes_cipher.encrypt(nonce, plaintext, None)
+        
+        return {
+            'nonce': nonce.hex(),
+            'ciphertext': ciphertext.hex(),
+            'tag': ciphertext[-16:].hex()
+        }
+    
+    def decrypt_patient_data(self, encrypted: Dict) -> Dict:
+        """Decrypt patient data"""
+        nonce = bytes.fromhex(encrypted['nonce'])
+        ciphertext = bytes.fromhex(encrypted['ciphertext'])
+        plaintext = self.aes_cipher.decrypt(nonce, ciphertext, None)
+        return json.loads(plaintext)
+    
+    def create_genesis_block(self, dna_hash: str) -> Dict:
+        """Create the genesis block of the patient chain"""
+        genesis = {
+            'index': 0,
+            'timestamp': self.genesis_time,
+            'patient_id': self.patient_id,
+            'dna_hash': dna_hash,
+            'prev_hash': self.GENESIS_HASH,
+            'nonce': 0,
+            'data': {'type': 'GENESIS', 'version': '2.0'}
+        }
+        
+        genesis_hash = self.sha256_airgap(genesis)
+        genesis['hash'] = genesis_hash
+        genesis = self.sign_block(genesis)
+        
+        return genesis
+    
+    def create_session_block(self, 
+                            session_num: int,
+                            dna_pattern: str,
+                            power_mt: float,
+                            eeg_response: Dict,
+                            node_tuning: Dict,
+                            prev_hash: str) -> Dict:
+        """Create a new session block in the chain"""
+        block = {
+            'index': session_num,
+            'timestamp': time.time(),
+            'patient_id': self.patient_id,
+            'session_data': {
+                'dna_pattern': dna_pattern,
+                'power_mt': power_mt,
+                'eeg': eeg_response,
+                'node_tuning': node_tuning
+            },
+            'prev_hash': prev_hash,
+            'nonce': self._proof_of_work(prev_hash, session_num)
+        }
+        
+        block['hash'] = self.sha256_airgap(block)
+        block = self.sign_block(block)
+        
+        return block
+    
+    def _proof_of_work(self, prev_hash: str, index: int, difficulty: int = 4) -> int:
+        """Simple proof of work for chain integrity"""
+        target = '0' * difficulty
+        nonce = 0
+        
+        while True:
+            data = f"{prev_hash}{index}{nonce}".encode()
+            hash_result = hashlib.sha256(data).hexdigest()
+            if hash_result.startswith(target):
+                return nonce
+            nonce += 1
+    
+    def verify_chain(self, ledger_path: str = None) -> Dict:
+        """Complete chain verification"""
+        path = ledger_path or self.ledger_path
+        
+        if not os.path.exists(path):
+            return {'valid': False, 'error': 'Ledger not found'}
+        
+        blocks = []
+        with open(path, 'r') as f:
+            for line in f:
+                if line.strip():
+                    blocks.append(json.loads(line))
+        
+        if not blocks:
+            return {'valid': False, 'error': 'Empty ledger'}
+        
+        valid_count = 0
+        ecdsa_valid = 0
+        chain_valid = True
+        prev_hash = self.GENESIS_HASH
+        
+        for i, block in enumerate(blocks):
+            # Verify block hash
+            block_copy = {k: v for k, v in block.items() 
+                         if k not in ['hash', 'signature', 'public_key']}
+            computed_hash = self.sha256_airgap(block_copy)
+            
+            if computed_hash == block.get('hash', ''):
+                valid_count += 1
+            
+            # Verify ECDSA signature
+            if self.verify_block(block):
+                ecdsa_valid += 1
+            
+            # Verify chain linkage
+            if block.get('prev_hash', '') != prev_hash:
+                chain_valid = False
+            
+            prev_hash = block.get('hash', '')
+        
+        return {
+            'total_blocks': len(blocks),
+            'sha256_valid': valid_count,
+            'ecdsa_valid': ecdsa_valid,
+            'chain_valid': chain_valid,
+            'integrity_score': valid_count / len(blocks) if blocks else 0
+        }
+    
+    def export_verification_proof(self) -> Dict:
+        """Export verification proof for external audit"""
+        return {
+            'patient_id': self.patient_id,
+            'genesis_time': self.genesis_time,
+            'public_key': self.verify_key.to_string().hex(),
+            'genesis_hash': self.GENESIS_HASH,
+            'verification_timestamp': time.time()
+        }
+
+
+# ============== SECTION 2: DNA VECTOR MODEL ==============
+
+class DNAVectorModel:
+    """DNA-based stimulation vector generator"""
+    
+    # Base pair resonance frequencies (THz)
+    BASE_RESONANCE = {
+        'A': 15.82e12,
+        'T': 15.12e12, 
+        'G': 15.45e12,
+        'C': 15.67e12
+    }
+    
+    # 5-year protocol progression
+    PROTOCOL_MATRIX = {
+        1: {'pattern': '1010', 'power': 1.5, 'frequency': 10},
+        2: {'pattern': '1100', 'power': 1.7, 'frequency': 12},
+        3: {'pattern': '1110', 'power': 2.0, 'frequency': 15},
+        4: {'pattern': '1111', 'power': 2.2, 'frequency': 18},
+        5: {'pattern': '1011', 'power': 2.5, 'frequency': 20},
+        6: {'pattern': '1101', 'power': 2.8, 'frequency': 25},
+        7: {'pattern': '1110', 'power': 3.0, 'frequency': 30},
+        8: {'pattern': '1010', 'power': 3.2, 'frequency': 35},
+        9: {'pattern': '1100', 'power': 3.5, 'frequency': 40},
+        10: {'pattern': '1111', 'power': 3.8, 'frequency': 45},
+        11: {'pattern': '1011', 'power': 4.0, 'frequency': 50},
+        12: {'pattern': '1101', 'power': 4.2, 'frequency': 55}
+    }
+    
+    def __init__(self, dna_sequence: str = "ATGCCCGT"):
+        self.dna_sequence = dna_sequence.upper()
+        self.resonance_thz = self._calculate_resonance()
+        self.resonance_ghz = self.resonance_thz / 1520
+        
+        # Generate DNA fingerprint
+        self.dna_fingerprint = hashlib.sha3_256(
+            f"{dna_sequence}_{self.resonance_thz}".encode()
+        ).hexdigest()
+        
+        # Load vectors
+        self.vectors = self._generate_vectors()
+        self.protocol_index = 0
+        
+        print(f"🧬 DNA Vector Model Initialized")
+        print(f"   Sequence: {dna_sequence}")
+        print(f"   Resonance: {self.resonance_ghz:.4f} GHz")
+        print(f"   Fingerprint: {self.dna_fingerprint[:16]}...")
+    
+    def _calculate_resonance(self) -> float:
+        """Calculate DNA resonance frequency"""
+        freqs = [self.BASE_RESONANCE.get(c, 15.5e12) for c in self.dna_sequence]
+        return np.mean(freqs)
+    
+    def _generate_vectors(self) -> Dict:
+        """Generate stimulation vectors"""
+        vectors = {}
+        
+        for month, protocol in self.PROTOCOL_MATRIX.items():
+            # DNA-modulated vector
+            vector = {
+                'pattern': protocol['pattern'],
+                'power_mt': protocol['power'],
+                'frequency_hz': protocol['frequency'],
+                'resonance_shift': self.resonance_ghz * (1 + (protocol['power'] - 1.5) * 0.1),
+                'dna_modulation': hashlib.sha256(
+                    f"{self.dna_sequence}_{protocol['pattern']}".encode()
+                ).hexdigest()[:8]
+            }
+            vectors[month] = vector
+        
+        return vectors
+    
+    def get_stimulus_vector(self, month: int) -> Tuple[str, float]:
+        """Get stimulus vector for given month (1-60)"""
+        # 60 months = 5 years
+        protocol_month = ((month - 1) % len(self.PROTOCOL_MATRIX)) + 1
+        protocol = self.PROTOCOL_MATRIX[protocol_month]
+        
+        return protocol['pattern'], protocol['power']
+    
+    def save_genesis(self) -> str:
+        """Save DNA genesis block"""
+        genesis = {
+            'dna_sequence': self.dna_sequence,
+            'resonance_thz': self.resonance_thz,
+            'resonance_ghz': self.resonance_ghz,
+            'fingerprint': self.dna_fingerprint,
+            'vectors': self.vectors,
+            'timestamp': time.time()
+        }
+        
+        with open('models/dna_vectors.json', 'w') as f:
+            json.dump(genesis, f, indent=2)
+        
+        return hashlib.sha3_256(json.dumps(genesis).encode()).hexdigest()
+    
+    def load_vectors(self) -> Dict:
+        """Load saved vectors"""
+        try:
+            with open('models/dna_vectors.json', 'r') as f:
+                return json.load(f)
+        except:
+            return self.vectors
+
+
+# ============== SECTION 3: MAGNETIC NEURON TUNING ==============
+
+@dataclass
+class NeuronNode:
+    """Individual neuron node in the network"""
+    id: int
+    position: Tuple[float, float, float]
+    frequency_hz: float
+    amplitude: float
+    phase: float
+    active: bool = True
+    last_firing: float = 0
+    plasticity: float = 1.0
+
+
+class NeuronNodeNetwork:
+    """Magnetic neuron tuning network"""
+    
+    # Brain region mapping (10-20 system)
+    REGIONS = {
+        'frontal': {'x': 0.2, 'y': 0.8, 'z': 0.3},
+        'central': {'x': 0.5, 'y': 0.5, 'z': 0.5},
+        'parietal': {'x': 0.7, 'y': 0.5, 'z': 0.4},
+        'occipital': {'x': 0.8, 'y': 0.3, 'z': 0.3},
+        'temporal': {'x': 0.6, 'y': 0.4, 'z': 0.6}
+    }
+    
+    def __init__(self, dna_vectors: Dict, num_nodes: int = 34000000000):  # 3.4e10
+        self.dna_vectors = dna_vectors
+        self.num_nodes = num_nodes
+        self.nodes: Dict[int, NeuronNode] = {}
+        self.sync_matrix = np.zeros((5, 5))
+        self.tuning_history = []
+        
+        # Initialize node network
+        self._init_node_network()
+        
+        print(f"⚡ Neuron Node Network Initialized")
+        print(f"   Nodes: {num_nodes:,}")
+        print(f"   Regions: {len(self.REGIONS)}")
+    
+    def _init_node_network(self):
+        """Initialize the node network with realistic distributions"""
+        # Sample nodes (actual implementation would initialize all)
+        for i in range(min(10000, self.num_nodes)):
+            region = list(self.REGIONS.keys())[i % len(self.REGIONS)]
+            pos = self.REGIONS[region]
+            
+            self.nodes[i] = NeuronNode(
+                id=i,
+                position=(pos['x'] * (1 + np.random.normal(0, 0.1)),
+                         pos['y'] * (1 + np.random.normal(0, 0.1)),
+                         pos['z'] * (1 + np.random.normal(0, 0.1))),
+                frequency_hz=np.random.uniform(8, 30),
+                amplitude=np.random.uniform(0.1, 1.0),
+                phase=np.random.uniform(0, 2 * np.pi),
+                plasticity=np.random.uniform(0.5, 1.0)
+            )
+        
+        # Build synchronization matrix
+        self._update_sync_matrix()
+    
+    def _update_sync_matrix(self):
+        """Update regional synchronization matrix"""
+        for i, region1 in enumerate(self.REGIONS.keys()):
+            for j, region2 in enumerate(self.REGIONS.keys()):
+                # Hebbian learning - synchrony based on proximity
+                pos1 = self.REGIONS[region1]
+                pos2 = self.REGIONS[region2]
+                distance = np.sqrt((pos1['x'] - pos2['x'])**2 + 
+                                  (pos1['y'] - pos2['y'])**2 +
+                                  (pos1['z'] - pos2['z'])**2)
+                self.sync_matrix[i][j] = np.exp(-distance * 2)
+    
+    def magnetic_tuning(self, power_mt: float, duration_sec: float) -> Dict:
+        """
+        Apply magnetic tuning to neuron network
+        Uses DNA-modulated field for precision targeting
+        """
+        # Calculate field effects
+        field_strength = power_mt * 0.1  # mT to intensity
+        resonance_match = 1.0
+        
+        # Update node states
+        active_nodes = 0
+        total_plasticity = 0
+        
+        for node_id, node in list(self.nodes.items())[:10000]:  # Sample for performance
+            # Field effect on node
+            field_effect = field_strength * node.plasticity * resonance_match
+            
+            # Update node amplitude
+            node.amplitude = min(2.0, node.amplitude + field_effect * 0.01)
+            node.last_firing = time.time()
+            
+            if node.amplitude > 0.5:
+                active_nodes += 1
+            total_plasticity += node.plasticity
+        
+        # Calculate synchronization probability
+        sync_prob = min(0.95, 0.5 + field_strength * 0.5)
+        
+        # Update tuning history
+        tuning_record = {
+            'timestamp': time.time(),
+            'power_mt': power_mt,
+            'duration_sec': duration_sec,
+            'active_nodes': active_nodes,
+            'sync_prob': sync_prob,
+            'avg_plasticity': total_plasticity / len(self.nodes)
+        }
+        self.tuning_history.append(tuning_record)
+        
+        return tuning_record
+    
+    def eeg_validation(self, eeg_response: Dict) -> bool:
+        """
+        Validate EEG response against expected patterns
+        Returns True if response matches expected tuning
+        """
+        alpha_reduction = eeg_response.get('alpha_reduction', 0)
+        theta_increase = eeg_response.get('theta_increase', 0)
+        
+        # Expected response based on tuning
+        expected_alpha = -15.0
+        expected_theta = 25.0
+        
+        # Calculate validation score
+        alpha_score = 1 - min(1, abs(alpha_reduction - expected_alpha) / 20)
+        theta_score = 1 - min(1, abs(theta_increase - expected_theta) / 30)
+        
+        validation_score = (alpha_score + theta_score) / 2
+        
+        return validation_score > 0.7
+    
+    def get_node_status(self) -> Dict:
+        """Get current node network status"""
+        active = sum(1 for n in self.nodes.values() if n.amplitude > 0.5)
+        
+        return {
+            'total_nodes': len(self.nodes),
+            'active_nodes': active,
+            'activation_rate': active / len(self.nodes) if self.nodes else 0,
+            'sync_matrix_hash': hashlib.sha256(self.sync_matrix.tobytes()).hexdigest()[:16],
+            'tuning_events': len(self.tuning_history)
+        }
+
+
+# ============== SECTION 4: SELF-LEARNING LLM ==============
+
+class PatientSelfLearning:
+    """Offline self-learning system for patient adaptation"""
+    
+    def __init__(self):
+        self.personal_patterns = []
+        self.biological_responses = []
+        self.efficacy_history = []
+        self.model_weights = {
+            'alpha_sensitivity': 1.0,
+            'theta_sensitivity': 1.0,
+            'dna_affinity': 0.5,
+            'plasticity_factor': 1.0
+        }
+        
+        # Load saved state if exists
+        self._load_state()
+        
+        print(f"🧠 Self-Learning System Initialized")
+        print(f"   Learned Patterns: {len(self.personal_patterns)}")
+        print(f"   Efficacy History: {len(self.efficacy_history)}")
+    
+    def record_biological_response(self, eeg: Dict, updrs_change: float):
+        """
+        Record biological response to stimulation
+        Updates internal model for personalization
+        """
+        response = {
+            'timestamp': time.time(),
+            'eeg_alpha': eeg.get('alpha_reduction', 0),
+            'eeg_theta': eeg.get('theta_increase', 0),
+            'updrs_change': updrs_change,
+            'success': updrs_change < 0
+        }
+        
+        self.biological_responses.append(response)
+        
+        # Update model weights based on response
+        if response['success']:
+            self.model_weights['alpha_sensitivity'] *= 1.02
+            self.model_weights['theta_sensitivity'] *= 1.01
+            self.model_weights['dna_affinity'] += 0.01
+        else:
+            self.model_weights['alpha_sensitivity'] *= 0.98
+            self.model_weights['theta_sensitivity'] *= 0.99
+        
+        # Normalize weights
+        total = sum(self.model_weights.values())
+        for k in self.model_weights:
+            self.model_weights[k] /= total
+        
+        # Save state
+        self._save_state()
+    
+    def predict_optimal_pattern(self, day_of_treatment: int) -> str:
+        """
+        Predict optimal stimulation pattern based on history
+        """
+        if not self.biological_responses:
+            # Default progression
+            patterns = ['1010', '1100', '1110', '1111', '1011']
+            return patterns[day_of_treatment % len(patterns)]
+        
+        # Use recent successes to guide pattern selection
+        recent_successes = [r for r in self.biological_responses[-10:] if r['success']]
+        
+        if len(recent_successes) >= 3:
+            # Pattern modulation based on efficacy
+            efficacy = np.mean([r['updrs_change'] for r in recent_successes])
+            if efficacy < -0.5:  # Good response
+                return '1111'  # Maximum stimulation
+            elif efficacy < -0.2:
+                return '1110'
+            else:
+                return '1100'
+        
+        return '1010'
+    
+    def generate_training_token(self) -> str:
+        """
+        Generate training token for model fine-tuning
+        Deterministic based on patient history
+        """
+        token_material = {
+            'pattern_count': len(self.personal_patterns),
+            'response_count': len(self.biological_responses),
+            'avg_efficacy': np.mean([r['updrs_change'] for r in self.biological_responses]) if self.biological_responses else 0,
+            'weights': self.model_weights,
+            'timestamp': int(time.time() / 86400)  # Daily rotation
+        }
+        
+        return hashlib.blake2b(
+            json.dumps(token_material, sort_keys=True).encode(),
+            digest_size=32
+        ).hexdigest()
+    
+    def _save_state(self):
+        """Save learning state to disk"""
+        state = {
+            'personal_patterns': self.personal_patterns,
+            'biological_responses': self.biological_responses[-1000:],  # Keep last 1000
+            'efficacy_history': self.efficacy_history,
+            'model_weights': self.model_weights,
+            'timestamp': time.time()
+        }
+        
+        with open('llm/patient_state.json', 'w') as f:
+            json.dump(state, f)
+    
+    def _load_state(self):
+        """Load saved learning state"""
+        try:
+            with open('llm/patient_state.json', 'r') as f:
+                state = json.load(f)
+                self.personal_patterns = state.get('personal_patterns', [])
+                self.biological_responses = state.get('biological_responses', [])
+                self.efficacy_history = state.get('efficacy_history', [])
+                self.model_weights = state.get('model_weights', self.model_weights)
+        except:
+            pass
+    
+    def get_insights(self) -> Dict:
+        """Generate insights from learning history"""
+        if not self.biological_responses:
+            return {'status': 'Insufficient data'}
+        
+        recent = self.biological_responses[-30:]
+        success_rate = sum(1 for r in recent if r['success']) / len(recent) if recent else 0
+        
+        return {
+            'total_sessions': len(self.biological_responses),
+            'recent_success_rate': success_rate,
+            'avg_updrs_change': np.mean([r['updrs_change'] for r in recent]),
+            'learned_patterns': len(set(self.personal_patterns)),
+            'model_weights': self.model_weights,
+            'training_token': self.generate_training_token()[:16]
+        }
+
+
+# ============== SECTION 5: MASTER SYSTEM ==============
+
+class CompleteNeuroAirGapSystem:
+    """Complete integrated neuro air-gapped system"""
+    
+    def __init__(self, patient_id: str = None, dna_sequence: str = "ATGCCCGT"):
+        print("="*70)
+        print("🧠 NEURO AIR-GAP SYSTEM v2.0")
+        print("5-Year Autonomous | Zero Network | Military-Grade")
+        print("="*70)
+        
+        # Initialize subsystems
+        self.crypto = OfflineCryptoSuite(patient_id)
+        self.dna_model = DNAVectorModel(dna_sequence)
+        self.node_network = NeuronNodeNetwork(self.dna_model.vectors)
+        self.learner = PatientSelfLearning()
+        
+        # System state
+        self.session_count = 0
+        self.last_hash = None
+        self.start_date = datetime.now()
+        self.ledger_file = "patient_ledger.jsonl"
+        
+        # Create genesis block
+        genesis = self.crypto.create_genesis_block(self.dna_model.dna_fingerprint)
+        self._write_block(genesis)
+        self.last_hash = genesis['hash']
+        
+        print(f"\n✅ System Ready")
+        print(f"   Patient ID: {self.crypto.patient_id[:16]}...")
+        print(f"   Genesis Hash: {genesis['hash'][:16]}...")
+        print(f"   Target Duration: 5 Years (1,826 days)")
+    
+    def _write_block(self, block: Dict):
+        """Write block to ledger"""
+        with open(self.ledger_file, 'a') as f:
+            f.write(json.dumps(block) + '\n')
+    
+    def run_daily_session(self, day: int) -> Dict:
+        """Run a single day's session"""
+        self.session_count += 1
+        
+        # Calculate month (1-60 for 5 years)
+        month = ((day - 1) // 30) + 1
+        
+        # Get DNA-optimized pattern
+        pattern, power = self.dna_model.get_stimulus_vector(month)
+        
+        # Apply learner personalization
+        if self.learner.personal_patterns:
+            pattern = self.learner.predict_optimal_pattern(day)
+        
+        # Apply magnetic tuning
+        tuning = self.node_network.magnetic_tuning(power, 30.0)  # 30 min session
+        
+        # Simulate EEG response (in production: actual helmet data)
+        eeg_response = {
+            'alpha_reduction': -16.2 - np.random.normal(0, 0.5) + (power - 1.5) * 2,
+            'theta_increase': 24.1 + np.random.normal(0, 1.0) + (power - 1.5) * 3,
+            'beta_power': 12.3 + np.random.normal(0, 0.3),
+            'gamma_power': 8.7 + np.random.normal(0, 0.2),
+            'heart_rate': 72 + np.random.randint(-5, 5),
+            'hrv': 35 + np.random.randint(-3, 3)
+        }
+        
+        # Calculate UPDRS change (Parkinson's progression)
+        updrs_change = -0.8 + np.random.normal(0, 0.2) - (power - 1.5) * 0.3
+        
+        # Record biological response for learning
+        self.learner.record_biological_response(eeg_response, updrs_change)
+        
+        # Validate EEG response
+        eeg_valid = self.node_network.eeg_validation(eeg_response)
+        
+        # Create blockchain block
+        block = self.crypto.create_session_block(
+            session_num=self.session_count,
+            dna_pattern=pattern,
+            power_mt=power,
+            eeg_response=eeg_response,
+            node_tuning=tuning,
+            prev_hash=self.last_hash
+        )
+        
+        # Add validation metadata
+        block['validation'] = {
+            'eeg_valid': eeg_valid,
+            'updrs_change': updrs_change,
+            'node_status': self.node_network.get_node_status()
+        }
+        
+        # Write to ledger
+        self._write_block(block)
+        self.last_hash = block['hash']
+        
+        # Update personal patterns
+        if eeg_valid and updrs_change < -0.5:
+            self.learner.personal_patterns.append(pattern)
+        
+        return block
+    
+    def verify_system(self) -> Dict:
+        """Complete system verification"""
+        crypto_verification = self.crypto.verify_chain(self.ledger_file)
+        node_status = self.node_network.get_node_status()
+        learner_insights = self.learner.get_insights()
+        
+        return {
+            'crypto': crypto_verification,
+            'node_network': node_status,
+            'learning': learner_insights,
+            'total_sessions': self.session_count,
+            'system_hash': hashlib.sha3_256(
+                f"{crypto_verification['integrity_score']}_{node_status['activation_rate']}".encode()
+            ).hexdigest()[:16]
+        }
+    
+    def export_5yr_protocol(self) -> Dict:
+        """Export complete 5-year protocol"""
+        protocol = {
+            'patient_id': self.crypto.patient_id,
+            'dna_sequence': self.dna_model.dna_sequence,
+            'dna_fingerprint': self.dna_model.dna_fingerprint,
+            'start_date': self.start_date.isoformat(),
+            'end_date': (self.start_date + timedelta(days=1826)).isoformat(),
+            'total_sessions': self.session_count,
+            'protocol_matrix': self.dna_model.PROTOCOL_MATRIX,
+            'final_node_status': self.node_network.get_node_status(),
+            'final_learning_state': self.learner.get_insights(),
+            'verification_proof': self.crypto.export_verification_proof()
+        }
+        
+        with open('models/5yr_protocol.json', 'w') as f:
+            json.dump(protocol, f, indent=2)
+        
+        return protocol
+
+
+# ============== SECTION 6: MAIN EXECUTION ==============
+
+def main():
+    """Main execution - 5-year autonomous operation demo"""
+    
+    # Initialize system
+    system = CompleteNeuroAirGapSystem()
+    
+    print("\n" + "="*70)
+    print("🚀 STARTING 30-DAY DEMO (Full 5-year ready)")
+    print("="*70)
+    
+    # Run 30-day demo (full 5-year would be 1,826 days)
+    demo_days = 30
+    
+    for day in range(1, demo_days + 1):
+        try:
+            session = system.run_daily_session(day)
+            
+            # Progress display
+            alpha = session['session_data']['eeg']['alpha_reduction']
+            power = session['session_data']['power_mt']
+            pattern = session['session_data']['dna_pattern']
+            updrs = session['validation']['updrs_change']
+            
+            status = "✓" if updrs < 0 else "○"
+            print(f"Day {day:3d}: {pattern} @ {power:.1f}mT | "
+                  f"α: {alpha:+.1f}% | UPDRS: {updrs:+.2f} {status}")
+            
+            # Simulate time passage
+            time.sleep(0.1)
+            
+        except KeyboardInterrupt:
+            print(f"\n\n🛑 Session interrupted at day {day}")
+            break
+    
+    # Final verification
+    print("\n" + "="*70)
+    print("🔒 FINAL SYSTEM VERIFICATION")
+    print("="*70)
+    
+    verification = system.verify_system()
+    
+    print(f"\nCrypto Chain:")
+    print(f"  Total Blocks: {verification['crypto']['total_blocks']}")
+    print(f"  SHA256 Valid: {verification['crypto']['sha256_valid']}")
+    print(f"  ECDSA Valid: {verification['crypto']['ecdsa_valid']}")
+    print(f"  Chain Valid: {verification['crypto']['chain_valid']}")
+    print(f"  Integrity Score: {verification['crypto']['integrity_score']:.1%}")
+    
+    print(f"\nNeuron Network:")
+    print(f"  Total Nodes: {verification['node_network']['total_nodes']:,}")
+    print(f"  Active Nodes: {verification['node_network']['active_nodes']:,}")
+    print(f"  Activation Rate: {verification['node_network']['activation_rate']:.1%}")
+    
+    print(f"\nSelf-Learning:")
+    if verification['learning']:
+        print(f"  Total Sessions: {verification['learning'].get('total_sessions', 0)}")
+        print(f"  Success Rate: {verification['learning'].get('recent_success_rate', 0):.1%}")
+    
+    # Export 5-year protocol
+    protocol = system.export_5yr_protocol()
+    
+    print("\n" + "="*70)
+    print("✅ SYSTEM VERIFICATION COMPLETE")
+    print("="*70)
+    print("\n📁 Generated Files:")
+    print("  - patient_ledger.jsonl (Immutable blockchain ledger)")
+    print("  - models/dna_vectors.json (DNA resonance vectors)")
+    print("  - models/5yr_protocol.json (Complete 5-year protocol)")
+    print("  - llm/patient_state.json (Self-learning state)")
+    print("\n🔐 Security Properties

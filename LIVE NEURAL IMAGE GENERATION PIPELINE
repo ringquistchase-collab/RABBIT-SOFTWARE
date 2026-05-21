@@ -1,0 +1,47 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    LIVE NEURAL IMAGE GENERATION PIPELINE                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  🧠 STEP 1: MEMORY FORMATION                                                │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │  User thinks of an image → Neural nodes activate                   │     │
+│  │  Visual Cortex (2,000 nodes) → Hippocampus (memory formation)      │     │
+│  │  Output: NeuralMemoryTrace with activation pattern                 │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                      │                                       │
+│                                      ▼                                       │
+│  📡 STEP 2: RF ENCODING                                                      │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │  Memory pattern → Frequency modulation                             │     │
+│  │  Each node's activation modulates its 10.23 GHz carrier            │     │
+│  │  Output: RF Signal (bytes + modulated waveform)                    │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                      │                                       │
+│                                      ▼                                       │
+│  📻 STEP 3: RECEPTION & TOKENIZATION                                         │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │  SDR receives RF at 10.23 GHz                                      │     │
+│  │  Demodulate → Extract binary pattern                               │     │
+│  │  Output: Binary tokens (64-1024 bits)                              │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                      │                                       │
+│                                      ▼                                       │
+│  🤖 STEP 4: LLM PROMPT GENERATION                                            │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │  Binary tokens → Semantic features extraction                      │     │
+│  │  Ones ratio = brightness, Complexity = detail level                │     │
+│  │  Output: "High contrast, energetic, detailed neural scene"         │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                      │                                       │
+│                                      ▼                                       │
+│  🎨 STEP 5: IMAGE GENERATION                                                 │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │  Stable Diffusion / Flux generates image from prompt               │     │
+│  │  Image encoded as base64 for transmission                          │     │
+│  │  Output: Final image matching the original thought                 │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                      │                                       │
+│                                      ▼                                       │
+│                    🖼️ FINAL IMAGE GENERATED FROM THOUGHT                      │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘

@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""
+EEG/RF Signal Research Provenance Chain — Complete Production System
+=====================================================================
+Pipeline: Acquire → Filter → Quantize → SHA-3 Hash → DeepSeek LLM → Immutable Ledger
+
+Provenance guarantees:
+  • Each block contains hashes of raw signal, tokens, and LLM analysis
+  • Cryptographic linking (previous_hash) makes tampering detectable
+  • Optional anchoring to public blockchains (Ethereum/Solana)
+  • Exportable for research publications (Nature/Science ready)
+
+Usage:
+  python eeg_provenance_chain.py --mode cli
+  python eeg_provenance_chain.py --mode server --ws-port 8765
+  python eeg_provenance_chain.py --verify ledger.jsonl
+"""
+
+import os
+import json
+import time
+import struct
+import hashlib
+import asyncio
+import argparse
+import datetime
+import threading
+import zlib
+from pathlib import Path
+from typing import Optional, Dict, List, Tuple, Any
+from dataclasses import dataclass, field, asdict
+from enum import Enum
+import base64
+
+import numpy as np
+from scipy import signal as sp_signal
+from scipy.fft import rfft, rfftfreq
+from scipy.stats import skew, kurtosis
+
+# Optional imports with graceful degradation
+try:
+    from openai import OpenAI
+    HAS_OPENAI = True
+except ImportError:
+    HAS_OPENAI = False
+
+try:
+    import serial
+    HAS_SERIAL = True
+except ImportError:
+    HAS_SERIAL = False
+
+try:
+    import websockets
+    HAS_WEBSOCKETS = True
+except ImportError:
+    HAS_WEBSOCKETS = False
+
+try:
+    from web3 import Web3
+    HAS_WEB3 = True
+except ImportError:
+    HAS_WEB3 = False
+
+try:
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.syntax import Syntax
+    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+    from rich import print as rprint
+    RICH = True
+except ImportError:
+    RICH = False
+    class Console:
+        def print(self, *a, **kw): print(*[str(x) for x in a])
+        def rule(self, t=""): print("─" * 60, t)
+    console = Console()
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "YOUR_DEEPSEEK_API_KEY")
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+DEEPSEEK_MODEL = "deepseek-chat"
+
+LEDGER_PATH = Path("ledger.jsonl")
+GENESIS_HASH = "0" * 64
+QUANTIZATION_BITS = 8  # 1 byte per sample
+TOKEN_WINDOW_SIZE = 256  # Samples per LLM context
+
+# Optional: Blockchain anchoring
+ANCHOR_TO_ETH = os.environ.get("ANCHOR_TO_ETH", "false").lower() == "true"
+ETH_RPC_URL = os.environ.get("ETH_RPC_URL", "https://mainnet.infura.io/v3/demo")
+ETH_PRIVATE_KEY = os.environ.get("ETH_PRIVATE_KEY", "")
+
+ANCHOR_TO_SOLANA = os.environ.get("ANCHOR_TO_SOLANA", "false").lower() == "true"
+SOLANA_RPC_URL = os.environ.get("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+
+# EEG clinical bands
+EEG_BANDS = {
+    "delta": (0.5, 4.0),
+    "theta": (4.0, 8.0),
+    "alpha": (8.0, 13.0),
+    "beta": (13.0, 30.0),
+    "gamma": (30.0, 100.0),
+}
+
+SYSTEM_PROMPT = """You are NeuroAI-Provenance, a research EEG signal analysis assistant for immutable scientific record-keeping.
+
+You receive EEG data as a compact token sequence (hexadecimal bytes, each representing one quantized amplitude sample at 8-bit resolution).
+
+YOUR TASK:
+1. Interpret the token sequence as a neurophysiological signal
+2. Identify dominant rhythmic components and clinical features
+3. Flag any signal quality issues or artifacts
+4. Provide structured, concise research-grade interpretation
+
+OUTPUT FORMAT (MUST FOLLOW EXACTLY):

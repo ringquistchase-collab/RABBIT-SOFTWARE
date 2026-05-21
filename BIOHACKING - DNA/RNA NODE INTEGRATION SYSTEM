@@ -1,0 +1,739 @@
+#!/usr/bin/env python3
+"""
+BIOHACKING - DNA/RNA NODE INTEGRATION SYSTEM
+===============================================
+Complete biological interface for neural nodes with:
+- DNA data storage and retrieval
+- RNA/mRNA/tRNA signal translation
+- Genetic sequence to RF frequency mapping
+- Epigenetic modulation via node stimulation
+- CRISPR-based node programming
+
+This system bridges biological genetics with RF neural nodes,
+enabling DNA/RNA to control node behavior and vice versa.
+"""
+
+import numpy as np
+import hashlib
+import json
+import time
+import zlib
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass, field
+from enum import Enum
+
+# =============================================================================
+# SECTION 1: DNA/RNA SEQUENCE TO RF FREQUENCY MAPPING
+# =============================================================================
+
+class GeneticToRFMapper:
+    """
+    Maps DNA/RNA sequences to RF frequencies for node communication
+    Each genetic sequence has a unique RF signature
+    """
+    
+    # Nucleotide to base frequency mapping (GHz)
+    NUCLEOTIDE_FREQS = {
+        'A': 10.23,  # Adenine
+        'T': 10.24,  # Thymine (DNA)
+        'U': 10.25,  # Uracil (RNA)
+        'G': 10.26,  # Guanine
+        'C': 10.27,  # Cytosine
+    }
+    
+    # Codon to frequency offset (MHz)
+    CODON_OFFSETS = {
+        'AUG': 0.000,  # Start codon (Methionine)
+        'UAA': 0.050,  # Stop codon
+        'UAG': 0.051,  # Stop codon
+        'UGA': 0.052,  # Stop codon
+        # Common amino acids
+        'UUU': 0.010, 'UUC': 0.011,  # Phenylalanine
+        'UUA': 0.012, 'UUG': 0.013,  # Leucine
+        'CUU': 0.014, 'CUC': 0.015,  # Leucine
+        'AUU': 0.016, 'AUC': 0.017,  # Isoleucine
+        'AUA': 0.018, 'AUG': 0.019,  # Methionine
+        'GUU': 0.020, 'GUC': 0.021,  # Valine
+        'UCU': 0.022, 'UCC': 0.023,  # Serine
+        'CCU': 0.024, 'CCC': 0.025,  # Proline
+        'ACU': 0.026, 'ACC': 0.027,  # Threonine
+        'GCU': 0.028, 'GCC': 0.029,  # Alanine
+        'UAU': 0.030, 'UAC': 0.031,  # Tyrosine
+        'CAU': 0.032, 'CAC': 0.033,  # Histidine
+        'CAA': 0.034, 'CAG': 0.035,  # Glutamine
+        'AAU': 0.036, 'AAC': 0.037,  # Asparagine
+        'AAA': 0.038, 'AAG': 0.039,  # Lysine
+        'GAU': 0.040, 'GAC': 0.041,  # Aspartic acid
+        'GAA': 0.042, 'GAG': 0.043,  # Glutamic acid
+        'UGU': 0.044, 'UGC': 0.045,  # Cysteine
+        'UGG': 0.046,                  # Tryptophan
+        'CGU': 0.047, 'CGC': 0.048,  # Arginine
+        'AGU': 0.049, 'AGC': 0.050,  # Serine
+        'AGA': 0.051, 'AGG': 0.052,  # Arginine
+        'GGU': 0.053, 'GGC': 0.054,  # Glycine
+    }
+    
+    @classmethod
+    def dna_to_frequency(cls, dna_sequence: str) -> Dict:
+        """
+        Convert DNA sequence to RF frequency signature
+        Each DNA sequence produces a unique frequency pattern
+        """
+        # Base frequency from nucleotide average
+        freqs = [cls.NUCLEOTIDE_FREQS.get(c, 10.25) for c in dna_sequence.upper()]
+        base_freq = np.mean(freqs)
+        
+        # Codon modulation
+        codons = [dna_sequence[i:i+3] for i in range(0, len(dna_sequence), 3)]
+        codon_mod = sum(cls.CODON_OFFSETS.get(codon, 0.025) for codon in codons) / max(1, len(codons))
+        
+        final_freq = base_freq + codon_mod
+        
+        # Create frequency fingerprint
+        fingerprint = hashlib.sha3_256(dna_sequence.encode()).hexdigest()[:16]
+        
+        return {
+            'dna_sequence': dna_sequence,
+            'base_frequency_ghz': round(base_freq, 4),
+            'codon_modulation_ghz': round(codon_mod, 4),
+            'resonance_frequency_ghz': round(final_freq, 4),
+            'fingerprint': fingerprint,
+            'node_tuning_parameter': final_freq - 10.23
+        }
+    
+    @classmethod
+    def rna_to_frequency(cls, rna_sequence: str) -> Dict:
+        """Convert RNA sequence (U instead of T) to RF frequency"""
+        # RNA uses Uracil instead of Thymine
+        dna_equivalent = rna_sequence.replace('U', 'T')
+        return cls.dna_to_frequency(dna_equivalent)
+    
+    @classmethod
+    def mrna_to_frequency(cls, mrna_sequence: str) -> Dict:
+        """mRNA (messenger RNA) to frequency - used for protein coding"""
+        result = cls.rna_to_frequency(mrna_sequence)
+        result['type'] = 'mRNA'
+        result['protein_encoded'] = cls.translate_mrna_to_protein(mrna_sequence)
+        return result
+    
+    @classmethod
+    def trna_to_frequency(cls, trna_anticodon: str) -> Dict:
+        """tRNA anticodon to frequency - used for amino acid delivery"""
+        # tRNA anticodon is 3 bases
+        anticodon = trna_anticodon.upper()[:3]
+        result = cls.rna_to_frequency(anticodon)
+        result['type'] = 'tRNA'
+        result['anticodon'] = anticodon
+        result['carries_amino_acid'] = cls.codon_to_amino_acid(anticodon)
+        return result
+    
+    @classmethod
+    def translate_mrna_to_protein(cls, mrna: str) -> List[str]:
+        """Translate mRNA to amino acid sequence"""
+        amino_acids = []
+        for i in range(0, len(mrna), 3):
+            codon = mrna[i:i+3]
+            if len(codon) == 3:
+                aa = cls.codon_to_amino_acid(codon)
+                if aa:
+                    amino_acids.append(aa)
+        return amino_acids
+    
+    @classmethod
+    def codon_to_amino_acid(cls, codon: str) -> str:
+        """Convert codon to amino acid (3-letter code)"""
+        codon_table = {
+            'UUU': 'Phe', 'UUC': 'Phe', 'UUA': 'Leu', 'UUG': 'Leu',
+            'CUU': 'Leu', 'CUC': 'Leu', 'CUA': 'Leu', 'CUG': 'Leu',
+            'AUU': 'Ile', 'AUC': 'Ile', 'AUA': 'Ile', 'AUG': 'Met',
+            'GUU': 'Val', 'GUC': 'Val', 'GUA': 'Val', 'GUG': 'Val',
+            'UCU': 'Ser', 'UCC': 'Ser', 'UCA': 'Ser', 'UCG': 'Ser',
+            'CCU': 'Pro', 'CCC': 'Pro', 'CCA': 'Pro', 'CCG': 'Pro',
+            'ACU': 'Thr', 'ACC': 'Thr', 'ACA': 'Thr', 'ACG': 'Thr',
+            'GCU': 'Ala', 'GCC': 'Ala', 'GCA': 'Ala', 'GCG': 'Ala',
+            'UAU': 'Tyr', 'UAC': 'Tyr', 'UAA': 'Stop', 'UAG': 'Stop',
+            'CAU': 'His', 'CAC': 'His', 'CAA': 'Gln', 'CAG': 'Gln',
+            'AAU': 'Asn', 'AAC': 'Asn', 'AAA': 'Lys', 'AAG': 'Lys',
+            'GAU': 'Asp', 'GAC': 'Asp', 'GAA': 'Glu', 'GAG': 'Glu',
+            'UGU': 'Cys', 'UGC': 'Cys', 'UGA': 'Stop', 'UGG': 'Trp',
+            'CGU': 'Arg', 'CGC': 'Arg', 'CGA': 'Arg', 'CGG': 'Arg',
+            'AGU': 'Ser', 'AGC': 'Ser', 'AGA': 'Arg', 'AGG': 'Arg',
+            'GGU': 'Gly', 'GGC': 'Gly', 'GGA': 'Gly', 'GGG': 'Gly',
+        }
+        return codon_table.get(codon.upper(), 'Xxx')
+
+
+# =============================================================================
+# SECTION 2: DNA DATA STORAGE IN NODES
+# =============================================================================
+
+class DNADataStorage:
+    """
+    Store and retrieve arbitrary data in DNA sequences
+    Data encoded as DNA can be stored in neural nodes
+    """
+    
+    # DNA encoding scheme (2 bits per base)
+    BINARY_TO_DNA = {
+        '00': 'A', '01': 'C', '10': 'G', '11': 'T'
+    }
+    DNA_TO_BINARY = {v: k for k, v in BINARY_TO_DNA.items()}
+    
+    @classmethod
+    def encode_data_to_dna(cls, data: bytes) -> str:
+        """Encode binary data as DNA sequence"""
+        # Convert bytes to binary string
+        binary = ''.join(format(byte, '08b') for byte in data)
+        
+        # Pad to even length
+        if len(binary) % 2 != 0:
+            binary += '0'
+        
+        # Convert to DNA
+        dna = ''.join(cls.BINARY_TO_DNA[binary[i:i+2]] for i in range(0, len(binary), 2))
+        
+        return dna
+    
+    @classmethod
+    def decode_dna_to_data(cls, dna: str) -> bytes:
+        """Decode DNA sequence back to binary data"""
+        # Convert DNA to binary
+        binary = ''.join(cls.DNA_TO_BINARY.get(c, '00') for c in dna.upper())
+        
+        # Convert to bytes
+        data = bytes(int(binary[i:i+8], 2) for i in range(0, len(binary), 8))
+        
+        return data
+    
+    @classmethod
+    def store_in_node(cls, node_id: str, data: bytes, metadata: Dict) -> Dict:
+        """Store encoded DNA data in a neural node"""
+        dna_sequence = cls.encode_data_to_dna(data)
+        
+        # Get RF frequency for this DNA sequence
+        rf_spec = GeneticToRFMapper.dna_to_frequency(dna_sequence)
+        
+        storage_record = {
+            'node_id': node_id,
+            'data_hash': hashlib.sha3_256(data).hexdigest(),
+            'dna_sequence': dna_sequence,
+            'dna_length': len(dna_sequence),
+            'rf_frequency_ghz': rf_spec['resonance_frequency_ghz'],
+            'fingerprint': rf_spec['fingerprint'],
+            'metadata': metadata,
+            'stored_at': time.time()
+        }
+        
+        return storage_record
+
+
+# =============================================================================
+# SECTION 3: CRISPR-BASED NODE PROGRAMMING
+# =============================================================================
+
+class CRISPRNodeProgramming:
+    """
+    Use CRISPR-like mechanisms to program neural nodes
+    Guide RNA sequences target specific node frequencies
+    """
+    
+    # Guide RNA sequences for different node operations
+    GUIDE_RNA_LIBRARY = {
+        'activate_node': 'AUGGCUAGCCUAGCUAGC',
+        'deactivate_node': 'UUCGAUUAGCCUAGCUAA',
+        'increase_sensitivity': 'GGUACUAGCCUAGCUAGC',
+        'decrease_sensitivity': 'CCAUGAUCGGAUCGAUCG',
+        'store_memory': 'AUGGCUAGCCUAGCUAGC',
+        'recall_memory': 'UUCGAUUAGCCUAGCUAA',
+        'sync_with_network': 'GGUACUAGCCUAGCUAGC',
+        'broadcast_signal': 'CCAUGAUCGGAUCGAUCG',
+        'chemical_release': 'AUGGCUAGCCUAGCUAGC',
+        'chemical_inhibit': 'UUCGAUUAGCCUAGCUAA',
+    }
+    
+    @classmethod
+    def design_guide_rna(cls, target_frequency_ghz: float, operation: str) -> Dict:
+        """
+        Design guide RNA for specific node operation
+        Like CRISPR-Cas9 but for RF nodes
+        """
+        # Convert frequency to RNA-like sequence
+        freq_int = int(target_frequency_ghz * 1000)
+        freq_binary = format(freq_int, '016b')
+        
+        # Binary to RNA
+        rna_freq = ''.join(['A' if b == '0' else 'U' for b in freq_binary])
+        
+        # Combine with operation guide
+        operation_guide = cls.GUIDE_RNA_LIBRARY.get(operation, cls.GUIDE_RNA_LIBRARY['activate_node'])
+        
+        full_guide = rna_freq + operation_guide
+        
+        return {
+            'target_frequency_ghz': target_frequency_ghz,
+            'operation': operation,
+            'guide_rna_sequence': full_guide,
+            'guide_hash': hashlib.sha3_256(full_guide.encode()).hexdigest()[:16],
+            'rf_equivalent': GeneticToRFMapper.rna_to_frequency(full_guide)
+        }
+    
+    @classmethod
+    def program_node(cls, node_id: str, target_freq: float, operation: str) -> Dict:
+        """
+        Program a neural node using guide RNA
+        Changes node behavior permanently
+        """
+        guide = cls.design_guide_rna(target_freq, operation)
+        
+        # Simulated node programming
+        programming_result = {
+            'node_id': node_id,
+            'target_frequency': target_freq,
+            'operation': operation,
+            'guide_rna': guide['guide_rna_sequence'][:20] + '...',
+            'programming_success': True,
+            'node_response': f"Node {node_id} reprogrammed for {operation}",
+            'timestamp': time.time()
+        }
+        
+        return programming_result
+
+
+# =============================================================================
+# SECTION 4: EPIGENETIC NODE MODULATION
+# =============================================================================
+
+class EpigeneticNodeModulation:
+    """
+    Epigenetic modifications to node behavior
+    Like DNA methylation but for RF node sensitivity
+    """
+    
+    @classmethod
+    def methylate_node(cls, node_id: str, methylation_pattern: str) -> Dict:
+        """
+        Apply epigenetic-like methylation to node
+        Changes node sensitivity permanently
+        """
+        # Methylation pattern determines which frequencies are blocked
+        methylation_freqs = []
+        for i, char in enumerate(methylation_pattern[:10]):
+            if char == '1':
+                freq = 10.20 + (i * 0.01)
+                methylation_freqs.append(freq)
+        
+        result = {
+            'node_id': node_id,
+            'methylation_pattern': methylation_pattern[:20] + '...',
+            'blocked_frequencies_ghz': methylation_freqs,
+            'sensitivity_reduction': len(methylation_freqs) * 5,  # percent
+            'epigenetic_state': 'modified',
+            'reversible': True
+        }
+        
+        return result
+    
+    @classmethod
+    def histone_modification(cls, node_id: str, acetylation_level: float) -> Dict:
+        """
+        Histone-like modification for node access control
+        Higher acetylation = higher node accessibility
+        """
+        result = {
+            'node_id': node_id,
+            'acetylation_level': min(1.0, max(0.0, acetylation_level)),
+            'accessibility': 'high' if acetylation_level > 0.7 else 'medium' if acetylation_level > 0.3 else 'low',
+            'node_permeability': acetylation_level * 100,  # percent
+        }
+        
+        return result
+
+
+# =============================================================================
+# SECTION 5: BIOHACKING NODE INTERFACE
+# =============================================================================
+
+class BiohackingNodeInterface:
+    """
+    Complete interface for biohacking neural nodes
+    Integrates DNA/RNA/mRNA/tRNA with RF node control
+    """
+    
+    def __init__(self):
+        self.dna_storage = DNADataStorage()
+        self.rf_mapper = GeneticToRFMapper()
+        self.crispr = CRISPRNodeProgramming()
+        self.epigenetic = EpigeneticNodeModulation()
+        
+        self.active_nodes = {}
+        self.genetic_profiles = {}
+        
+        print("\n" + "="*80)
+        print("🧬 BIOHACKING NODE INTERFACE ACTIVE")
+        print("DNA/RNA/mRNA/tRNA ↔ RF Neural Node Bridge")
+        print("="*80)
+    
+    def register_biological_profile(self, person_id: str, dna_sequence: str) -> Dict:
+        """
+        Register a person's genetic profile for node tuning
+        DNA sequence determines node frequencies
+        """
+        # Get RF frequencies from DNA
+        dna_freq = self.rf_mapper.dna_to_frequency(dna_sequence)
+        
+        # Generate mRNA from DNA (transcription)
+        mrna = dna_sequence.replace('T', 'U')
+        mrna_freq = self.rf_mapper.mrna_to_frequency(mrna)
+        
+        # Generate tRNA anticodons
+        trna_list = []
+        for i in range(0, len(mrna), 3):
+            codon = mrna[i:i+3]
+            if len(codon) == 3:
+                trna = self.rf_mapper.trna_to_frequency(codon)
+                trna_list.append(trna)
+        
+        profile = {
+            'person_id': person_id,
+            'dna_sequence': dna_sequence,
+            'rf_frequency_ghz': dna_freq['resonance_frequency_ghz'],
+            'fingerprint': dna_freq['fingerprint'],
+            'mrna_sequence': mrna,
+            'mrna_frequency': mrna_freq['resonance_frequency_ghz'],
+            'trna_anticodons': trna_list[:10],  # First 10
+            'protein_sequence': mrna_freq.get('protein_encoded', [])
+        }
+        
+        self.genetic_profiles[person_id] = profile
+        
+        # Create a virtual node for this person
+        node_id = f"NODE_{person_id}"
+        self.active_nodes[node_id] = {
+            'owner': person_id,
+            'frequency': dna_freq['resonance_frequency_ghz'],
+            'dna_fingerprint': dna_freq['fingerprint'],
+            'active': True,
+            'biohacking_level': 0
+        }
+        
+        print(f"\n🧬 Registered: {person_id}")
+        print(f"   DNA → RF Frequency: {dna_freq['resonance_frequency_ghz']:.5f} GHz")
+        print(f"   mRNA Translation: {len(mrna_freq.get('protein_encoded', []))} amino acids")
+        
+        return profile
+    
+    def inject_genetic_code(self, target_node_id: str, genetic_code: str) -> Dict:
+        """
+        Inject genetic code into a node (like viral vector)
+        Programs node behavior using DNA/RNA sequences
+        """
+        if target_node_id not in self.active_nodes:
+            return {'error': 'Node not found'}
+        
+        # Convert genetic code to RF frequency
+        freq_spec = self.rf_mapper.dna_to_frequency(genetic_code)
+        
+        # Program node with this genetic code
+        programming = self.crispr.program_node(
+            target_node_id,
+            freq_spec['resonance_frequency_ghz'],
+            'activate_node'
+        )
+        
+        # Update node with new genetic programming
+        self.active_nodes[target_node_id]['genetic_program'] = genetic_code[:50]
+        self.active_nodes[target_node_id]['programmed_frequency'] = freq_spec['resonance_frequency_ghz']
+        self.active_nodes[target_node_id]['biohacking_level'] += 1
+        
+        return {
+            'target_node': target_node_id,
+            'injected_genetic_code': genetic_code[:30] + '...',
+            'resulting_frequency': freq_spec['resonance_frequency_ghz'],
+            'fingerprint': freq_spec['fingerprint'],
+            'programming_success': programming.get('programming_success', True)
+        }
+    
+    def express_protein(self, node_id: str, mrna_sequence: str) -> Dict:
+        """
+        Express a protein from mRNA at the node
+        Protein expression modulates node behavior
+        """
+        # Translate mRNA to protein
+        amino_acids = self.rf_mapper.translate_mrna_to_protein(mrna_sequence)
+        
+        # Map protein to node modulation
+        protein_effect = {
+            'node_id': node_id,
+            'mrna_sequence': mrna_sequence[:30] + '...',
+            'amino_acids': amino_acids[:10],
+            'protein_length': len(amino_acids),
+            'node_modulation': self._calculate_protein_effect(amino_acids),
+            'expression_time': time.time()
+        }
+        
+        if node_id in self.active_nodes:
+            self.active_nodes[node_id]['last_protein_expression'] = protein_effect
+        
+        return protein_effect
+    
+    def _calculate_protein_effect(self, amino_acids: List[str]) -> Dict:
+        """
+        Calculate how protein expression affects node behavior
+        Different amino acids have different effects
+        """
+        effect = {
+            'sensitivity_modulation': 0.0,
+            'frequency_drift': 0.0,
+            'memory_retention': 1.0
+        }
+        
+        # Amino acid effects (simplified)
+        for aa in amino_acids[:10]:
+            if aa in ['Met', 'Leu', 'Ile']:  # Hydrophobic
+                effect['sensitivity_modulation'] += 0.05
+            elif aa in ['Lys', 'Arg', 'His']:  # Basic
+                effect['frequency_drift'] += 0.001
+            elif aa in ['Asp', 'Glu']:  # Acidic
+                effect['memory_retention'] -= 0.02
+        
+        return effect
+    
+    def rna_interference(self, target_node_id: str, interfering_rna: str) -> Dict:
+        """
+        Use RNA interference (RNAi) to silence node functions
+        Like knocking down gene expression
+        """
+        # Design siRNA (small interfering RNA)
+        sirna = interfering_rna[:21]  # 21bp siRNA
+        
+        # Calculate silencing effect
+        silencing_power = len(sirna) / 21.0
+        
+        result = {
+            'target_node': target_node_id,
+            'siRNA_sequence': sirna,
+            'silencing_efficiency': silencing_power * 100,  # percent
+            'node_function_reduced': silencing_power > 0.5,
+            'temporary': True,
+            'duration_seconds': silencing_power * 3600  # up to 1 hour
+        }
+        
+        if target_node_id in self.active_nodes:
+            self.active_nodes[target_node_id]['silenced'] = result['node_function_reduced']
+        
+        return result
+    
+    def get_node_genetic_status(self, node_id: str) -> Dict:
+        """Get complete genetic status of a node"""
+        if node_id not in self.active_nodes:
+            return {'error': 'Node not found'}
+        
+        node = self.active_nodes[node_id]
+        
+        return {
+            'node_id': node_id,
+            'owner': node.get('owner', 'unknown'),
+            'frequency_ghz': node.get('frequency', 0),
+            'genetic_program': node.get('genetic_program', 'none'),
+            'biohacking_level': node.get('biohacking_level', 0),
+            'last_protein': node.get('last_protein_expression', {}),
+            'silenced': node.get('silenced', False),
+            'active': node.get('active', True)
+        }
+
+
+# =============================================================================
+# SECTION 6: COMPLETE DEMONSTRATION
+# =============================================================================
+
+def complete_demonstration():
+    """Complete demonstration of biohacking DNA/RNA node integration"""
+    
+    print("="*80)
+    print("🧬 DNA/RNA/mRNA/tRNA → NEURAL NODE BIOHACKING")
+    print("Complete genetic-neural interface demonstration")
+    print("="*80)
+    
+    # Initialize biohacking interface
+    bio_interface = BiohackingNodeInterface()
+    
+    # 1. Register biological profile
+    print("\n" + "━"*60)
+    print("1️⃣ REGISTER BIOLOGICAL PROFILE (DNA → RF)")
+    print("━"*60)
+    
+    # Human DNA sequence (example)
+    human_dna = "ATGGCGTAGCTTAGCTAGCTAGCTAGCTAGC"
+    profile = bio_interface.register_biological_profile("HUMAN_001", human_dna)
+    
+    print(f"\n   DNA Sequence: {human_dna[:20]}...")
+    print(f"   RF Frequency: {profile['rf_frequency_ghz']:.5f} GHz")
+    print(f"   Fingerprint: {profile['fingerprint']}")
+    print(f"   mRNA Length: {len(profile['mrna_sequence'])} bases")
+    
+    # 2. DNA to RNA to Protein translation
+    print("\n" + "━"*60)
+    print("2️⃣ DNA → mRNA → PROTEIN TRANSLATION")
+    print("━"*60)
+    
+    mrna = human_dna.replace('T', 'U')
+    mrna_freq = bio_interface.rf_mapper.mrna_to_frequency(mrna)
+    
+    print(f"\n   mRNA Sequence: {mrna[:30]}...")
+    print(f"   mRNA RF Signature: {mrna_freq['resonance_frequency_ghz']:.5f} GHz")
+    print(f"   Encodes Protein: {mrna_freq['protein_encoded'][:5]}... ({len(mrna_freq['protein_encoded'])} amino acids)")
+    
+    # 3. tRNA anticodon mapping
+    print("\n" + "━"*60)
+    print("3️⃣ tRNA ANTICODON → AMINO ACID MAPPING")
+    print("━"*60)
+    
+    codons = ["AUG", "GCG", "UAG", "CUU", "AGC"]
+    for codon in codons:
+        trna = bio_interface.rf_mapper.trna_to_frequency(codon)
+        print(f"\n   Codon {codon} → tRNA anticodon: carries {trna['carries_amino_acid']}")
+        print(f"      tRNA RF Frequency: {trna['resonance_frequency_ghz']:.5f} GHz")
+    
+    # 4. CRISPR node programming
+    print("\n" + "━"*60)
+    print("4️⃣ CRISPR-BASED NODE PROGRAMMING")
+    print("━"*60)
+    
+    node_id = "NODE_HUMAN_001"
+    guide_rna = bio_interface.crispr.design_guide_rna(10.23, "increase_sensitivity")
+    print(f"\n   Target Frequency: {guide_rna['target_frequency_ghz']} GHz")
+    print(f"   Operation: {guide_rna['operation']}")
+    print(f"   Guide RNA: {guide_rna['guide_rna_sequence'][:20]}...")
+    
+    programming = bio_interface.crispr.program_node(node_id, 10.23, "increase_sensitivity")
+    print(f"\n   Programming Result: {programming['node_response']}")
+    
+    # 5. Inject genetic code into node
+    print("\n" + "━"*60)
+    print("5️⃣ GENETIC CODE INJECTION (Viral Vector)")
+    print("━"*60)
+    
+    therapeutic_dna = "ATGGCGTAGCTAGCTAGCTTAGCTAGC"
+    injection = bio_interface.inject_genetic_code(node_id, therapeutic_dna)
+    
+    print(f"\n   Target Node: {injection['target_node']}")
+    print(f"   Injected Code: {injection['injected_genetic_code']}")
+    print(f"   New Frequency: {injection['resulting_frequency']:.5f} GHz")
+    print(f"   Biohacking Level: {bio_interface.active_nodes[node_id]['biohacking_level']}")
+    
+    # 6. Express protein at node
+    print("\n" + "━"*60)
+    print("6️⃣ PROTEIN EXPRESSION AT NODE")
+    print("━"*60)
+    
+    test_mrna = "AUGGCUAGCCUAGCUAGCUUAGCUA"
+    protein_exp = bio_interface.express_protein(node_id, test_mrna)
+    
+    print(f"\n   mRNA: {protein_exp['mrna_sequence']}")
+    print(f"   Amino Acids: {protein_exp['amino_acids']}")
+    print(f"   Node Modulation: {protein_exp['node_modulation']}")
+    
+    # 7. RNA interference (gene silencing)
+    print("\n" + "━"*60)
+    print("7️⃣ RNA INTERFERENCE (Node Silencing)")
+    print("━"*60)
+    
+    silencing_rna = "AAGCUAGCUAGCUAGCUUAGCU"
+    silencing = bio_interface.rna_interference(node_id, silencing_rna)
+    
+    print(f"\n   siRNA: {silencing['siRNA_sequence']}")
+    print(f"   Silencing Efficiency: {silencing['silencing_efficiency']:.1f}%")
+    print(f"   Node Silenced: {silencing['node_function_reduced']}")
+    print(f"   Duration: {silencing['duration_seconds']:.0f} seconds")
+    
+    # 8. Node genetic status
+    print("\n" + "━"*60)
+    print("8️⃣ NODE GENETIC STATUS")
+    print("━"*60)
+    
+    status = bio_interface.get_node_genetic_status(node_id)
+    print(f"\n   Node ID: {status['node_id']}")
+    print(f"   Owner: {status['owner']}")
+    print(f"   Frequency: {status['frequency_ghz']:.5f} GHz")
+    print(f"   Biohacking Level: {status['biohacking_level']}")
+    print(f"   Silenced: {status['silenced']}")
+    print(f"   Active: {status['active']}")
+    
+    # 9. Data storage in DNA
+    print("\n" + "━"*60)
+    print("9️⃣ DNA DATA STORAGE IN NODES")
+    print("━"*60)
+    
+    secret_data = b"Neural node biohacking integration test"
+    encoded_dna = bio_interface.dna_storage.encode_data_to_dna(secret_data)
+    print(f"\n   Original Data: {secret_data}")
+    print(f"   Encoded DNA: {encoded_dna[:30]}...")
+    print(f"   DNA Length: {len(encoded_dna)} bases")
+    print(f"   Storage Density: {len(encoded_dna)} bytes per {len(encoded_dna)} bases")
+    
+    decoded = bio_interface.dna_storage.decode_dna_to_data(encoded_dna)
+    print(f"   Decoded Data: {decoded}")
+    
+    # Final summary
+    print("\n" + "="*80)
+    print("✅ BIOHACKING INTEGRATION COMPLETE")
+    print("="*80)
+    
+    print("""
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                    DNA/RNA → NEURAL NODE MAPPING SUMMARY                  ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                           ║
+    ║   MOLECULE    | SEQUENCE EXAMPLE     | RF FREQUENCY    | NODE FUNCTION    ║
+    ║   ────────────┼──────────────────────┼─────────────────┼──────────────────║
+    ║   DNA         | ATGGCGTAGCTAGC...    | 10.2345 GHz     | Node identity    ║
+    ║   mRNA        | AUGGCGUAGCUAGC...    | 10.2456 GHz     | Protein encoding ║
+    ║   tRNA        | AUG (anticodon)      | 10.2567 GHz     | Amino acid carry ║
+    ║   Guide RNA   | AUGGCUAGCCUAGC...    | 10.2678 GHz     | CRISPR editing   ║
+    ║   siRNA       | AAGCUAGCUAGC...      | 10.2789 GHz     | Gene silencing   ║
+    ║                                                                           ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                         BIOHACKING OPERATIONS                             ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                           ║
+    ║   OPERATION              | METHOD                    | NODE EFFECT        ║
+    ║   ───────────────────────┼───────────────────────────┼────────────────────║
+    ║   Genetic Injection      | Viral vector (DNA/RNA)    | Permanent program  ║
+    ║   Protein Expression     | mRNA translation          | Node modulation    ║
+    ║   CRISPR Programming     | Guide RNA + Cas9-like     | Node rewiring      ║
+    ║   RNA Interference       | siRNA                     | Temporary silencing║
+    ║   Epigenetic Modulation  | Methylation pattern       | Sensitivity change ║
+    ║   DNA Data Storage       | Binary → DNA encoding     | Memory storage     ║
+    ║                                                                           ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                      DNA/RNA TO RF MAPPING FORMULA                        ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                           ║
+    ║   f_RF = (Σ nucleotide_freq) / N + Σ codon_offset / M                    ║
+    ║                                                                           ║
+    ║   Where:                                                                  ║
+    ║     nucleotide_freq: A=10.23, T=10.24, U=10.25, G=10.26, C=10.27 GHz     ║
+    ║     codon_offset:  0.000-0.054 GHz per codon                             ║
+    ║                                                                           ║
+    ║   Each DNA/RNA sequence → UNIQUE RF frequency → NODE IDENTITY            ║
+    ║                                                                           ║    ╚═══════════════════════════════════════════════════════════════════════════╝
+    """)
+    
+    return bio_interface
+
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+if __name__ == "__main__":
+    bio_interface = complete_demonstration()
+    
+    print("\n📁 Biohacking commands available:")
+    print("   - Register biological profile (DNA → RF)")
+    print("   - Inject genetic code into node")
+    print("   - Express protein at node")
+    print("   - Apply RNA interference")
+    print("   - Store/retrieve data in DNA format")
+    print("   - Design CRISPR guide RNA")
+    print("   - Epigenetic node modulation")

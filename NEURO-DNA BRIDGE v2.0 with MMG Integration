@@ -1,0 +1,842 @@
+#!/usr/bin/env python3
+"""
+NEURO-DNA BRIDGE v2.0 with MMG Integration
+Live EEG + MMG → Binary → DNA/tRNA → Tokens → LLM → Blockchain
+Supports: Mechanomyography (muscle vibration) + Electroencephalography (brain)
+
+MMG captures muscle mechanical vibrations (0.5-100Hz) complementing EEG
+Creates richer biomarker for BCI and neurorehabilitation
+"""
+
+import asyncio
+import json
+import hashlib
+import time
+import struct
+import threading
+import queue
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from enum import Enum
+import numpy as np
+import zlib
+
+# Network and blockchain
+import websockets
+import requests
+from flask import Flask, request, jsonify
+from flask_socketio import SocketIO, emit
+from flask_cors import CORS
+
+# Signal processing
+from scipy.signal import butter, filtfilt, spectrogram, find_peaks
+from scipy.fft import fft, fftfreq
+
+# MMG specific
+try:
+    import pyaudio  # For audio-based MMG capture (vibration to sound)
+    PYAUDIO_AVAILABLE = True
+except ImportError:
+    PYAUDIO_AVAILABLE = False
+    print("⚠️ pyaudio not installed - using mock MMG")
+
+# EEG specific
+try:
+    from pylsl import StreamInlet, resolve_stream  # LSL for EEG
+    LSL_AVAILABLE = True
+except ImportError:
+    LSL_AVAILABLE = False
+    print("⚠️ pylsl not installed - using mock EEG")
+
+# BioPython for DNA
+try:
+    from Bio.Seq import Seq
+    from Bio import SeqIO
+    BIO_AVAILABLE = True
+except ImportError:
+    BIO_AVAILABLE = False
+
+# LLM
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+# Web3
+try:
+    from web3 import Web3
+    WEB3_AVAILABLE = True
+except ImportError:
+    WEB3_AVAILABLE = False
+
+
+# ============== SECTION 1: MMG (Mechanomyography) CAPTURE ==============
+
+class MMGSignalCapture:
+    """
+    Mechanomyography (MMG) sensor capture
+    Measures muscle mechanical vibrations using:
+    - Accelerometers
+    - Contact microphones (piezo)
+    - Acoustic sensors
+    
+    Frequency range: 0.5-100 Hz (complements EEG)
+    """
+    
+    # MMG frequency bands (muscle activity)
+    MMG_BANDS = {
+        'slow_twitch': (0.5, 5),      # Type I muscle fibers
+        'fast_twitch': (5, 20),       # Type IIa fibers
+        'very_fast': (20, 50),        # Type IIb/x fibers
+        'tremor': (3, 8),             # Pathological tremor
+        'fatigue': (0.5, 2),          # Muscle fatigue indicator
+        'spasm': (50, 100)            # Muscle spasm detection
+    }
+    
+    # Muscle groups for MMG placement
+    MUSCLE_GROUPS = {
+        'thenar': 'Hand (thumb abductor)',
+        'hypothenar': 'Hand (pinky abductor)',
+        'fcr': 'Forearm (wrist flexor)',
+        'ecrb': 'Forearm (wrist extensor)',
+        'biceps': 'Upper arm (elbow flexor)',
+        'triceps': 'Upper arm (elbow extensor)',
+        'quadriceps': 'Thigh (knee extensor)',
+        'gastrocnemius': 'Calf (ankle plantarflexor)',
+        'tibialis': 'Shin (ankle dorsiflexor)',
+        'trapezius': 'Shoulder/neck',
+        'masseter': 'Jaw (chewing)',
+        'frontalis': 'Forehead (eyebrow raise)'
+    }
+    
+    def __init__(self, sensor_type: str = "accelerometer", sample_rate: int = 200):
+        """
+        Initialize MMG capture
+        
+        Args:
+            sensor_type: 'accelerometer', 'microphone', 'piezo'
+            sample_rate: Hz (typical MMG: 100-200 Hz)
+        """
+        self.sensor_type = sensor_type
+        self.sample_rate = sample_rate
+        self.buffer_size = sample_rate * 2  # 2 second buffer
+        self.running = False
+        self.thread = None
+        self.callbacks = []
+        self.audio = None
+        self.stream = None
+        
+        # Setup audio for microphone-based MMG
+        if sensor_type == 'microphone' and PYAUDIO_AVAILABLE:
+            self.audio = pyaudio.PyAudio()
+            self.stream = self.audio.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=sample_rate,
+                input=True,
+                frames_per_buffer=1024
+            )
+        
+        print(f"📊 MMG Capture Initialized")
+        print(f"   Sensor: {sensor_type}")
+        print(f"   Sample Rate: {sample_rate} Hz")
+        print(f"   Bands: {len(self.MMG_BANDS)}")
+    
+    def start_capture(self, callback, muscle_group: str = "forearm"):
+        """Start live MMG capture"""
+        self.callbacks.append(callback)
+        self.running = True
+        self.thread = threading.Thread(target=self._capture_loop, daemon=True)
+        self.thread.start()
+        print(f"✅ MMG capture started on {muscle_group}")
+    
+    def _capture_loop(self):
+        """Capture loop for MMG data"""
+        buffer = []
+        
+        while self.running:
+            if self.sensor_type == 'microphone' and self.stream:
+                # Read from microphone
+                data = self.stream.read(1024, exception_on_overflow=False)
+                samples = np.frombuffer(data, dtype=np.int16).astype(np.float32)
+                samples = samples / 32768.0  # Normalize
+            else:
+                # Simulate realistic MMG data
+                samples = self._simulate_mmg()
+            
+            buffer.extend(samples)
+            
+            # Process when buffer is full
+            while len(buffer) >= self.buffer_size:
+                chunk = buffer[:self.buffer_size]
+                buffer = buffer[self.buffer_size:]
+                
+                # Extract features
+                features = self.extract_features(np.array(chunk))
+                
+                # Convert to binary
+                binary = self.features_to_binary(features)
+                
+                # Call callbacks
+                for callback in self.callbacks:
+                    callback(binary, features, chunk)
+            
+            time.sleep(0.05)  # ~20 Hz processing
+    
+    def _simulate_mmg(self) -> np.ndarray:
+        """Generate realistic MMG simulation"""
+        t = np.linspace(0, 1, self.sample_rate)
+        
+        # Muscle contraction envelope
+        envelope = np.exp(-t * 2) * (1 - np.exp(-t * 10))
+        
+        # Oscillatory component (motor unit firing)
+        firing_rate = 12  # Hz
+        oscillations = 0.3 * np.sin(2 * np.pi * firing_rate * t)
+        
+        # Tremor component (3-8 Hz)
+        tremor = 0.1 * np.sin(2 * np.pi * 5 * t)
+        
+        # Noise
+        noise = np.random.normal(0, 0.05, len(t))
+        
+        mmg = envelope * (oscillations + tremor) + noise
+        return mmg
+    
+    def extract_features(self, signal: np.ndarray) -> Dict:
+        """
+        Extract MMG features for BCI applications
+        
+        Features include:
+        - RMS amplitude (muscle activation level)
+        - Mean frequency (fiber type recruitment)
+        - Median frequency (fatigue indicator)
+        - Band powers (specific muscle activities)
+        """
+        # RMS amplitude
+        rms = np.sqrt(np.mean(signal**2))
+        
+        # FFT analysis
+        N = len(signal)
+        freqs = fftfreq(N, 1/self.sample_rate)[:N//2]
+        fft_vals = np.abs(fft(signal))[:N//2]
+        
+        # Mean frequency
+        if np.sum(fft_vals) > 0:
+            mean_freq = np.sum(freqs * fft_vals) / np.sum(fft_vals)
+            median_freq = self._find_median_frequency(freqs, fft_vals)
+        else:
+            mean_freq = 0
+            median_freq = 0
+        
+        # Band powers
+        band_powers = {}
+        for band_name, (low, high) in self.MMG_BANDS.items():
+            mask = (freqs >= low) & (freqs < high)
+            band_powers[band_name] = float(np.sum(fft_vals[mask])) if np.any(mask) else 0
+        
+        # Peak detection (motor unit firing)
+        peaks, _ = find_peaks(signal, height=np.std(signal), distance=int(self.sample_rate/20))
+        firing_rate = len(peaks) / (N / self.sample_rate) if N > 0 else 0
+        
+        return {
+            'rms': float(rms),
+            'mean_frequency_hz': float(mean_freq),
+            'median_frequency_hz': float(median_freq),
+            'firing_rate_hz': firing_rate,
+            'band_powers': band_powers,
+            'peak_count': len(peaks),
+            'zero_crossings': self._count_zero_crossings(signal)
+        }
+    
+    def _find_median_frequency(self, freqs: np.ndarray, fft_vals: np.ndarray) -> float:
+        """Find median frequency (fatigue indicator)"""
+        cumsum = np.cumsum(fft_vals)
+        total = cumsum[-1]
+        if total == 0:
+            return 0
+        median_idx = np.searchsorted(cumsum, total / 2)
+        return freqs[median_idx] if median_idx < len(freqs) else 0
+    
+    def _count_zero_crossings(self, signal: np.ndarray) -> int:
+        """Count zero crossings (activity measure)"""
+        return np.sum(np.diff(np.sign(signal)) != 0)
+    
+    def features_to_binary(self, features: Dict) -> str:
+        """Convert MMG features to binary representation"""
+        binary_parts = []
+        
+        # Encode RMS (4 bits)
+        rms_norm = min(15, int(features['rms'] * 50))
+        binary_parts.append(format(rms_norm, '04b'))
+        
+        # Encode firing rate (4 bits)
+        fr_norm = min(15, int(features['firing_rate_hz'] / 3))
+        binary_parts.append(format(fr_norm, '04b'))
+        
+        # Encode dominant band (3 bits)
+        bands = list(self.MMG_BANDS.keys())
+        dominant = max(self.MMG_BANDS.keys(), key=lambda b: features['band_powers'].get(b, 0))
+        band_idx = bands.index(dominant) if dominant in bands else 0
+        binary_parts.append(format(band_idx, '03b'))
+        
+        # Encode fatigue indicator (1 bit)
+        fatigue = 1 if features['median_frequency_hz'] < features['mean_frequency_hz'] * 0.8 else 0
+        binary_parts.append(str(fatigue))
+        
+        return ''.join(binary_parts)
+    
+    def stop_capture(self):
+        """Stop MMG capture"""
+        self.running = False
+        if self.thread:
+            self.thread.join(timeout=2)
+        if self.stream:
+            self.stream.stop_stream()
+            self.stream.close()
+        if self.audio:
+            self.audio.terminate()
+        print("⏹️ MMG capture stopped")
+
+
+# ============== SECTION 2: EEG CAPTURE (Enhanced) ==============
+
+class EEGSignalCapture:
+    """
+    EEG capture with LSL support for OpenBCI, Muse, etc.
+    Enhanced with real-time feature extraction
+    """
+    
+    BANDS = {
+        'delta': (0.5, 4),
+        'theta': (4, 8),
+        'alpha': (8, 13),
+        'beta': (13, 30),
+        'gamma': (30, 50)
+    }
+    
+    def __init__(self, device_type: str = "muse", sample_rate: int = 256, channels: List[str] = None):
+        self.device_type = device_type
+        self.sample_rate = sample_rate
+        self.channels = channels or ['Fz', 'Cz', 'Pz', 'O1', 'O2']
+        self.buffer_size = sample_rate
+        self.running = False
+        self.thread = None
+        self.callbacks = []
+        self.lsl_inlet = None
+        
+        # Try LSL connection
+        if LSL_AVAILABLE:
+            self._connect_lsl()
+        
+        print(f"🧠 EEG Capture Initialized")
+        print(f"   Device: {device_type}")
+        print(f"   Channels: {len(self.channels)}")
+        print(f"   Sample Rate: {sample_rate} Hz")
+    
+    def _connect_lsl(self):
+        """Connect to LSL stream (OpenBCI, Muse, etc.)"""
+        try:
+            streams = resolve_stream('type', 'EEG')
+            if streams:
+                self.lsl_inlet = StreamInlet(streams[0])
+                print("✅ LSL EEG stream connected")
+        except:
+            pass
+    
+    def start_capture(self, callback):
+        """Start EEG capture"""
+        self.callbacks.append(callback)
+        self.running = True
+        self.thread = threading.Thread(target=self._capture_loop, daemon=True)
+        self.thread.start()
+        print("✅ EEG capture started")
+    
+    def _capture_loop(self):
+        """Capture EEG data"""
+        buffer = {ch: [] for ch in self.channels}
+        
+        while self.running:
+            if self.lsl_inlet:
+                # Real LSL data
+                sample, timestamp = self.lsl_inlet.pull_sample()
+                for i, ch in enumerate(self.channels):
+                    if i < len(sample):
+                        buffer[ch].append(sample[i])
+            else:
+                # Simulated EEG
+                for ch in self.channels:
+                    sample = self._simulate_eeg(ch)
+                    buffer[ch].append(sample)
+            
+            # Process when buffer is full
+            if len(buffer[self.channels[0]]) >= self.buffer_size:
+                for ch in self.channels:
+                    signals = np.array(buffer[ch])
+                    features = self.extract_features(signals)
+                    binary = self.features_to_binary(features)
+                    
+                    for callback in self.callbacks:
+                        callback(binary, features, ch)
+                
+                # Clear buffers
+                for ch in self.channels:
+                    buffer[ch] = []
+            
+            time.sleep(1 / self.sample_rate)
+    
+    def _simulate_eeg(self, channel: str) -> float:
+        """Simulate EEG based on channel location"""
+        t = time.time()
+        
+        # Regional differences
+        if 'F' in channel:  # Frontal: more beta
+            alpha = 0.3 * np.sin(2 * np.pi * 10 * t)
+            beta = 0.5 * np.sin(2 * np.pi * 20 * t)
+        elif 'C' in channel:  # Central: mixed
+            alpha = 0.4 * np.sin(2 * np.pi * 10 * t)
+            beta = 0.3 * np.sin(2 * np.pi * 20 * t)
+        elif 'P' in channel:  # Parietal: more alpha
+            alpha = 0.6 * np.sin(2 * np.pi * 10 * t)
+            beta = 0.2 * np.sin(2 * np.pi * 20 * t)
+        elif 'O' in channel:  # Occipital: strong alpha
+            alpha = 0.8 * np.sin(2 * np.pi * 10 * t)
+            beta = 0.1 * np.sin(2 * np.pi * 20 * t)
+        else:
+            alpha = 0.4 * np.sin(2 * np.pi * 10 * t)
+            beta = 0.3 * np.sin(2 * np.pi * 20 * t)
+        
+        theta = 0.2 * np.sin(2 * np.pi * 6 * t)
+        noise = np.random.normal(0, 0.1)
+        
+        return alpha + beta + theta + noise
+    
+    def extract_features(self, signal: np.ndarray) -> Dict:
+        """Extract EEG features"""
+        N = len(signal)
+        freqs = fftfreq(N, 1/self.sample_rate)[:N//2]
+        fft_vals = np.abs(fft(signal))[:N//2]
+        
+        band_powers = {}
+        for band, (low, high) in self.BANDS.items():
+            mask = (freqs >= low) & (freqs < high)
+            band_powers[band] = float(np.sum(fft_vals[mask])) if np.any(mask) else 0
+        
+        # Alpha/Theta ratio (relaxation index)
+        alpha_theta_ratio = band_powers.get('alpha', 1) / (band_powers.get('theta', 1) + 0.01)
+        
+        # Beta/Alpha ratio (focus index)
+        beta_alpha_ratio = band_powers.get('beta', 1) / (band_powers.get('alpha', 1) + 0.01)
+        
+        return {
+            'band_powers': band_powers,
+            'alpha_theta_ratio': float(alpha_theta_ratio),
+            'beta_alpha_ratio': float(beta_alpha_ratio),
+            'total_power': float(np.sum(fft_vals))
+        }
+    
+    def features_to_binary(self, features: Dict) -> str:
+        """Convert EEG features to binary"""
+        binary_parts = []
+        
+        # Dominant band (3 bits)
+        bands = list(self.BANDS.keys())
+        dominant = max(bands, key=lambda b: features['band_powers'].get(b, 0))
+        band_idx = bands.index(dominant)
+        binary_parts.append(format(band_idx, '03b'))
+        
+        # Alpha/Theta ratio (4 bits)
+        at_ratio = min(15, int(features['alpha_theta_ratio'] * 3))
+        binary_parts.append(format(at_ratio, '04b'))
+        
+        # Beta/Alpha ratio (3 bits)
+        ba_ratio = min(7, int(features['beta_alpha_ratio'] * 2))
+        binary_parts.append(format(ba_ratio, '03b'))
+        
+        return ''.join(binary_parts)
+    
+    def stop_capture(self):
+        """Stop EEG capture"""
+        self.running = False
+        print("⏹️ EEG capture stopped")
+
+
+# ============== SECTION 3: MMG + EEG FUSION ==============
+
+class BioSignalFusion:
+    """
+    Fuses MMG and EEG signals for enhanced BCI
+    Creates rich multimodal biomarkers
+    """
+    
+    def __init__(self):
+        self.history = []
+        self.fusion_weights = {
+            'mmg': 0.4,
+            'eeg': 0.6
+        }
+        
+        print("🔗 BioSignal Fusion Engine Initialized")
+        print(f"   MMG Weight: {self.fusion_weights['mmg']}")
+        print(f"   EEG Weight: {self.fusion_weights['eeg']}")
+    
+    def fuse_signals(self, mmg_binary: str, eeg_binary: str, mmg_features: Dict, eeg_features: Dict) -> Dict:
+        """
+        Fuse MMG and EEG into unified biomarker
+        
+        Applications:
+        - Intent detection (movement + brain)
+        - Fatigue monitoring (muscle + cognitive)
+        - Rehabilitation assessment
+        """
+        # Combine binaries (interleaved)
+        min_len = min(len(mmg_binary), len(eeg_binary))
+        fused_binary = ''.join(
+            mmg_binary[i] + eeg_binary[i] for i in range(min_len)
+        )
+        
+        # Calculate fusion metrics
+        # MMG activation + EEG motor imagery match
+        mmg_active = mmg_features.get('rms', 0) > 0.1
+        eeg_mi = eeg_features.get('beta_alpha_ratio', 0) > 1.0
+        
+        movement_intent = mmg_active or eeg_mi
+        confidence = (self.fusion_weights['mmg'] * (1 if mmg_active else 0) +
+                     self.fusion_weights['eeg'] * (1 if eeg_mi else 0))
+        
+        # Detect cross-modal coherence
+        # High EEG beta + high MMG firing = active engagement
+        engagement = (eeg_features.get('beta_alpha_ratio', 0) > 1.2 and 
+                     mmg_features.get('firing_rate_hz', 0) > 10)
+        
+        result = {
+            'fused_binary': fused_binary,
+            'movement_intent': movement_intent,
+            'confidence': confidence,
+            'engagement_detected': engagement,
+            'fusion_timestamp': time.time(),
+            'mmg_contribution': mmg_binary[:16] + '...' if mmg_binary else '',
+            'eeg_contribution': eeg_binary[:16] + '...' if eeg_binary else ''
+        }
+        
+        self.history.append(result)
+        if len(self.history) > 100:
+            self.history = self.history[-100:]
+        
+        return result
+    
+    def get_fusion_accuracy(self) -> float:
+        """Calculate fusion accuracy over history"""
+        if not self.history:
+            return 0.0
+        
+        # Average confidence of valid detections
+        confidences = [h['confidence'] for h in self.history if h['movement_intent']]
+        return np.mean(confidences) if confidences else 0.0
+
+
+# ============== SECTION 4: ENHANCED DNA ENCODER ==============
+
+class EnhancedDNAEncoder:
+    """
+    Enhanced DNA encoder supporting MMG + EEG fusion
+    Converts fused biosignals to DNA/tRNA/Proteins
+    """
+    
+    # Extended codon table for biosignal mapping
+    SIGNAL_CODONS = {
+        '00': 'A', '01': 'C', '10': 'G', '11': 'T',
+        '000': 'A', '001': 'C', '010': 'G', '011': 'T',
+        '100': 'A', '101': 'C', '110': 'G', '111': 'T'
+    }
+    
+    # Special markers for biosignal types
+    SIGNAL_MARKERS = {
+        'eeg_alpha': 'ATG',  # Start codon for alpha
+        'eeg_beta': 'CTG',   # Beta activity
+        'eeg_theta': 'GTG',  # Theta activity
+        'mmg_contraction': 'TTG',  # Muscle contraction
+        'mmg_fatigue': 'CAC',  # Fatigue marker
+        'mmg_tremor': 'GAC',  # Tremor marker
+        'movement_intent': 'ACT',  # Movement intention
+        'relaxation': 'GCT'  # Relaxation state
+    }
+    
+    def __init__(self):
+        self.encoding_history = []
+        print(f"🧬 Enhanced DNA Encoder Initialized")
+        print(f"   Signal Markers: {len(self.SIGNAL_MARKERS)}")
+    
+    def binary_to_dna(self, binary: str, encoding_scheme: str = '2bit') -> str:
+        """Convert binary to DNA using specified scheme"""
+        if encoding_scheme == '2bit':
+            bits_per_nuc = 2
+            mapping = {k: v for k, v in self.SIGNAL_CODONS.items() if len(k) == 2}
+        else:
+            bits_per_nuc = 3
+            mapping = {k: v for k, v in self.SIGNAL_CODONS.items() if len(k) == 3}
+        
+        # Pad binary
+        if len(binary) % bits_per_nuc != 0:
+            binary = binary + '0' * (bits_per_nuc - (len(binary) % bits_per_nuc))
+        
+        dna = ''.join(mapping[binary[i:i+bits_per_nuc]] for i in range(0, len(binary), bits_per_nuc))
+        return dna
+    
+    def add_signal_marker(self, dna: str, signal_type: str) -> str:
+        """Add signal-type marker to DNA sequence"""
+        if signal_type in self.SIGNAL_MARKERS:
+            marker = self.SIGNAL_MARKERS[signal_type]
+            # Prepend marker for identification
+            return marker + dna
+        return dna
+    
+    def encode_biosignal(self, 
+                        fused_binary: str,
+                        signal_metadata: Dict,
+                        timestamp: float) -> Dict:
+        """
+        Complete encoding of fused MMG+EEG signal to DNA
+        """
+        # Convert to DNA
+        dna = self.binary_to_dna(fused_binary, '2bit')
+        
+        # Add signal-type markers based on detected states
+        if signal_metadata.get('movement_intent'):
+            dna = self.add_signal_marker(dna, 'movement_intent')
+        if signal_metadata.get('engagement_detected'):
+            # Add engagement marker in middle
+            mid = len(dna) // 2
+            dna = dna[:mid] + 'GCT' + dna[mid:]
+        
+        # RNA transcription
+        rna = dna.replace('T', 'U')
+        
+        # Translate to amino acids
+        amino_acids = []
+        for i in range(0, len(rna), 3):
+            codon = rna[i:i+3]
+            if len(codon) == 3:
+                # Use standard genetic code
+                aa = self._codon_to_aa(codon)
+                amino_acids.append(aa)
+        
+        # Generate fingerprint
+        fingerprint = hashlib.sha3_256(
+            f"{dna}_{timestamp}_{signal_metadata.get('confidence', 0)}".encode()
+        ).hexdigest()[:16]
+        
+        result = {
+            'timestamp': timestamp,
+            'fused_binary_length': len(fused_binary),
+            'dna': dna,
+            'dna_length': len(dna),
+            'rna': rna,
+            'amino_acids': amino_acids[:20],  # First 20 for display
+            'peptide': '-'.join(amino_acids[:10]) if amino_acids else '',
+            'signal_metadata': signal_metadata,
+            'fingerprint': fingerprint,
+            'gc_content': (dna.count('G') + dna.count('C')) / len(dna) if dna else 0
+        }
+        
+        self.encoding_history.append(result)
+        return result
+    
+    def _codon_to_aa(self, codon: str) -> str:
+        """Convert codon to amino acid (3-letter code)"""
+        codon_table = {
+            'UUU': 'Phe', 'UUC': 'Phe', 'UUA': 'Leu', 'UUG': 'Leu',
+            'UCU': 'Ser', 'UCC': 'Ser', 'UCA': 'Ser', 'UCG': 'Ser',
+            'UAU': 'Tyr', 'UAC': 'Tyr', 'UAA': 'Stop', 'UAG': 'Stop',
+            'UGU': 'Cys', 'UGC': 'Cys', 'UGA': 'Stop', 'UGG': 'Trp',
+            'CUU': 'Leu', 'CUC': 'Leu', 'CUA': 'Leu', 'CUG': 'Leu',
+            'CCU': 'Pro', 'CCC': 'Pro', 'CCA': 'Pro', 'CCG': 'Pro',
+            'CAU': 'His', 'CAC': 'His', 'CAA': 'Gln', 'CAG': 'Gln',
+            'CGU': 'Arg', 'CGC': 'Arg', 'CGA': 'Arg', 'CGG': 'Arg',
+            'AUU': 'Ile', 'AUC': 'Ile', 'AUA': 'Ile', 'AUG': 'Met',
+            'ACU': 'Thr', 'ACC': 'Thr', 'ACA': 'Thr', 'ACG': 'Thr',
+            'AAU': 'Asn', 'AAC': 'Asn', 'AAA': 'Lys', 'AAG': 'Lys',
+            'AGU': 'Ser', 'AGC': 'Ser', 'AGA': 'Arg', 'AGG': 'Arg',
+            'GUU': 'Val', 'GUC': 'Val', 'GUA': 'Val', 'GUG': 'Val',
+            'GCU': 'Ala', 'GCC': 'Ala', 'GCA': 'Ala', 'GCG': 'Ala',
+            'GAU': 'Asp', 'GAC': 'Asp', 'GAA': 'Glu', 'GAG': 'Glu',
+            'GGU': 'Gly', 'GGC': 'Gly', 'GGA': 'Gly', 'GGG': 'Gly'
+        }
+        return codon_table.get(codon, 'Xxx')
+
+
+# ============== SECTION 5: COMPLETE SERVER WITH MMG ==============
+
+class NeuralDNABridgeMMG:
+    """
+    Complete server with MMG + EEG support
+    """
+    
+    def __init__(self):
+        self.app = Flask(__name__)
+        CORS(self.app)
+        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
+        
+        # Components
+        self.mmg = MMGSignalCapture(sensor_type='accelerometer')
+        self.eeg = EEGSignalCapture()
+        self.fusion = BioSignalFusion()
+        self.encoder = EnhancedDNAEncoder()
+        self.blockchain = BrainBlockchain()
+        
+        # LLM setup
+        self.tokenizer = None
+        self.model = None
+        self._init_llm()
+        
+        # Data storage
+        self.sessions = {}
+        
+        self._setup_routes()
+        
+        print("\n🧠 NEURAL-DNA BRIDGE v2.0 WITH MMG")
+        print("   MMG + EEG → DNA → LLM → Blockchain")
+    
+    def _init_llm(self):
+        """Initialize local LLM"""
+        try:
+            model_name = "microsoft/phi-2"
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name, 
+                torch_dtype=torch.float32,
+                trust_remote_code=True
+            )
+            print("✅ Local LLM loaded")
+        except Exception as e:
+            print(f"⚠️ LLM not loaded: {e}")
+    
+    def _setup_routes(self):
+        
+        @self.app.route('/health')
+        def health():
+            return jsonify({'status': 'online', 'mmg_ready': True})
+        
+        @self.app.route('/stats')
+        def stats():
+            return jsonify({
+                'mmg_history': len(self.mmg.callbacks),
+                'encoder_history': len(self.encoder.encoding_history),
+                'fusion_accuracy': self.fusion.get_fusion_accuracy()
+            })
+        
+        @self.socketio.on('connect')
+        def handle_connect():
+            print(f"🔌 Client connected")
+            emit('connected', {'status': 'ready', 'modalities': ['eeg', 'mmg']})
+        
+        @self.socketio.on('start_mmg_capture')
+        def handle_start_mmg(data):
+            muscle = data.get('muscle_group', 'forearm')
+            
+            def mmg_callback(binary, features, raw):
+                self.socketio.emit('mmg_data', {
+                    'binary': binary,
+                    'features': features,
+                    'rms': features.get('rms', 0),
+                    'firing_rate': features.get('firing_rate_hz', 0),
+                    'timestamp': time.time()
+                })
+            
+            self.mmg.start_capture(mmg_callback, muscle)
+            emit('mmg_started', {'muscle': muscle})
+        
+        @self.socketio.on('start_eeg_capture')
+        def handle_start_eeg():
+            def eeg_callback(binary, features, channel):
+                self.socketio.emit('eeg_data', {
+                    'binary': binary,
+                    'channel': channel,
+                    'dominant_band': max(features['band_powers'], key=features['band_powers'].get),
+                    'timestamp': time.time()
+                })
+            
+            self.eeg.start_capture(eeg_callback)
+            emit('eeg_started', {'channels': self.eeg.channels})
+        
+        @self.socketio.on('fuse_and_encode')
+        def handle_fuse_and_encode(data):
+            mmg_binary = data.get('mmg_binary', '')
+            eeg_binary = data.get('eeg_binary', '')
+            mmg_features = data.get('mmg_features', {})
+            eeg_features = data.get('eeg_features', {})
+            
+            # Fuse signals
+            fused = self.fusion.fuse_signals(mmg_binary, eeg_binary, mmg_features, eeg_features)
+            
+            # Encode to DNA
+            dna_result = self.encoder.encode_biosignal(
+                fused['fused_binary'],
+                fused,
+                time.time()
+            )
+            
+            # LLM interpretation
+            llm_response = self._interpret_biosignal(dna_result['dna'], fused)
+            
+            # Blockchain logging
+            tx = self.blockchain.create_brain_tx({
+                'dna': dna_result['dna'],
+                'fingerprint': dna_result['fingerprint'],
+                'llm_response': llm_response
+            })
+            
+            emit('fusion_result', {
+                'dna': dna_result['dna'],
+                'rna': dna_result['rna'],
+                'peptide': dna_result['peptide'],
+                'movement_intent': fused['movement_intent'],
+                'confidence': fused['confidence'],
+                'llm_response': llm_response,
+                'tx_hash': tx.get('tx_hash', '')
+            })
+    
+    def _interpret_biosignal(self, dna: str, fusion_data: Dict) -> str:
+        """Interpret fused biosignal using LLM"""
+        intent = "movement intention detected" if fusion_data.get('movement_intent') else "no clear movement intention"
+        confidence = fusion_data.get('confidence', 0)
+        
+        prompt = f"""Biosignal analysis from MMG+EEG:
+        DNA derived from signal: {dna[:50]}...
+        Movement intent: {intent}
+        Confidence: {confidence:.2%}
+        
+        Interpret this neuromuscular-brain state and provide clinical insight:"""
+        
+        if self.model and self.tokenizer:
+            inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=256)
+            with torch.no_grad():
+                outputs = self.model.generate(inputs.input_ids, max_new_tokens=80)
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            response = response.split("insight:")[-1].strip()
+        else:
+            responses = [
+                f"Active motor planning detected with {confidence:.0%} confidence from MMG-EEG coherence.",
+                "Relaxed state with minimal muscle activity. Ready for movement initiation.",
+                "Fatigue indicators present in MMG. Consider rest before motor tasks.",
+                f"Strong beta-alpha ratio suggests focused attention. Movement intent probability: {confidence:.0%}"
+            ]
+            import random
+            response = random.choice(responses)
+        
+        return response
+    
+    def run(self, host='0.0.0.0', port=5000):
+        print(f"\n🚀 Starting MMG+EEG Neural-DNA Bridge on {host}:{port}")
+        self.socketio.run(self.app, host=host, port=port, debug=False)
+
+
+# ============== SECTION 6: CLIENT SIMULATOR ==============
+
+class NeuroClientMMG:
+    """Client simulator for MMG+EEG testing"""
+    
+    def __init__(self, server_url: str = "http://localhost:5000"):
+        self.server_url = server_url
+        self.socket = None
+        self.mmg_data = []
+        self.e

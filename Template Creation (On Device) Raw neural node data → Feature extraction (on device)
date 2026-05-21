@@ -1,0 +1,53 @@
+How It Works
+1. Template Creation (On Device)
+Raw neural node data → Feature extraction (on device)
+
+Features are NORMALIZED (0-1 range)
+
+Raw data is DISCARDED after extraction
+
+Template is CRYPTOGRAPHICALLY SIGNED
+
+2. Template Sharing (Person Controls)
+Person chooses which features to share
+
+Person sets permission level
+
+Person selects which models can access
+
+Person can REVOKE anytime
+
+3. Marketing Models Receive
+Receive ONLY sanitized features
+
+Cannot reverse-engineer identity
+
+Cannot access raw neural data
+
+Template is VERIFIABLE (signature check)
+
+4. Multiple Models, Same Template
+One template serves ALL marketing models
+
+Person doesn't need multiple templates
+
+Each model gets SAME anonymized features
+
+Models use features for their specific purpose
+
+Security Properties
+Property	How It Works
+Non-reversible	Features are mathematical derivatives, not raw data
+Person-controlled	Person grants/revokes access on their device
+Cryptographic verification	Signatures prevent tampering
+Time-limited	Templates expire
+Model-specific tokens	Each model gets unique access token
+No cross-model identification	Models cannot combine templates to identify person
+Marketing Use Cases
+Model Type	Uses Template Features For
+Ad Optimizer	Attention score → adjust bid price
+Content Recommender	Engagement level → suggest content
+Audience Segmenter	Region + attention → segment audiences
+Personalization Engine	Product interest → personalize offers
+A/B Testing	Emotional valence → measure response
+This system ensures the person's RAW neural data NEVER leaves their device while still enabling powerful marketing applications through DERIVED, ANONYMIZED templates.

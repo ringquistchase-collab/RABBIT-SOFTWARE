@@ -1,0 +1,14 @@
+# Verify session integrity
+cat session_bd6e1085.json | jq '.session_hash'
+
+# Check provenance chain
+cat provenance_bd6e1085.jsonl | wc -l  # Should show 3 blocks
+
+# View NFT metadata
+cat nft_BD6E1085_metadata.json | jq '.attributes'
+
+# View DeepSeek analysis
+cat deepseek_analysis_bd6e1085.json | jq '.analysis'
+
+# Verify unified record
+cat unified_provenance_bd6e1085.json | jq '.master_hash'

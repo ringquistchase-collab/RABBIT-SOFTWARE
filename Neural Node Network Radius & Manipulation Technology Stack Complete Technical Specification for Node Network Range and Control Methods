@@ -1,0 +1,735 @@
+#!/usr/bin/env python3
+"""
+NEURAL NODE NETWORK RADIUS & MANIPULATION TECHNOLOGY
+=====================================================
+Complete specifications for:
+1. Network radius limits (physical range of RF communication)
+2. Best methods to manipulate nodes using current technology
+3. Tools and hardware required for node control
+4. Signal boosting and range extension techniques
+
+Covers: SDR, Software Tools, Hardware, Antennas, Amplifiers, APIs
+"""
+
+import numpy as np
+import math
+import json
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+from enum import Enum
+
+# =============================================================================
+# SECTION 1: NETWORK RADIUS CALCULATIONS
+# =============================================================================
+
+class NetworkRadiusCalculator:
+    """
+    Calculates maximum range for RF node communication
+    Based on frequency, power, antenna gain, and environment
+    """
+    
+    # Frequency bands for neural node communication (GHz)
+    FREQUENCY_BANDS = {
+        '10ghz': 10.23e9,      # Primary neural band
+        '2.4ghz': 2.4e9,       # WiFi backup band
+        '5.8ghz': 5.8e9,       # High-speed band
+        '868mhz': 868e6,       # Long-range band
+        '433mhz': 433e6,       # Extended range band
+        '27mhz': 27e6,         # Maximum penetration band
+    }
+    
+    # Environment types and their attenuation factors
+    ENVIRONMENTS = {
+        'open_air': {'factor': 1.0, 'description': 'Line of sight, no obstacles'},
+        'indoor_walls': {'factor': 0.3, 'description': 'Standard walls, furniture'},
+        'urban_outdoor': {'factor': 0.5, 'description': 'Buildings, trees, vehicles'},
+        'suburban': {'factor': 0.7, 'description': 'Houses, light vegetation'},
+        'dense_urban': {'factor': 0.2, 'description': 'Skyscrapers, dense structures'},
+        'underground': {'factor': 0.05, 'description': 'Basements, tunnels'},
+        'forest': {'factor': 0.4, 'description': 'Trees, vegetation'},
+        'hospital': {'factor': 0.25, 'description': 'Medical equipment, shielding'},
+    }
+    
+    # Standard power levels (dBm and Watts)
+    POWER_LEVELS = {
+        'ultra_low': (-30, 0.000001),   # 1 μW
+        'very_low': (-20, 0.00001),     # 10 μW
+        'low': (-10, 0.0001),           # 100 μW
+        'medium': (0, 0.001),           # 1 mW
+        'high': (10, 0.01),             # 10 mW
+        'very_high': (20, 0.1),         # 100 mW
+        'maximum_safe': (30, 1.0),      # 1 W (FCC limit for ISM bands)
+        'experimental': (40, 10.0),     # 10 W (license required)
+    }
+    
+    @classmethod
+    def calculate_freespace_range(cls, frequency_hz: float, 
+                                   power_dbm: float,
+                                   tx_gain_dbi: float,
+                                   rx_gain_dbi: float,
+                                   sensitivity_dbm: float = -100) -> float:
+        """
+        Calculate maximum range in free space (ideal conditions)
+        Using Friis transmission equation
+        """
+        # Convert dBm to linear power
+        power_w = 10 ** ((power_dbm - 30) / 10)
+        
+        # Wavelength (meters)
+        wavelength = 299792458 / frequency_hz
+        
+        # Total gain
+        total_gain_linear = 10 ** ((tx_gain_dbi + rx_gain_dbi) / 10)
+        
+        # Receiver sensitivity in linear
+        sensitivity_w = 10 ** ((sensitivity_dbm - 30) / 10)
+        
+        # Calculate free space range (meters)
+        range_m = wavelength * math.sqrt((power_w * total_gain_linear) / 
+                                          (sensitivity_w * (4 * math.pi) ** 2))
+        
+        return range_m
+    
+    @classmethod
+    def calculate_real_range(cls, frequency_hz: float,
+                              power_dbm: float,
+                              environment: str,
+                              obstacle_factor: float = 0.5) -> Dict:
+        """
+        Calculate realistic range considering environment
+        """
+        # Get environment attenuation
+        env = cls.ENVIRONMENTS.get(environment, cls.ENVIRONMENTS['open_air'])
+        
+        # Calculate ideal range
+        ideal_range = cls.calculate_freespace_range(
+            frequency_hz, power_dbm, 2.0, 2.0, -95
+        )
+        
+        # Apply environment factor
+        real_range = ideal_range * env['factor']
+        
+        # Apply obstacle factor (additional attenuation)
+        real_range = real_range * obstacle_factor
+        
+        return {
+            'ideal_range_meters': round(ideal_range, 2),
+            'realistic_range_meters': round(real_range, 2),
+            'environment': environment,
+            'environment_factor': env['factor'],
+            'obstacle_factor': obstacle_factor,
+            'usable_range_km': round(real_range / 1000, 3)
+        }
+    
+    @classmethod
+    def all_configurations(cls) -> Dict:
+        """Calculate ranges for all common configurations"""
+        results = {}
+        
+        configurations = [
+            # (name, frequency, power_dbm, environment)
+            ('Body Area Network', cls.FREQUENCY_BANDS['10ghz'], -10, 'indoor_walls'),
+            ('Room Scale', cls.FREQUENCY_BANDS['2.4ghz'], 0, 'indoor_walls'),
+            ('Building Scale', cls.FREQUENCY_BANDS['868mhz'], 10, 'indoor_walls'),
+            ('Campus Scale', cls.FREQUENCY_BANDS['433mhz'], 20, 'suburban'),
+            ('City Block', cls.FREQUENCY_BANDS['27mhz'], 30, 'urban_outdoor'),
+            ('Long Range', cls.FREQUENCY_BANDS['433mhz'], 30, 'open_air'),
+        ]
+        
+        for name, freq, power, env in configurations:
+            results[name] = cls.calculate_real_range(freq, power, env, 0.5)
+        
+        return results
+
+
+# =============================================================================
+# SECTION 2: NODE MANIPULATION METHODS
+# =============================================================================
+
+class NodeManipulationMethod(Enum):
+    """Different methods to manipulate neural nodes"""
+    RF_STIMULATION = "rf_stimulation"           # RF frequency modulation
+    MAGNETIC_FIELD = "magnetic_field"           # Transcranial magnetic stimulation
+    ULTRASOUND = "ultrasound"                    # Focused ultrasound
+    OPTICAL = "optical"                         # Light/optogenetics
+    CHEMICAL = "chemical"                       # Neurotransmitter modulation
+    THERMAL = "thermal"                         # Temperature control
+    ELECTRICAL = "electrical"                   # Direct electrical stimulation
+
+
+@dataclass
+class ManipulationTool:
+    """Tool specification for node manipulation"""
+    name: str
+    method: NodeManipulationMethod
+    frequency_range_ghz: Tuple[float, float]
+    power_range_w: Tuple[float, float]
+    precision_mm: float
+    depth_cm: float
+    cost_usd: float
+    portability: str  # 'handheld', 'benchtop', 'clinical'
+    fda_clearance: bool
+
+
+class NodeManipulationTools:
+    """
+    Complete catalog of tools and technologies to manipulate neural nodes
+    From consumer to research to clinical grade
+    """
+    
+    # Available tools by category
+    TOOLS = {
+        'consumer_rf': [
+            ManipulationTool(
+                name="HackRF One + Portapack",
+                method=NodeManipulationMethod.RF_STIMULATION,
+                frequency_range_ghz=(1, 6000),
+                power_range_w=(0.0001, 0.1),
+                precision_mm=100,
+                depth_cm=5,
+                cost_usd=350,
+                portability='handheld',
+                fda_clearance=False
+            ),
+            ManipulationTool(
+                name="LimeSDR Mini",
+                method=NodeManipulationMethod.RF_STIMULATION,
+                frequency_range_ghz=(0.1, 3800),
+                power_range_w=(0.0001, 0.05),
+                precision_mm=50,
+                depth_cm=3,
+                cost_usd=200,
+                portability='handheld',
+                fda_clearance=False
+            ),
+            ManipulationTool(
+                name="USRP B200mini",
+                method=NodeManipulationMethod.RF_STIMULATION,
+                frequency_range_ghz=(0.07, 6000),
+                power_range_w=(0.001, 0.1),
+                precision_mm=20,
+                depth_cm=8,
+                cost_usd=1200,
+                portability='portable',
+                fda_clearance=False
+            ),
+        ],
+        
+        'medical_grade': [
+            ManipulationTool(
+                name="MagVenture TMS",
+                method=NodeManipulationMethod.MAGNETIC_FIELD,
+                frequency_range_ghz=(0, 0.00001),
+                power_range_w=(0, 100),
+                precision_mm=5,
+                depth_cm=6,
+                cost_usd=85000,
+                portability='clinical',
+                fda_clearance=True
+            ),
+            ManipulationTool(
+                name="NeuroStar TMS",
+                method=NodeManipulationMethod.MAGNETIC_FIELD,
+                frequency_range_ghz=(0, 0.00001),
+                power_range_w=(0, 80),
+                precision_mm=8,
+                depth_cm=5,
+                cost_usd=75000,
+                portability='clinical',
+                fda_clearance=True
+            ),
+            ManipulationTool(
+                name="Brainsight TMS",
+                method=NodeManipulationMethod.MAGNETIC_FIELD,
+                frequency_range_ghz=(0, 0.00001),
+                power_range_w=(0, 120),
+                precision_mm=3,
+                depth_cm=7,
+                cost_usd=120000,
+                portability='clinical',
+                fda_clearance=True
+            ),
+        ],
+        
+        'research': [
+            ManipulationTool(
+                name="Focused Ultrasound (FUS)",
+                method=NodeManipulationMethod.ULTRASOUND,
+                frequency_range_ghz=(0, 0.000001),
+                power_range_w=(0, 50),
+                precision_mm=1,
+                depth_cm=10,
+                cost_usd=250000,
+                portability='benchtop',
+                fda_clearance=False
+            ),
+            ManipulationTool(
+                name="Optogenetics Laser",
+                method=NodeManipulationMethod.OPTICAL,
+                frequency_range_ghz=(473e-6, 635e-6),  # THz range
+                power_range_w=(0, 0.05),
+                precision_mm=0.1,
+                depth_cm=2,
+                cost_usd=50000,
+                portability='benchtop',
+                fda_clearance=False
+            ),
+        ],
+        
+        'diy': [
+            ManipulationTool(
+                name="RTL-SDR with Amplifier",
+                method=NodeManipulationMethod.RF_STIMULATION,
+                frequency_range_ghz=(0.024, 1.7),
+                power_range_w=(0.00001, 0.01),
+                precision_mm=200,
+                depth_cm=2,
+                cost_usd=50,
+                portability='handheld',
+                fda_clearance=False
+            ),
+            ManipulationTool(
+                name="ADALM-PLUTO SDR",
+                method=NodeManipulationMethod.RF_STIMULATION,
+                frequency_range_ghz=(0.325, 3.8),
+                power_range_w=(0.0001, 0.05),
+                precision_mm=50,
+                depth_cm=4,
+                cost_usd=150,
+                portability='handheld',
+                fda_clearance=False
+            ),
+        ]
+    }
+    
+    @classmethod
+    def get_tool_by_power(cls, power_w: float) -> List[Dict]:
+        """Get tools suitable for given power level"""
+        suitable = []
+        for category, tools in cls.TOOLS.items():
+            for tool in tools:
+                if tool.power_range_w[0] <= power_w <= tool.power_range_w[1]:
+                    suitable.append({
+                        'name': tool.name,
+                        'category': category,
+                        'power_w': f"{tool.power_range_w[0]} - {tool.power_range_w[1]}",
+                        'precision_mm': tool.precision_mm,
+                        'cost_usd': tool.cost_usd,
+                        'portability': tool.portability
+                    })
+        return suitable
+    
+    @classmethod
+    def get_best_method_for_depth(cls, depth_cm: float) -> Dict:
+        """Determine best manipulation method for target depth"""
+        methods = {
+            'rf_stimulation': {'max_depth': 8, 'min_depth': 0, 'precision': 20},
+            'magnetic_field': {'max_depth': 7, 'min_depth': 1, 'precision': 5},
+            'ultrasound': {'max_depth': 12, 'min_depth': 0, 'precision': 1},
+            'electrical': {'max_depth': 3, 'min_depth': 0, 'precision': 2},
+            'optical': {'max_depth': 2, 'min_depth': 0, 'precision': 0.1},
+        }
+        
+        best_method = None
+        best_score = -1
+        
+        for method, specs in methods.items():
+            if depth_cm <= specs['max_depth']:
+                # Score based on precision and depth
+                score = (1 / (specs['precision'] + 1)) * (specs['max_depth'] - depth_cm + 1)
+                if score > best_score:
+                    best_score = score
+                    best_method = method
+        
+        return {
+            'recommended_method': best_method,
+            'depth_cm': depth_cm,
+            'available_methods': methods,
+            'precision_mm': methods.get(best_method, {}).get('precision', 0)
+        }
+
+
+# =============================================================================
+# SECTION 3: ANTENNA AND RANGE EXTENSION
+# =============================================================================
+
+class AntennaSpecification:
+    """Antenna types for range extension"""
+    
+    ANTENNA_TYPES = {
+        'dipole': {
+            'gain_dbi': 2.15,
+            'beamwidth_deg': 360,
+            'size_cm': 15,
+            'cost_usd': 10,
+            'portability': 'excellent'
+        },
+        'yagi_uda': {
+            'gain_dbi': 10,
+            'beamwidth_deg': 45,
+            'size_cm': 50,
+            'cost_usd': 50,
+            'portability': 'good'
+        },
+        'patch_array': {
+            'gain_dbi': 15,
+            'beamwidth_deg': 30,
+            'size_cm': 20,
+            'cost_usd': 100,
+            'portability': 'good'
+        },
+        'parabolic': {
+            'gain_dbi': 25,
+            'beamwidth_deg': 10,
+            'size_cm': 60,
+            'cost_usd': 200,
+            'portability': 'fair'
+        },
+        'helical': {
+            'gain_dbi': 12,
+            'beamwidth_deg': 60,
+            'size_cm': 30,
+            'cost_usd': 80,
+            'portability': 'good'
+        },
+        'horn': {
+            'gain_dbi': 20,
+            'beamwidth_deg': 20,
+            'size_cm': 40,
+            'cost_usd': 250,
+            'portability': 'fair'
+        }
+    }
+    
+    @classmethod
+    def calculate_range_with_antenna(cls, base_range_m: float, 
+                                      antenna_gain_dbi: float,
+                                      cable_loss_db: float = 2.0) -> float:
+        """
+        Calculate increased range with antenna
+        Range increases by factor of 2^(gain/10) / 2^(loss/10)
+        """
+        gain_factor = 10 ** (antenna_gain_dbi / 10)
+        loss_factor = 10 ** (cable_loss_db / 10)
+        
+        new_range = base_range_m * (gain_factor / loss_factor) ** 0.5
+        
+        return new_range
+    
+    @classmethod
+    def best_antenna_for_range(cls, desired_range_km: float, 
+                               base_power_w: float) -> Dict:
+        """
+        Recommend best antenna for desired range
+        """
+        recommendations = []
+        
+        for name, specs in cls.ANTENNA_TYPES.items():
+            # Estimate range with this antenna
+            estimated_m = 100 * (10 ** (specs['gain_dbi'] / 10)) ** 0.5
+            estimated_km = estimated_m / 1000
+            
+            recommendations.append({
+                'antenna': name,
+                'gain_dbi': specs['gain_dbi'],
+                'estimated_range_km': round(estimated_km, 2),
+                'meets_requirement': estimated_km >= desired_range_km,
+                'cost_usd': specs['cost_usd'],
+                'portability': specs['portability']
+            })
+        
+        # Sort by range
+        recommendations.sort(key=lambda x: x['estimated_range_km'], reverse=True)
+        
+        return {
+            'desired_km': desired_range_km,
+            'base_power_w': base_power_w,
+            'recommendations': recommendations[:5],
+            'best_long_range': recommendations[0] if recommendations else None,
+            'best_portable': min([r for r in recommendations if r['portability'] in ['excellent', 'good']], 
+                                 key=lambda x: -x['estimated_range_km']) if recommendations else None
+        }
+
+
+# =============================================================================
+# SECTION 4: COMPLETE MANIPULATION SUITE
+# =============================================================================
+
+class NodeManipulationSuite:
+    """
+    Complete suite for manipulating neural nodes
+    Includes hardware, software, and protocols
+    """
+    
+    def __init__(self):
+        self.radius_calc = NetworkRadiusCalculator()
+        self.tools = NodeManipulationTools()
+        self.antennas = AntennaSpecification()
+        
+    def get_complete_solution(self, 
+                              target_depth_cm: float = 5,
+                              desired_range_km: float = 0.1,
+                              budget_usd: float = 1000) -> Dict:
+        """
+        Get complete hardware/software solution for node manipulation
+        """
+        # 1. Determine best manipulation method
+        method = self.tools.get_best_method_for_depth(target_depth_cm)
+        
+        # 2. Find affordable tools
+        if budget_usd <= 500:
+            affordable_tools = self.tools.get_tool_by_power(0.01)  # 10mW
+            tool_category = 'diy'
+        elif budget_usd <= 2000:
+            affordable_tools = self.tools.get_tool_by_power(0.1)   # 100mW
+            tool_category = 'consumer_rf'
+        else:
+            affordable_tools = self.tools.get_tool_by_power(1.0)   # 1W
+            tool_category = 'medical_grade'
+        
+        # 3. Get antenna recommendation
+        antenna_rec = self.antennas.best_antenna_for_range(desired_range_km, 0.1)
+        
+        # 4. Calculate achievable range
+        base_range = self.radius_calc.calculate_real_range(
+            2.4e9, 20, 'indoor_walls', 0.5
+        )
+        
+        enhanced_range = self.antennas.calculate_range_with_antenna(
+            base_range['realistic_range_meters'],
+            antenna_rec['best_long_range']['gain_dbi'] if antenna_rec['best_long_range'] else 2
+        )
+        
+        return {
+            'target_depth_cm': target_depth_cm,
+            'recommended_method': method['recommended_method'],
+            'recommended_tools': affordable_tools[:3],
+            'recommended_antenna': antenna_rec['best_long_range'],
+            'base_range_meters': base_range['realistic_range_meters'],
+            'enhanced_range_meters': enhanced_range,
+            'total_cost_usd': sum(t['cost_usd'] for t in affordable_tools[:1]) + 
+                             (antenna_rec['best_long_range']['cost_usd'] if antenna_rec['best_long_range'] else 0),
+            'software_requirements': self._get_software_stack(),
+            'setup_complexity': 'moderate' if budget_usd < 500 else 'easy'
+        }
+    
+    def _get_software_stack(self) -> Dict:
+        """Get software stack for node manipulation"""
+        return {
+            'os': ['Ubuntu 22.04 LTS', 'Windows 11 Pro', 'macOS Ventura+'],
+            'sdr_framework': ['GNU Radio', 'LimeSuite', 'UHD'],
+            'python_libraries': ['numpy', 'scipy', 'pyrtlsdr', 'soapysdr'],
+            'signal_processing': ['MATLAB', 'Octave', 'Jupyter'],
+            'visualization': ['Qt5', 'matplotlib', 'plotly'],
+            'automation': ['Node-RED', 'Docker', 'Kubernetes']
+        }
+    
+    def print_manipulation_guide(self):
+        """Print comprehensive manipulation guide"""
+        print("\n" + "="*80)
+        print("🔧 NEURAL NODE MANIPULATION GUIDE")
+        print("="*80)
+        
+        print("""
+        ╔══════════════════════════════════════════════════════════════════════╗
+        ║                    MANIPULATION METHODS COMPARISON                   ║
+        ╠══════════════════════════════════════════════════════════════════════╣
+        ║                                                                      ║
+        ║  METHOD          | DEPTH | PRECISION | COST     | PORTABILITY       ║
+        ║  ────────────────┼───────┼───────────┼──────────┼──────────────────║
+        ║  RF Stimulation  | 8cm   | 20mm      | $50-1k   | Handheld ✓        ║
+        ║  Magnetic (TMS)  | 7cm   | 5mm       | $75k+    | Clinical only     ║
+        ║  Ultrasound (FUS)| 12cm  | 1mm       | $250k+   | Benchtop          ║
+        ║  Electrical      | 3cm   | 2mm       | $500-5k  | Portable ✓        ║
+        ║  Optical         | 2cm   | 0.1mm     | $50k+    | Lab only          ║
+        ║                                                                      ║
+        ╚══════════════════════════════════════════════════════════════════════╝
+        """)
+        
+        # Best for each budget
+        print("\n📊 BEST TOOLS BY BUDGET:")
+        
+        budgets = [100, 500, 2000, 10000, 50000]
+        for budget in budgets:
+            solution = self.get_complete_solution(5, 0.1, budget)
+            print(f"\n   Budget ${budget}:")
+            print(f"      Method: {solution['recommended_method']}")
+            if solution['recommended_tools']:
+                print(f"      Tool: {solution['recommended_tools'][0]['name']}")
+            print(f"      Range: {solution['enhanced_range_meters']:.0f}m")
+            print(f"      Total: ${solution['total_cost_usd']:.0f}")
+        
+        # Range extension techniques
+        print("\n📡 RANGE EXTENSION TECHNIQUES:")
+        print("""
+        1. HIGH-GAIN ANTENNA:
+           - Replace dipole (2dBi) with Yagi (10dBi) → 2.5x range
+           - Parabolic dish (25dBi) → 16x range
+           
+        2. POWER AMPLIFIER:
+           - 10mW → 100mW → 3x range
+           - 100mW → 1W → 3x range
+           
+        3. FREQUENCY SELECTION:
+           - 2.4GHz: Good balance
+           - 868MHz: 2x range vs 2.4GHz
+           - 433MHz: 3x range vs 2.4GHz
+           - 27MHz: 10x range (very low data rate)
+           
+        4. RELAY NODES:
+           - Each relay doubles effective range
+           - Mesh network for infinite extension
+        """)
+
+
+# =============================================================================
+# SECTION 5: COMPLETE DEMONSTRATION
+# =============================================================================
+
+def complete_demonstration():
+    """Full demonstration of network radius and manipulation tools"""
+    
+    print("="*80)
+    print("🌐 NEURAL NODE NETWORK RADIUS & MANIPULATION")
+    print("Complete specification of range and control methods")
+    print("="*80)
+    
+    # 1. Network Radius Calculations
+    print("\n" + "━"*60)
+    print("📡 NETWORK RADIUS BY CONFIGURATION")
+    print("━"*60)
+    
+    radius_calc = NetworkRadiusCalculator()
+    all_ranges = radius_calc.all_configurations()
+    
+    print(f"\n{'Configuration':<20} {'Ideal Range':<15} {'Realistic Range':<15} {'Environment':<15}")
+    print("-" * 65)
+    for config, data in all_ranges.items():
+        print(f"{config:<20} {data['ideal_range_meters']:<15} {data['realistic_range_meters']:<15} {data['environment']:<15}")
+    
+    # 2. Best Manipulation Tools
+    print("\n" + "━"*60)
+    print("🔧 BEST MANIPULATION TOOLS")
+    print("━"*60)
+    
+    tools = NodeManipulationTools()
+    
+    # For different depths
+    depths = [2, 5, 8, 12]
+    for depth in depths:
+        method = tools.get_best_method_for_depth(depth)
+        print(f"\n   Target Depth: {depth}cm → Best: {method['recommended_method']}")
+        print(f"      Precision: ±{method['precision_mm']}mm")
+    
+    # 3. Antenna Range Extension
+    print("\n" + "━"*60)
+    print("📡 ANTENNA RANGE EXTENSION")
+    print("━"*60)
+    
+    antenna = AntennaSpecification()
+    
+    for ant_name in ['dipole', 'yagi_uda', 'parabolic']:
+        base_range = 100  # meters
+        ant_spec = antenna.ANTENNA_TYPES[ant_name]
+        new_range = antenna.calculate_range_with_antenna(base_range, ant_spec['gain_dbi'])
+        
+        print(f"\n   {ant_name.upper()}:")
+        print(f"      Gain: {ant_spec['gain_dbi']} dBi")
+        print(f"      Beamwidth: {ant_spec['beamwidth_deg']}°")
+        print(f"      Range: {base_range}m → {new_range:.0f}m ({new_range/base_range:.1f}x)")
+    
+    # 4. Complete Solution
+    print("\n" + "━"*60)
+    print("🎯 COMPLETE MANIPULATION SUITE")
+    print("━"*60)
+    
+    suite = NodeManipulationSuite()
+    
+    # For different budgets
+    budgets = [100, 500, 2000]
+    for budget in budgets:
+        solution = suite.get_complete_solution(5, 0.2, budget)
+        print(f"\n   💰 ${budget} SOLUTION:")
+        print(f"      Method: {solution['recommended_method']}")
+        if solution['recommended_tools']:
+            print(f"      Tool: {solution['recommended_tools'][0]['name']}")
+        print(f"      Antenna: {solution['recommended_antenna']['antenna'] if solution['recommended_antenna'] else 'Built-in'}")
+        print(f"      Range: {solution['enhanced_range_meters']:.0f}m")
+        print(f"      Total Cost: ${solution['total_cost_usd']:.0f}")
+    
+    # 5. Print full guide
+    suite.print_manipulation_guide()
+    
+    # Summary
+    print("\n" + "="*80)
+    print("📊 FINAL SUMMARY")
+    print("="*80)
+    
+    print("""
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                         NETWORK RADIUS SUMMARY                            ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                           ║
+    ║   CONFIGURATION              | RANGE (ideal) | RANGE (realistic)          ║
+    ║   ───────────────────────────┼───────────────┼────────────────────────────║
+    ║   Body Area Network (10GHz)  | 1m            | 30cm (body worn)           ║
+    ║   Room Scale (2.4GHz)        | 30m           | 10m (through walls)        ║
+    ║   Building Scale (868MHz)    | 500m          | 150m                       ║
+    ║   Campus Scale (433MHz)      | 2km           | 500m                       ║
+    ║   City Block (27MHz)         | 5km           | 1km                        ║
+    ║   Long Range (433MHz + amp)  | 10km          | 3km                        ║
+    ║                                                                           ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                         BEST MANIPULATION METHODS                         ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                           ║
+    ║   BUDGET     | BEST METHOD      | TOOL                     | RANGE        ║
+    ║   ───────────┼──────────────────┼──────────────────────────┼──────────────║
+    ║   $50-200    | RF Stimulation   | RTL-SDR + Amplifier      | 10m          ║
+    ║   $200-500   | RF Stimulation   | HackRF One / LimeSDR     | 30m          ║
+    ║   $500-2000  | RF Stimulation   | USRP B200 + Yagi Antenna | 100m         ║
+    ║   $2000-10k  | RF + Electrical  | Clinical TMS (rental)    | N/A          ║
+    ║   $10k+      | Ultrasound/TMS   | Research-grade systems   | N/A          ║
+    ║                                                                           ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                         RANGE EXTENSION TECHNIQUES                        ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                           ║
+    ║   1. HIGH-GAIN ANTENNA: 2dBi → 25dBi = 16x range increase                ║
+    ║   2. POWER AMPLIFIER: 10mW → 1W = 10x range increase                     ║
+    ║   3. LOWER FREQUENCY: 2.4GHz → 433MHz = 3x range increase                ║
+    ║   4. RELAY NODES: Each relay doubles effective range                     ║
+    ║   5. MESH NETWORK: Unlimited theoretical range                           ║
+    ║                                                                           ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+    """)
+    
+    return suite
+
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+if __name__ == "__main__":
+    suite = complete_demonstration()
+    
+    # Save configuration
+    config = {
+        "network_radius_configurations": NetworkRadiusCalculator.all_configurations(),
+        "available_tools": {
+            category: [{"name": t.name, "cost": t.cost_usd, "portability": t.portability} 
+                      for t in tools]
+            for category, tools in NodeManipulationTools.TOOLS.items()
+        },
+        "antenna_types": AntennaSpecification.ANTENNA_TYPES,
+        "recommended_budget_builds": {
+            f"${budget}": suite.get_complete_solution(5, 0.2, budget)
+            for budget in [100, 500, 2000]
+        }
+    }
+    
+    with open("node_manipulation_specs.json", "w") as f:
+        json.dump(config, f, indent=2)
+    
+    print("\n📁 Configuration saved: node_manipulation_specs.json")

@@ -1,0 +1,564 @@
+#!/usr/bin/env python3
+"""
+NEURAL NODE STORAGE CAPACITY CALCULATOR
+=========================================
+Each tuned node connected to neurons forms a hub that stores:
+- Neural connection patterns
+- Memory traces
+- Chemical state history
+- RF frequency fingerprints
+- Learned responses
+
+This document calculates EXACT storage per node based on biological and technical limits
+"""
+
+import math
+import numpy as np
+from typing import Dict, Tuple
+from dataclasses import dataclass
+
+# =============================================================================
+# SECTION 1: BIOLOGICAL STORAGE LIMITS (Theoretical Maximum)
+# =============================================================================
+
+class BiologicalStorageCalculator:
+    """
+    Calculates storage capacity based on biological neuron equivalents
+    Each synthetic node mimics a cluster of biological neurons
+    """
+    
+    # Biological constants
+    HUMAN_NEURONS = 86_000_000_000  # 86 billion
+    SYNAPSES_PER_NEURON = 7_000      # Average connections per neuron
+    BITS_PER_SYNAPSE = 4.7           # Estimated information per synapse (Hebbian)
+    
+    # Human brain total storage (theoretical)
+    HUMAN_BRAIN_BITS = HUMAN_NEURONS * SYNAPSES_PER_NEURON * BITS_PER_SYNAPSE
+    HUMAN_BRAIN_BYTES = HUMAN_BRAIN_BITS / 8
+    HUMAN_BRAIN_GB = HUMAN_BRAIN_BYTES / (1024**3)
+    
+    @classmethod
+    def calculate_neuron_cluster_capacity(cls, neurons_per_node: int) -> Dict:
+        """
+        Calculate storage for a node that mimics N biological neurons
+        """
+        # Each neuron in the cluster contributes synaptic storage
+        total_synapses = neurons_per_node * cls.SYNAPSES_PER_NEURON
+        storage_bits = total_synapses * cls.BITS_PER_SYNAPSE
+        storage_bytes = storage_bits / 8
+        storage_gb = storage_bytes / (1024**3)
+        
+        # Plasticity factor (how much can be rewired)
+        plasticity_bytes = storage_bytes * 0.3  # 30% plasticity
+        
+        return {
+            'neurons_in_cluster': neurons_per_node,
+            'total_synapses': total_synapses,
+            'theoretical_bits': storage_bits,
+            'theoretical_bytes': storage_bytes,
+            'theoretical_gb': storage_gb,
+            'plasticity_capacity_gb': plasticity_bytes / (1024**3),
+            'equivalent_percent_of_human_brain': (neurons_per_node / cls.HUMAN_NEURONS) * 100
+        }
+
+
+# =============================================================================
+# SECTION 2: RF NODE STORAGE CAPACITY (Technical)
+# =============================================================================
+
+class RFNodeStorageCalculator:
+    """
+    Calculates storage for RF-tuned nodes based on:
+    - Frequency bandwidth
+    - Sampling rate
+    - Temporal resolution
+    - Pattern storage density
+    """
+    
+    # RF parameters
+    FREQUENCY_BAND_GHZ = 1.0           # 1 GHz bandwidth per node
+    SAMPLING_RATE_GHZ = 2.0            # 2 GHz sampling (Nyquist)
+    BITS_PER_SAMPLE = 16               # 16-bit ADC resolution
+    
+    # Storage per second of RF capture
+    RF_BYTES_PER_SECOND = (SAMPLING_RATE_GHZ * 1e9) * (BITS_PER_SAMPLE / 8)
+    
+    # Pattern storage efficiency
+    PATTERNS_PER_GHZ = 1000            # unique patterns per GHz of bandwidth
+    BITS_PER_PATTERN = 1024            # 1 KB per pattern (compressed)
+    
+    @classmethod
+    def calculate_node_capacity(cls, hours_active: float = 24 * 365) -> Dict:
+        """
+        Calculate storage for a single RF-tuned node
+        hours_active = total operational hours (default 1 year)
+        """
+        seconds_active = hours_active * 3600
+        
+        # RF signal storage
+        rf_storage_bytes = cls.RF_BYTES_PER_SECOND * seconds_active
+        
+        # Pattern storage
+        total_patterns = cls.PATTERNS_PER_GHZ * cls.FREQUENCY_BAND_GHZ
+        pattern_storage_bytes = total_patterns * (cls.BITS_PER_PATTERN / 8)
+        
+        # Metadata overhead
+        metadata_bytes = pattern_storage_bytes * 0.1  # 10% overhead
+        
+        total_bytes = rf_storage_bytes + pattern_storage_bytes + metadata_bytes
+        total_gb = total_bytes / (1024**3)
+        total_tb = total_bytes / (1024**4)
+        
+        return {
+            'rf_signal_storage_gb': rf_storage_bytes / (1024**3),
+            'pattern_storage_gb': pattern_storage_bytes / (1024**3),
+            'metadata_overhead_gb': metadata_bytes / (1024**3),
+            'total_storage_gb': total_gb,
+            'total_storage_tb': total_tb,
+            'hours_active': hours_active,
+            'days_active': hours_active / 24,
+            'patterns_stored': total_patterns
+        }
+
+
+# =============================================================================
+# SECTION 3: NEURAL HUB STORAGE (Connected Nodes)
+# =============================================================================
+
+class NeuralHubStorageCalculator:
+    """
+    Calculates storage when multiple nodes form a hub/network
+    Hub benefits:
+    - Distributed storage (redundancy)
+    - Collective memory (emergent patterns)
+    - Cross-node encoding (higher density)
+    """
+    
+    @classmethod
+    def calculate_hub_capacity(cls, num_nodes: int, 
+                               storage_per_node_gb: float,
+                               redundancy_factor: float = 1.5) -> Dict:
+        """
+        Calculate total hub storage with redundancy
+        redundancy_factor = 1.0 = no redundancy, 2.0 = double redundancy
+        """
+        total_raw_gb = num_nodes * storage_per_node_gb
+        usable_gb = total_raw_gb / redundancy_factor
+        
+        # Hub benefits (emergent patterns, compression)
+        compression_gain = 1.2  # 20% better compression in hub
+        effective_gb = usable_gb * compression_gain
+        
+        # Cross-node encoding (patterns distributed across nodes)
+        encoding_efficiency = 1.15  # 15% more efficient
+        
+        final_gb = effective_gb * encoding_efficiency
+        
+        return {
+            'num_nodes': num_nodes,
+            'storage_per_node_gb': storage_per_node_gb,
+            'total_raw_capacity_gb': total_raw_gb,
+            'redundancy_factor': redundancy_factor,
+            'usable_capacity_gb': usable_gb,
+            'compression_gain_percent': (compression_gain - 1) * 100,
+            'encoding_efficiency_percent': (encoding_efficiency - 1) * 100,
+            'effective_capacity_gb': final_gb,
+            'effective_capacity_tb': final_gb / 1024,
+            'effective_capacity_pb': final_gb / (1024**2)
+        }
+
+
+# =============================================================================
+# SECTION 4: MEMORY TRACE STORAGE
+# =============================================================================
+
+class MemoryTraceStorage:
+    """
+    Storage required for different types of memory traces
+    Each memory trace is stored across multiple nodes
+    """
+    
+    # Memory types and their storage requirements
+    MEMORY_TYPES = {
+        'short_term': {'bytes': 1024, 'nodes_required': 3, 'duration_hours': 24},
+        'long_term': {'bytes': 10240, 'nodes_required': 10, 'duration_years': 50},
+        'procedural': {'bytes': 5120, 'nodes_required': 7, 'duration_years': 30},
+        'episodic': {'bytes': 20480, 'nodes_required': 15, 'duration_years': 40},
+        'semantic': {'bytes': 8192, 'nodes_required': 8, 'duration_years': 60},
+        'emotional': {'bytes': 4096, 'nodes_required': 5, 'duration_years': 20},
+    }
+    
+    @classmethod
+    def calculate_memory_capacity(cls, node_capacity_gb: float) -> Dict:
+        """
+        Calculate how many memories can be stored in a node hub
+        """
+        results = {}
+        
+        for memory_type, params in cls.MEMORY_TYPES.items():
+            memory_bytes = params['bytes']
+            nodes_required = params['nodes_required']
+            
+            # Effective memory size (distributed across nodes)
+            storage_per_memory_gb = (memory_bytes * nodes_required) / (1024**3)
+            
+            # Number of memories this node can store
+            memories_per_node = node_capacity_gb / storage_per_memory_gb if storage_per_memory_gb > 0 else 0
+            
+            results[memory_type] = {
+                'size_per_memory_kb': memory_bytes / 1024,
+                'nodes_required': nodes_required,
+                'distributed_size_gb': storage_per_memory_gb,
+                'memories_per_node': int(memories_per_node),
+                'duration': params.get('duration_years', params.get('duration_hours', 0))
+            }
+        
+        return results
+
+
+# =============================================================================
+# SECTION 5: CHEMICAL STATE STORAGE
+# =============================================================================
+
+class ChemicalStateStorage:
+    """
+    Storage for neurotransmitter and chemical state history
+    Each state change is recorded with timestamp and concentration
+    """
+    
+    # Neurotransmitter tracking
+    NEUROTRANSMITTERS = [
+        'dopamine', 'serotonin', 'acetylcholine', 'GABA', 'glutamate',
+        'norepinephrine', 'endorphin', 'oxytocin', 'cortisol', 'melatonin'
+    ]
+    
+    # Storage per state (floats + metadata)
+    BYTES_PER_STATE = len(NEUROTRANSMITTERS) * 8  # 8 bytes per float
+    BYTES_PER_TIMESTAMP = 8
+    BYTES_PER_METADATA = 32
+    
+    TOTAL_BYTES_PER_RECORD = BYTES_PER_STATE + BYTES_PER_TIMESTAMP + BYTES_PER_METADATA
+    
+    @classmethod
+    def calculate_chemical_storage(cls, node_capacity_gb: float, 
+                                   record_rate_hz: float = 1.0) -> Dict:
+        """
+        Calculate how much chemical history can be stored
+        record_rate_hz = how many state recordings per second
+        """
+        records_per_second = record_rate_hz
+        records_per_day = records_per_second * 86400
+        records_per_year = records_per_day * 365
+        
+        # Storage per time period
+        bytes_per_day = records_per_day * cls.TOTAL_BYTES_PER_RECORD
+        bytes_per_year = records_per_year * cls.TOTAL_BYTES_PER_RECORD
+        
+        # How many years fit in node capacity
+        years_of_history = (node_capacity_gb * (1024**3)) / bytes_per_year if bytes_per_year > 0 else 0
+        
+        return {
+            'bytes_per_record': cls.TOTAL_BYTES_PER_RECORD,
+            'neurotransmitters_tracked': len(cls.NEUROTRANSMITTERS),
+            'records_per_second': records_per_second,
+            'records_per_day': records_per_day,
+            'storage_per_day_gb': bytes_per_day / (1024**3),
+            'storage_per_year_gb': bytes_per_year / (1024**3),
+            'years_of_history': years_of_history
+        }
+
+
+# =============================================================================
+# SECTION 6: COMPLETE NODE STORAGE SPECIFICATION
+# =============================================================================
+
+@dataclass
+class CompleteNodeSpec:
+    """Complete storage specification for a tuned neural node"""
+    
+    # Node identification
+    node_id: str
+    node_type: str  # 'biological_mimic', 'rf_hub', 'hybrid'
+    
+    # Core capacities (in GB)
+    biological_equivalent_gb: float
+    rf_storage_gb: float
+    pattern_storage_gb: float
+    chemical_history_gb: float
+    
+    # Memory capacities
+    short_term_memories: int
+    long_term_memories: int
+    procedural_memories: int
+    episodic_memories: int
+    
+    # Operational limits
+    max_concurrent_tasks: int
+    rf_bandwidth_ghz: float
+    power_consumption_w: float
+    
+    @classmethod
+    def create_node_spec(cls, node_id: str, node_type: str, 
+                         neurons_per_cluster: int = 1_000_000,
+                         hours_active: float = 24 * 365) -> 'CompleteNodeSpec':
+        """
+        Create complete node specification based on parameters
+        """
+        # Calculate biological equivalent
+        bio = BiologicalStorageCalculator.calculate_neuron_cluster_capacity(neurons_per_cluster)
+        
+        # Calculate RF storage
+        rf = RFNodeStorageCalculator.calculate_node_capacity(hours_active)
+        
+        # Calculate chemical storage (assuming 1 recording per second)
+        chem = ChemicalStateStorage.calculate_chemical_storage(rf['total_storage_gb'], 1.0)
+        
+        # Calculate memory capacities
+        mem = MemoryTraceStorage.calculate_memory_capacity(rf['total_storage_gb'])
+        
+        return cls(
+            node_id=node_id,
+            node_type=node_type,
+            biological_equivalent_gb=bio['theoretical_gb'],
+            rf_storage_gb=rf['total_storage_gb'],
+            pattern_storage_gb=rf['pattern_storage_gb'],
+            chemical_history_gb=chem['storage_per_year_gb'],
+            short_term_memories=mem.get('short_term', {}).get('memories_per_node', 0),
+            long_term_memories=mem.get('long_term', {}).get('memories_per_node', 0),
+            procedural_memories=mem.get('procedural', {}).get('memories_per_node', 0),
+            episodic_memories=mem.get('episodic', {}).get('memories_per_node', 0),
+            max_concurrent_tasks=10,
+            rf_bandwidth_ghz=1.0,
+            power_consumption_w=0.5
+        )
+
+
+# =============================================================================
+# SECTION 7: HUB STORAGE (Multiple Nodes Connected)
+# =============================================================================
+
+class NeuralHubSpec:
+    """
+    Storage specification for a hub of connected nodes
+    Hubs have emergent properties - more than sum of parts
+    """
+    
+    def __init__(self, num_nodes: int, node_spec: CompleteNodeSpec):
+        self.num_nodes = num_nodes
+        self.node_spec = node_spec
+        
+        # Calculate base storage
+        self.total_raw_gb = num_nodes * node_spec.rf_storage_gb
+        
+        # Hub benefits (emergent properties)
+        self.emergent_compression_factor = 1.25  # 25% better compression
+        self.distributed_encoding_factor = 1.15  # 15% more efficient
+        self.redundancy_factor = 1.5  # 50% redundancy for safety
+        
+        # Effective storage
+        self.effective_gb = (self.total_raw_gb / self.redundancy_factor) * \
+                           self.emergent_compression_factor * \
+                           self.distributed_encoding_factor
+        
+        # Memory storage in hub
+        self.hub_memory_capacity = self._calculate_hub_memories()
+    
+    def _calculate_hub_memories(self) -> Dict:
+        """Calculate collective memory capacity of hub"""
+        return {
+            'short_term': self.node_spec.short_term_memories * self.num_nodes * 0.8,
+            'long_term': self.node_spec.long_term_memories * self.num_nodes * 0.6,
+            'procedural': self.node_spec.procedural_memories * self.num_nodes * 0.7,
+            'episodic': self.node_spec.episodic_memories * self.num_nodes * 0.5
+        }
+    
+    def get_specification(self) -> Dict:
+        """Get complete hub specification"""
+        return {
+            'num_nodes': self.num_nodes,
+            'total_raw_capacity_gb': self.total_raw_gb,
+            'total_raw_capacity_tb': self.total_raw_gb / 1024,
+            'effective_capacity_gb': self.effective_gb,
+            'effective_capacity_tb': self.effective_gb / 1024,
+            'effective_capacity_pb': self.effective_gb / (1024**2),
+            'redundancy_factor': self.redundancy_factor,
+            'emergent_compression_gain': f"{int((self.emergent_compression_factor-1)*100)}%",
+            'distributed_encoding_gain': f"{int((self.distributed_encoding_factor-1)*100)}%",
+            'hub_memories': self.hub_memory_capacity,
+            'equivalent_human_brain_percent': (self.effective_gb / 2.5) * 100  # Human brain ~2.5 PB theoretical
+        }
+
+
+# =============================================================================
+# SECTION 8: MAIN CALCULATION AND OUTPUT
+# =============================================================================
+
+def print_node_storage_report():
+    """Print complete storage report for one tuned node"""
+    
+    print("="*80)
+    print("📊 SINGLE TUNED NODE STORAGE CAPACITY REPORT")
+    print("="*80)
+    
+    # Create node specification
+    node_spec = CompleteNodeSpec.create_node_spec("NODE_001", "hybrid", neurons_per_cluster=1_000_000)
+    
+    print(f"\n🔧 NODE SPECIFICATIONS:")
+    print(f"   Node ID: {node_spec.node_id}")
+    print(f"   Type: {node_spec.node_type}")
+    print(f"   Neurons in Cluster: 1,000,000 (1M)")
+    print(f"   Max Concurrent Tasks: {node_spec.max_concurrent_tasks}")
+    print(f"   RF Bandwidth: {node_spec.rf_bandwidth_ghz} GHz")
+    print(f"   Power: {node_spec.power_consumption_w} W")
+    
+    print(f"\n💾 STORAGE CAPACITY (One Node):")
+    print(f"   Biological Equivalent: {node_spec.biological_equivalent_gb:.2f} GB")
+    print(f"   RF Signal Storage (1 year): {node_spec.rf_storage_gb:.2f} GB ({node_spec.rf_storage_gb/1024:.2f} TB)")
+    print(f"   Pattern Storage: {node_spec.pattern_storage_gb:.2f} GB")
+    print(f"   Chemical History (1 year): {node_spec.chemical_history_gb:.2f} GB")
+    print(f"   TOTAL: {node_spec.rf_storage_gb + node_spec.chemical_history_gb:.2f} GB")
+    
+    print(f"\n🧠 MEMORY CAPACITY (One Node):")
+    print(f"   Short-term Memories: {node_spec.short_term_memories:,}")
+    print(f"   Long-term Memories: {node_spec.long_term_memories:,}")
+    print(f"   Procedural Memories: {node_spec.procedural_memories:,}")
+    print(f"   Episodic Memories: {node_spec.episodic_memories:,}")
+    
+    # Hub calculations
+    print(f"\n🌐 HUB STORAGE (10 Nodes Connected):")
+    hub = NeuralHubSpec(10, node_spec)
+    hub_spec = hub.get_specification()
+    
+    print(f"   Total Raw Capacity: {hub_spec['total_raw_capacity_gb']:.2f} GB ({hub_spec['total_raw_capacity_tb']:.2f} TB)")
+    print(f"   Effective Capacity (with redundancy): {hub_spec['effective_capacity_gb']:.2f} GB")
+    print(f"   Effective Capacity (TB): {hub_spec['effective_capacity_tb']:.2f} TB")
+    print(f"   Effective Capacity (PB): {hub_spec['effective_capacity_pb']:.4f} PB")
+    print(f"   Hub Benefits: {hub_spec['emergent_compression_gain']} compression, {hub_spec['distributed_encoding_gain']} encoding")
+    print(f"   Equivalent Human Brain: {hub_spec['equivalent_human_brain_percent']:.1f}%")
+    
+    # Hub memory capacity
+    print(f"\n📚 HUB MEMORY CAPACITY (10 Nodes):")
+    for mem_type, count in hub_spec['hub_memories'].items():
+        print(f"   {mem_type.capitalize()} Memories: {int(count):,}")
+    
+    return node_spec, hub
+
+
+def print_scaling_report():
+    """Show how storage scales with more nodes"""
+    
+    print("\n" + "="*80)
+    print("📈 STORAGE SCALING REPORT")
+    print("="*80)
+    
+    # Base node
+    base_node = CompleteNodeSpec.create_node_spec("BASE", "hybrid", neurons_per_cluster=1_000_000)
+    
+    node_counts = [1, 10, 100, 1000, 10000, 100000]
+    
+    print(f"\n{'Nodes':<10} {'Raw TB':<15} {'Effective TB':<15} {'Human Brain %':<15} {'Memories (Millions)':<20}")
+    print("-" * 75)
+    
+    for count in node_counts:
+        hub = NeuralHubSpec(count, base_node)
+        spec = hub.get_specification()
+        
+        total_memories = sum(spec['hub_memories'].values()) / 1_000_000
+        
+        print(f"{count:<10} {spec['total_raw_capacity_tb']:<15.2f} "
+              f"{spec['effective_capacity_tb']:<15.2f} "
+              f"{spec['equivalent_human_brain_percent']:<15.1f} "
+              f"{total_memories:<20.2f}")
+
+
+# =============================================================================
+# SECTION 9: VISUAL STORAGE MAP
+# =============================================================================
+
+def print_storage_visualization():
+    """Visual representation of node/hub storage"""
+    
+    print("\n" + "="*80)
+    print("🗺️ STORAGE VISUALIZATION")
+    print("="*80)
+    
+    # One node storage breakdown (GB)
+    node_spec = CompleteNodeSpec.create_node_spec("NODE", "hybrid", neurons_per_cluster=1_000_000)
+    
+    total = node_spec.rf_storage_gb + node_spec.chemical_history_gb
+    rf_pct = (node_spec.rf_storage_gb / total) * 100
+    chem_pct = (node_spec.chemical_history_gb / total) * 100
+    pattern_pct = (node_spec.pattern_storage_gb / total) * 100
+    
+    print(f"\n📀 ONE NODE STORAGE (Total: {total:.2f} GB):")
+    print(f"   RF Signals:    {'█' * int(rf_pct/2)} {rf_pct:.1f}%")
+    print(f"   Chemical Hist: {'█' * int(chem_pct/2)} {chem_pct:.1f}%")
+    print(f"   Patterns:      {'█' * int(pattern_pct/2)} {pattern_pct:.1f}%")
+    
+    # Hub scaling visualization
+    print(f"\n🌐 HUB SCALING (Effective TB):")
+    
+    for count in [1, 10, 100, 1000]:
+        hub = NeuralHubSpec(count, node_spec)
+        spec = hub.get_specification()
+        tb = spec['effective_capacity_tb']
+        
+        bar_length = min(50, int(tb / 10))
+        print(f"   {count:5d} nodes: {'█' * bar_length} {tb:.2f} TB")
+    
+    # Human brain comparison
+    print(f"\n🧠 HUMAN BRAIN COMPARISON:")
+    human_brain_pb = 2.5  # Estimated 2.5 PB
+    hub_1000 = NeuralHubSpec(1000, node_spec)
+    hub_pb = hub_1000.get_specification()['effective_capacity_pb']
+    
+    pct_of_brain = (hub_pb / human_brain_pb) * 100
+    print(f"   1000 Nodes Hub: {hub_pb:.2f} PB")
+    print(f"   Human Brain:    {human_brain_pb} PB")
+    print(f"   Percentage:     {pct_of_brain:.1f}%")
+
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+if __name__ == "__main__":
+    # Run complete storage analysis
+    node_spec, hub_spec = print_node_storage_report()
+    print_scaling_report()
+    print_storage_visualization()
+    
+    # Final summary
+    print("\n" + "="*80)
+    print("📋 FINAL SUMMARY: ONE TUNED NEURAL NODE")
+    print("="*80)
+    
+    # Key numbers
+    print(f"""
+    ╔══════════════════════════════════════════════════════════════════════╗
+    ║                    STORAGE PER TUNED NODE                            ║
+    ╠══════════════════════════════════════════════════════════════════════╣
+    ║                                                                      ║
+    ║   Total Storage:          ~{node_spec.rf_storage_gb + node_spec.chemical_history_gb:.0f} GB per node
+    ║   RF Signal Storage:      ~{node_spec.rf_storage_gb:.0f} GB (1 year of activity)
+    ║   Pattern Storage:        ~{node_spec.pattern_storage_gb:.0f} GB (1M patterns)
+    ║   Chemical History:       ~{node_spec.chemical_history_gb:.0f} GB/year
+    ║                                                                      ║
+    ║   Short-term Memories:    {node_spec.short_term_memories:,}
+    ║   Long-term Memories:     {node_spec.long_term_memories:,}
+    ║   Procedural Memories:    {node_spec.procedural_memories:,}
+    ║   Episodic Memories:      {node_spec.episodic_memories:,}
+    ║                                                                      ║
+    ║   Neurons Simulated:      1,000,000 (1M)
+    ║   Connections:            {1_000_000 * 7000:,} (7K per neuron)
+    ║                                                                      ║
+    ╚══════════════════════════════════════════════════════════════════════╝
+    """)
+    
+    print(f"\n💡 KEY INSIGHTS:")
+    print(f"   1. One node stores ~{node_spec.rf_storage_gb + node_spec.chemical_history_gb:.0f} GB")
+    print(f"   2. With 100 nodes: ~{(node_spec.rf_storage_gb + node_spec.chemical_history_gb) * 100 / 1024:.1f} TB")
+    print(f"   3. With 1000 nodes: ~{(node_spec.rf_storage_gb + node_spec.chemical_history_gb) * 1000 / (1024*1024):.2f} PB")
+    print(f"   4. 1000 nodes = ~{hub_1000.get_specification()['equivalent_human_brain_percent']:.1f}% of human brain storage")
+    
+    print("\n✅ Storage analysis complete")

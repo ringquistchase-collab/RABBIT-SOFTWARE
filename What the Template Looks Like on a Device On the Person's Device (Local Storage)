@@ -1,0 +1,10 @@
+{
+  "template_id": "n8f3h2k9m4p6q7r2",
+  "person_hash": "a8e3f2c1d4b5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5",
+  "created_at": 1705333822,
+  "version": "2.0",
+  "feature_vector": [0.30, 0.25, 0.73, 0.68, 0.62, 0.85],
+  "feature_names": ["age_group", "region", "attention_score", "engagement_level", "emotional_valence", "product_interest"],
+  "available_permissions": ["BASIC_DEMOGRAPHIC", "BEHAVIORAL", "FULL_ANONYMIZED"],
+  "signature": "7f3e9a2b1c4d5e6f7a8b9c0d1e2f3a4b"
+}

@@ -1,0 +1,17 @@
+DNA/RNA/mRNA/tRNA to RF Node Mapping Summary
+Genetic-to-RF Frequency Mapping
+Molecule	Example Sequence	RF Frequency	Node Function
+DNA	ATGGCGTAGCTAGC...	10.2345 GHz	Node identity, permanent programming
+mRNA	AUGGCGUAGCUAGC...	10.2456 GHz	Protein encoding, temporary modulation
+tRNA	AUG (anticodon)	10.2567 GHz	Amino acid delivery, translation
+Guide RNA	AUGGCUAGCCUAGC...	10.2678 GHz	CRISPR-like editing, node rewiring
+siRNA	AAGCUAGCUAGC...	10.2789 GHz	Gene silencing, node deactivation
+Biohacking Operations
+Operation	Biological Method	Node Effect	Duration
+Genetic Injection	Viral vector (DNA/RNA)	Permanent node programming	Lifetime
+Protein Expression	mRNA translation	Temporary node modulation	Hours-days
+CRISPR Programming	Guide RNA + Cas9-like	Node rewiring	Permanent
+RNA Interference	siRNA	Node silencing	Hours
+Epigenetic Modulation	Methylation pattern	Sensitivity change	Weeks-months
+DNA Data Storage	Binary → DNA encoding	Memory storage	Permanent
+DNA/RNA to RF Mapping Formula

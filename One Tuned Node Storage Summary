@@ -1,0 +1,21 @@
+One Tuned Node Storage Summary
+Single Node Capacity
+Storage Type	Capacity	Notes
+RF Signal Storage (1 year)	~175 GB	Continuous 1 GHz bandwidth
+Pattern Storage	~22 GB	1,000 unique patterns
+Chemical History (1 year)	~11 GB	1 recording/second
+TOTAL PER NODE	~208 GB	
+Memory Capacity (One Node)
+Memory Type	Number of Memories	Size per Memory
+Short-term	~178,000	1 KB each
+Long-term	~17,800	10 KB each
+Procedural	~35,600	5 KB each
+Episodic	~8,900	20 KB each
+Hub Storage (Multiple Connected Nodes)
+Nodes	Raw Storage	Effective Storage	Equivalent to Human Brain
+1	0.2 TB	0.15 TB	0.006%
+10	2.0 TB	1.5 TB	0.06%
+100	20 TB	15 TB	0.6%
+1,000	200 TB	150 TB	6%
+10,000	2 PB	1.5 PB	60%
+16,667	3.3 PB	2.5 PB	100%

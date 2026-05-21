@@ -1,0 +1,395 @@
+#!/usr/bin/env python3
+"""
+Life‑Event Sharding Prototype (for RABBIT‑SOFTWARE repository)
+
+Implements the cryptographic core of the self‑sovereign identity system:
+
+- Splits a secret into N shares (Shamir’s Secret Sharing)
+- Each share is bound to a user‑defined life event (accomplishment / hurdle)
+- Biometric key derivation (mock EEG or real from Muse/OpenBCI)
+- Local LLM (tiny GPT‑2) for generating recovery challenges
+- Blockchain anchoring simulation (Polygon identity manager)
+- Self‑repair: reconstructs the secret from any threshold of shares
+
+Offline mode: all operations occur locally; live biometric stream is optional.
+
+References:
+- shamir_ss     – Cython‑optimised Shamir implementation (Mersenne prime)
+- polygon‑identity – blockchain identity ZK + social recovery
+- muselsl       – real Muse EEG streaming (optional)
+- transformers  – local LLM for prompt generation
+
+See the accompanying README for integration into the RABBIT‑SOFTWARE repo.
+"""
+
+import json
+import hashlib
+import os
+import time
+import sys
+from typing import Dict, List, Tuple, Optional, Any
+from dataclasses import dataclass, field
+
+# ---- Cryptographic primitives ----
+from shamir_ss import generate_text_shares, reconstruct_text_secret
+
+# ---- Blockchain identity (simulated/mock for offline mode) ----
+# For production, uncomment the real polygon-identity import
+# from polygon_identity import PolygonIdentity, SocialRecovery
+
+# ---- EEG utilities (real or mocked) ----
+try:
+    import muselsl
+    REAL_EEG_AVAILABLE = True
+except ImportError:
+    REAL_EEG_AVAILABLE = False
+
+try:
+    from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+    LLM_AVAILABLE = True
+except ImportError:
+    LLM_AVAILABLE = False
+
+# ----------------------------------------------------------------------
+# 1. User‑defined life events (accomplishments & hurdles)
+# ----------------------------------------------------------------------
+
+# This dictionary maps a human‑memorable event to a unique identifier.
+# The secret shares will be tied to these events.
+LIFE_EVENTS = {
+    "first_motorcycle_rebuild_2018": {
+        "category": "accomplishment",
+        "description": "First motorcycle rebuilt – 2018",
+        "recovery_question": "What was the colour of the tank?"
+    },
+    "30_days_sober_clinic_intake": {
+        "category": "hurdle",
+        "description": "30 days sober – clinic intake",
+        "recovery_question": "Name the counselor."
+    },
+    "certified_heavy_equipment_operator_2020": {
+        "category": "accomplishment",
+        "description": "Certified heavy equipment operator – 2020",
+        "recovery_question": "Which machine did you test on?"
+    },
+    "end_of_relationship_may2022": {
+        "category": "hurdle",
+        "description": "End of relationship – May 2022",
+        "recovery_question": "Where did you go afterwards?"
+    },
+    "one_year_crime_free_2023": {
+        "category": "accomplishment",
+        "description": "Crime‑free for 1 year – 2023",
+        "recovery_question": "What was the first positive change you noticed?"
+    }
+}
+
+# ----------------------------------------------------------------------
+# 2. Biometric key derivation – from mock EEG or real Muse stream
+# ----------------------------------------------------------------------
+
+class BiometricKey:
+    """Derive a 32‑byte key from live EEG (or a mock fixed value)."""
+
+    @staticmethod
+    def from_mock() -> bytes:
+        """Mock biometric key for offline testing."""
+        return b"mock_master_key_00000000000000000000000000000000"
+
+    @staticmethod
+    def from_eeg_stream(duration: float = 2.0) -> bytes:
+        """
+        Capture real EEG from Muse headset (if available) and hash it.
+        Falls back to mock key if no headset is found.
+        """
+        if not REAL_EEG_AVAILABLE:
+            print("[EEG] muselsl not installed – using mock key.")
+            return BiometricKey.from_mock()
+
+        try:
+            # Discover first available Muse
+            # (In a real implementation you would call muselsl.stream())
+            print("[EEG] Attempting to connect to Muse headset...")
+            # Here we simply simulate a reading; real code would collect raw data.
+            mock_samples = b"live_eeg_data_placeholder"
+            return hashlib.sha256(mock_samples).digest()
+        except Exception as e:
+            print(f"[EEG] Connection failed: {e}. Falling back to mock key.")
+            return BiometricKey.from_mock()
+
+
+# ----------------------------------------------------------------------
+# 3. Local LLM for generating recovery prompts
+# ----------------------------------------------------------------------
+
+class LocalRecoveryLLM:
+    """Lightweight LLM (GPT‑2) that asks contextual recovery questions."""
+
+    def __init__(self):
+        if not LLM_AVAILABLE:
+            print("[LLM] transformers not installed – using rule‑based fallback.")
+            self.generator = None
+            return
+        # Load a tiny model (GPT‑2) – runs on CPU.
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained("gpt2")
+            self.model = AutoModelForCausalLM.from_pretrained("gpt2")
+            self.generator = pipeline(
+                "text-generation",
+                model=self.model,
+                tokenizer=self.tokenizer,
+                device=-1,          # CPU
+                max_new_tokens=20,
+                do_sample=True,
+                top_p=0.9,
+                temperature=0.7
+            )
+        except Exception as e:
+            print(f"[LLM] Failed to load model: {e}")
+            self.generator = None
+
+    def generate_prompt(self, emotional_state: str) -> str:
+        """
+        Given a description of the user’s current emotional state,
+        return a human‑readable recovery prompt/question.
+        """
+        if self.generator is None:
+            # Rule‑based fallback
+            fallback = "Please recall one of your defined life events."
+            print(f"[LLM] (fallback) {fallback}")
+            return fallback
+
+        # Build a simple instruction
+        instruction = (
+            f"The user is feeling {emotional_state}. "
+            "Ask a gentle, context‑appropriate question that helps them "
+            "recall a past life event (accomplishment or hurdle) "
+            "that could serve as a secret‑sharing recovery key."
+        )
+        try:
+            result = self.generator(instruction, max_new_tokens=20)
+            return result[0]["generated_text"]
+        except Exception as e:
+            print(f"[LLM] generation error: {e}")
+            return "What important event in your life comes to mind right now?"
+
+
+# ----------------------------------------------------------------------
+# 4. Core sharding & recovery engine
+# ----------------------------------------------------------------------
+
+class LifeEventSharding:
+    """
+    Manages splitting/reconstructing a secret using Shamir's Secret Sharing,
+    where each share is cryptographically bound to a user’s life event and
+    protected by a biometric key.
+    """
+
+    def __init__(self, secret: str, threshold: int, total_shares: int):
+        """
+        secret: any string (master passphrase, key, etc.)
+        threshold: minimum number of shares needed to reconstruct
+        total_shares: total number of shares (must match len(LIFE_EVENTS))
+        """
+        self.secret = secret
+        self.threshold = threshold
+        self.total_shares = total_shares
+        self.shares: Dict[str, Dict] = {}          # event_id -> {share, share_enc}
+        self.biometric_key: Optional[bytes] = None
+
+    @classmethod
+    def from_events(cls, secret: str, events: Dict[str, Dict]) -> "LifeEventSharding":
+        """
+        Factory method: creates a sharding instance based on the number
+        of life events defined in LIFE_EVENTS.
+        """
+        total = len(events)
+        # Threshold = ceil(2/3 total) for safe recovery
+        threshold = max(2, (total * 2 + 2) // 3)
+        return cls(secret, threshold, total)
+
+    def _encrypt_share(self, share_data: str, key: bytes) -> str:
+        """Tiny XOR‑cipher for demonstration – in production use AES‑GCM."""
+        encrypted = ''.join(chr(ord(c) ^ key[i % len(key)])
+                            for i, c in enumerate(share_data))
+        return encrypted
+
+    def _decrypt_share(self, encrypted: str, key: bytes) -> str:
+        """Reverse of above."""
+        return self._encrypt_share(encrypted, key)   # XOR is symmetric
+
+    def generate_shares(self, biometric_key: bytes) -> None:
+        """
+        Split the secret into `total_shares` shares using Shamir's algorithm,
+        then encrypt each share with a biometric key and bind it to a life event.
+        """
+        self.biometric_key = biometric_key
+        # 1. Generate raw shares
+        raw_shares = generate_text_shares(self.secret, self.threshold, self.total_shares)
+        # raw_shares is a list of strings like "share_1:..."
+        # 2. Pair each share with a life event
+        events_list = list(LIFE_EVENTS.items())
+        assert len(raw_shares) == len(events_list), "Mismatch between shares and events"
+
+        for i, (event_id, event_meta) in enumerate(events_list):
+            raw_share = raw_shares[i]
+            # encrypt share with biometric key
+            enc_share = self._encrypt_share(raw_share, biometric_key)
+            self.shares[event_id] = {
+                "encrypted_share": enc_share,
+                "event_description": event_meta["description"],
+                "recovery_question": event_meta["recovery_question"]
+            }
+        print(f"[Sharding] Generated {self.total_shares} shares (threshold={self.threshold}).")
+
+    def reconstruct_secret(self, collected_shares: List[Tuple[str, str]]) -> str:
+        """
+        Given a list of (event_id, user_provided_encrypted_share) tuples,
+        decrypt each share with the biometric key that is derived from
+        the user’s current live EEG, then reconstruct the original secret.
+        """
+        if not self.biometric_key:
+            raise ValueError("Biometric key not set. Call generate_shares() first.")
+
+        # Decrypt each collected share
+        raw_shares = []
+        for event_id, enc_share in collected_shares:
+            # check that the user has supplied a share belonging to a known event
+            if event_id not in self.shares:
+                print(f"[Recovery] Warning: unknown event {event_id} – skipping.")
+                continue
+            # verify that the encrypted share matches the stored one (simple integrity check)
+            stored_enc = self.shares[event_id]["encrypted_share"]
+            if enc_share != stored_enc:
+                print(f"[Recovery] Integrity check failed for {event_id} – share may be altered.")
+                continue
+            decrypted = self._decrypt_share(enc_share, self.biometric_key)
+            raw_shares.append(decrypted)
+
+        if len(raw_shares) < self.threshold:
+            raise ValueError(f"Only {len(raw_shares)} shares available, need {self.threshold}.")
+
+        # Reconstruct via Lagrange interpolation
+        reconstructed = reconstruct_text_secret(raw_shares)
+        return reconstructed
+
+
+# ----------------------------------------------------------------------
+# 5. Blockchain anchoring (simulated, offline‑friendly)
+# ----------------------------------------------------------------------
+
+class MockBlockchain:
+    """Simulates a Polygon identity anchor for offline testing."""
+
+    def __init__(self):
+        self.ledger = []
+
+    def record(self, event_type: str, data: Dict[str, Any]) -> str:
+        """Store an event as a dummy transaction (local hash only)."""
+        tx = {
+            "timestamp": time.time(),
+            "type": event_type,
+            "data": data,
+            "hash": hashlib.md5(json.dumps(data, sort_keys=True).encode()).hexdigest()
+        }
+        self.ledger.append(tx)
+        return tx["hash"]
+
+    def verify(self, tx_hash: str) -> bool:
+        """Check if a transaction exists in the local ledger."""
+        return any(tx.get("hash") == tx_hash for tx in self.ledger)
+
+
+# ----------------------------------------------------------------------
+# 6. Main demonstration: full lifecycle
+# ----------------------------------------------------------------------
+
+def demonstrate_full_lifecycle():
+    """
+    Shows the entire process:
+    1. Definition of life events
+    2. Sharding a secret (e.g., DNA root hash or master key)
+    3. Simulated theft / offline scenario
+    4. Recovery using collected shares + live EEG + LLM
+    5. Blockchain anchoring of the recovery event
+    """
+    print("\n===== LIFE EVENT SHARDING PROTOTYPE =====\n")
+
+    # --- Step 1: define the master secret (e.g., DNA root hash) ---
+    master_secret = "8f3d9a612b718a990d442e7a1fb2c94d..."  # placeholder DNA hash
+    print(f"1. Master secret (DNA root hash) defined: {master_secret[:20]}...")
+
+    # --- Step 2: initialise sharding based on life events ---
+    sharder = LifeEventSharding.from_events(master_secret, LIFE_EVENTS)
+
+    # Obtain biometric key (from EEG or mock)
+    print("\n2. Deriving biometric key from EEG (or mock)...")
+    bio_key = BiometricKey.from_eeg_stream(duration=1.0)   # could be real Muse call
+    sharder.generate_shares(bio_key)
+    print(f"   Biometric key (hex): {bio_key.hex()[:16]}...")
+
+    # --- Step 3: simulate distribution of shares across offline nodes ---
+    print("\n3. Shares locked to life events:")
+    for event_id, info in sharder.shares.items():
+        print(f"   - {LIFE_EVENTS[event_id]['description']}")
+        # The actual share is encrypted and stored locally; we keep a copy.
+
+    # --- Step 4: simulate a theft / offline period ---
+    print("\n4. Simulating offline period / theft event...")
+    time.sleep(1)   # pause for effect
+    print("   (The system continues to run locally; no data leaves the device.)")
+
+    # --- Step 5: recovery phase (user collects shares) ---
+    print("\n5. Recovery process begins:")
+    # For demonstration, we collect a subset of shares (meeting the threshold)
+    # In a real scenario, the user would answer the LLM’s prompts or
+    # provide the shares manually (e.g., from family nodes).
+
+    # Use the LLM to generate a contextual recovery prompt
+    llm = LocalRecoveryLLM()
+    emotional_context = "calm but slightly anxious after a long offline period"
+    recovery_question = llm.generate_prompt(emotional_context)
+    print(f"   LLM prompt: '{recovery_question}'")
+
+    # Here we simulate that the user (Chase) retrieves enough shares.
+    # For testing, we take the first 'threshold' shares from the store.
+    collected = []
+    events_list = list(sharder.shares.items())
+    for i in range(sharder.threshold):
+        event_id, info = events_list[i]
+        collected.append((event_id, info["encrypted_share"]))
+        print(f"   - Collected share for: {LIFE_EVENTS[event_id]['description']}")
+
+    # Derive the biometric key again (from live EEG)
+    print("\n   Re‑deriving biometric key from live EEG...")
+    current_bio_key = BiometricKey.from_eeg_stream(duration=1.0)
+    # Normally we would set sharder.biometric_key = current_bio_key,
+    # but for simplicity we reuse the instance variable (same key)
+    sharder.biometric_key = current_bio_key
+
+    # Reconstruct the secret
+    try:
+        recovered = sharder.reconstruct_secret(collected)
+        print(f"\n6. Secret recovered successfully: {recovered[:20]}...")
+    except Exception as e:
+        print(f"\n   Recovery failed: {e}")
+        sys.exit(1)
+
+    # --- Step 6: anchor the recovery event to the blockchain ---
+    blockchain = MockBlockchain()
+    tx_hash = blockchain.record("RECOVERY_EVENT", {
+        "user_id": "Chase_Ringquist",
+        "timestamp": time.time(),
+        "status": "secret_restored",
+        "shares_used": sharder.threshold
+    })
+    print(f"\n7. Recovery event anchored to (simulated) blockchain. Tx hash: {tx_hash}")
+
+    # --- Step 7: verification that the system is whole again ---
+    assert recovered == master_secret, "Recovered secret does not match the original!"
+    print("\n✅ SUCCESS: The digital twin is complete and self‑healed.\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(demonstrate_full_lifecycle())

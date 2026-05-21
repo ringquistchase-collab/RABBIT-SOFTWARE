@@ -1,0 +1,25 @@
+🧠 NeuroAI: RF/SDR Medical LLM Tool-Chain
+
+You: Read 2 seconds from channel 0 and analyze the spectrum
+
+NeuroAI: Reading sensor data from channel 0...
+📊 RMS: 12.4 µV | Peak: 47.8 µV | 512 samples at 256Hz
+
+📈 Spectral analysis:
+- Peak frequency: 9.8 Hz (Alpha band)
+- Alpha power: 24.2 µV²
+- Theta/Alpha ratio: 0.62
+- SNR: 18.4 dB
+
+Clinical interpretation: Normal alpha rhythm. Patient appears relaxed but alert.
+Recommendation: Continue monitoring.
+
+You: Check electrode impedance on all channels
+
+NeuroAI: Impedance check complete:
+- CH0 (Fp1): 2.3 kΩ - GOOD
+- CH1 (Fp2): 3.1 kΩ - GOOD  
+- CH2 (Cz): 18.7 kΩ - FAIR
+- CH3 (Pz): 4.2 kΩ - GOOD
+
+Recommend reapplication of Cz electrode for optimal signal quality.

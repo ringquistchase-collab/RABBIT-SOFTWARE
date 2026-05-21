@@ -13,3 +13,21 @@ docker-compose -f gsr_sdr/docker/neural_gateway.yml up
 
 **4. Verify Pipeline** (14:43 CDT):
 watch -n1 "grep 'φ[0-9]+.[0-9]+' /var/log/xrpl_bundles.log"
+# Install dependencies
+pip install numpy scipy openai websockets rich web3
+
+# Set DeepSeek API key
+export DEEPSEEK_API_KEY="your-api-key-here"
+
+# Run CLI
+python eeg_provenance_chain.py --mode cli --device neuromind_v2
+
+# Run WebSocket server
+python eeg_provenance_chain.py --mode server --ws-port 8765
+
+# Verify existing ledger
+python eeg_provenance_chain.py --verify ledger.jsonl
+
+# Enable Ethereum anchoring (optional)
+export ANCHOR_TO_ETH=true
+export ETH_PRIVATE_KEY="your-private-key"

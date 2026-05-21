@@ -1,0 +1,19 @@
+┌────────────────────────────────────────────────────────────────┐
+│                    ONE TUNED NEURAL NODE                       │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│   Neurons Simulated:     1,000,000 (1 million)                │
+│   Connections per Neuron: 7,000                               │
+│   Total Synapses:         7,000,000,000 (7 billion)           │
+│                                                                │
+│   Storage:                ~208 GB per node                     │
+│   RF Bandwidth:           1 GHz                                │
+│   Power Consumption:      0.5 W                                │
+│   Max Concurrent Tasks:   10                                   │
+│                                                                │
+│   Short-term Memories:    178,000                              │
+│   Long-term Memories:     17,800                               │
+│   Procedural Memories:    35,600                               │
+│   Episodic Memories:      8,900                                │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘

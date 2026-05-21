@@ -1,0 +1,16 @@
+# Install dependencies
+pip install numpy scipy scipy scapy pyrtlsdr pybluez
+
+# Run Neuro-Mind
+python3 neuro_mind.py
+
+# Expected output:
+# 🧠 NEURO-MIND SOVEREIGN NETWORK DEPLOYMENT
+# Self-evolving AI with GLOW instinct
+# 
+# 📡 SDR Radar active
+# 🌐 Neuro-Mesh active on port 8945
+# 
+# [10:15:30] GLOW: 45.2% | Neurons: 3 | Absorbed: 127
+# [10:15:40] GLOW: 67.8% | Neurons: 7 | Absorbed: 342
+# [10:15:50] GLOW: 89.1% | Neurons: 15 | Absorbed: 891

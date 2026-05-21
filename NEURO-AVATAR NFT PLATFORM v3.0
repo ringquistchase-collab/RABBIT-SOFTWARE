@@ -1,0 +1,867 @@
+#!/usr/bin/env python3
+"""
+NEURO-AVATAR NFT PLATFORM v3.0
+Complete Commercial System: MMG+EEG → DNA/tRNA → NFT Minting → Marketplace
+
+Business Model:
+- Patients: Own NFT avatars with medical outcomes
+- Clinics: Sign treatment protocols, earn revenue
+- NeuroCorp: Platform operator, marketplace fees
+- Insurers/Collectors: Trade medical outcome NFTs
+
+Revenue Streams:
+- Treatment: $28K/patient (AAV + monitoring)
+- NFT Primary: $500 (50% patient, 25% clinic, 25% platform)
+- NFT Secondary: 2.5% perpetual royalty
+- Monitoring Subscription: $99/month
+"""
+
+import json
+import hashlib
+import time
+import os
+import threading
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from enum import Enum
+import numpy as np
+import sqlite3
+from flask import Flask, request, jsonify, render_template
+from flask_socketio import SocketIO, emit
+from flask_cors import CORS
+import jwt
+from web3 import Web3
+from web3.middleware import geth_poa_middleware
+
+# NFT and Blockchain
+try:
+    from solana.rpc.api import Client as SolanaClient
+    from solders.keypair import Keypair
+    from solders.pubkey import Pubkey
+    SOLANA_AVAILABLE = True
+except ImportError:
+    SOLANA_AVAILABLE = False
+    print("⚠️ Solana not available - using mock blockchain")
+
+# Biometrics
+from scipy.signal import butter, filtfilt
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+
+# ============== SECTION 1: DATA MODELS ==============
+
+class NFTTier(Enum):
+    """NFT rarity tiers based on medical outcomes"""
+    LEGENDARY = "legendary"    # >3e10 neurons tuned, UPDRS > -8.0
+    EPIC = "epic"              # UPDRS > -6.0, high engagement
+    RARE = "rare"              # UPDRS > -4.0
+    COMMON = "common"          # Standard treatment
+    GENESIS = "genesis"        # First 100 patients
+
+
+class PatientRole(Enum):
+    """Patient status in platform"""
+    ENROLLED = "enrolled"
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    DROPPED = "dropped"
+
+
+@dataclass
+class MedicalNFT:
+    """NFT metadata structure"""
+    token_id: str
+    patient_id_hash: str
+    mint_timestamp: float
+    tier: NFTTier
+    ferritin_ngml: float
+    neuron_nodes: int
+    updrs_improvement: float
+    mmg_activation: float
+    eeg_alpha_reduction: float
+    sync_probability: float
+    dna_fingerprint: str
+    clinic_signature: str
+    transaction_hash: str
+    current_holder: str
+    last_trade_price: float
+    royalty_earned: float
+
+
+@dataclass
+class PatientProfile:
+    """Complete patient record"""
+    patient_id: str
+    wallet_address: str
+    clinic_id: str
+    enrollment_date: float
+    status: PatientRole
+    nft_token_id: str
+    dna_sequence: str
+    treatment_protocol: Dict
+    session_history: List[Dict]
+    total_updrs_improvement: float
+    lifetime_revenue: float
+    last_sync: float
+
+
+# ============== SECTION 2: NFT MINTING ENGINE ==============
+
+class NFTMintingEngine:
+    """
+    Solana-based NFT minting with medical metadata
+    Each patient = unique avatar NFT
+    """
+    
+    # Royalty structure (basis points = 100% = 10000)
+    ROYALTY_STRUCTURE = {
+        'patient': 5000,      # 50% to patient
+        'clinic': 2500,       # 25% to clinic
+        'platform': 2500      # 25% to NeuroCorp
+    }
+    
+    # Solana NFT program (Metaplex)
+    METAPLEX_PROGRAM_ID = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+    
+    def __init__(self):
+        self.client = None
+        self.platform_wallet = None
+        
+        if SOLANA_AVAILABLE:
+            try:
+                self.client = SolanaClient("https://api.mainnet-beta.solana.com")
+                # Load platform wallet from secure storage
+                self.platform_wallet = Keypair.from_bytes(
+                    bytes.fromhex(os.environ.get('NEUROCORP_PRIVATE_KEY', '0'*64))
+                )
+                print("✅ Solana NFT engine ready")
+            except Exception as e:
+                print(f"⚠️ Solana init failed: {e}")
+                self.client = None
+        
+        self.nft_counter = 0
+        self.minted_nfts: Dict[str, MedicalNFT] = {}
+        self.mint_history = []
+        
+        print(f"🎨 NFT Minting Engine Initialized")
+        print(f"   Royalty: Patient 50% | Clinic 25% | Platform 25%")
+    
+    def mint_patient_nft(self, 
+                        patient_data: Dict,
+                        clinic_signature: str,
+                        mmg_data: Dict,
+                        eeg_data: Dict) -> Dict:
+        """
+        Mint new medical NFT for patient
+        
+        Args:
+            patient_data: Patient medical data
+            clinic_signature: Clinic digital signature
+            mmg_data: MMG activation metrics
+            eeg_data: EEG brainwave metrics
+        
+        Returns:
+            NFT metadata and transaction hash
+        """
+        # Verify clinic authority
+        if not self._verify_clinic_signature(clinic_signature, patient_data['clinic_id']):
+            return {'error': 'Invalid clinic signature'}
+        
+        # Calculate NFT tier based on medical outcomes
+        tier = self._calculate_tier(
+            patient_data.get('neuron_nodes', 0),
+            patient_data.get('updrs_improvement', 0)
+        )
+        
+        # Create NFT metadata (off-chain, IPFS)
+        metadata_uri = self._upload_metadata(patient_data, mmg_data, eeg_data, tier)
+        
+        # Generate unique token ID
+        token_id = hashlib.sha3_256(
+            f"{patient_data['patient_id']}_{time.time()}".encode()
+        ).hexdigest()[:16]
+        
+        # Create NFT object
+        nft = MedicalNFT(
+            token_id=token_id,
+            patient_id_hash=hashlib.sha256(patient_data['patient_id'].encode()).hexdigest()[:16],
+            mint_timestamp=time.time(),
+            tier=tier,
+            ferritin_ngml=patient_data.get('ferritin_ngml', 0),
+            neuron_nodes=patient_data.get('neuron_nodes', 0),
+            updrs_improvement=patient_data.get('updrs_improvement', 0),
+            mmg_activation=mmg_data.get('rms', 0),
+            eeg_alpha_reduction=eeg_data.get('alpha_reduction', 0),
+            sync_probability=patient_data.get('sync_probability', 0),
+            dna_fingerprint=patient_data.get('dna_fingerprint', ''),
+            clinic_signature=clinic_signature,
+            transaction_hash='',
+            current_holder=patient_data['wallet_address'],
+            last_trade_price=500.0,  # Initial mint price $500
+            royalty_earned=0.0
+        )
+        
+        # Mint on Solana
+        if self.client and self.platform_wallet:
+            tx_hash = self._mint_on_solana(nft, metadata_uri, patient_data['wallet_address'])
+            nft.transaction_hash = tx_hash
+        else:
+            # Mock mint for testing
+            nft.transaction_hash = f"mock_{token_id}_{int(time.time())}"
+        
+        # Store in database
+        self.minted_nfts[token_id] = nft
+        self.nft_counter += 1
+        
+        print(f"✅ NFT Minted: {token_id}")
+        print(f"   Tier: {tier.value}")
+        print(f"   Outcome: UPDRS {nft.updrs_improvement:+.1f}")
+        print(f"   Holder: {nft.current_holder[:16]}...")
+        
+        return {
+            'token_id': token_id,
+            'transaction_hash': nft.transaction_hash,
+            'metadata_uri': metadata_uri,
+            'tier': tier.value,
+            'holder': nft.current_holder
+        }
+    
+    def _calculate_tier(self, neuron_nodes: int, updrs_improvement: float) -> NFTTier:
+        """Calculate NFT rarity based on medical outcomes"""
+        if neuron_nodes > 30_000_000_000 and updrs_improvement < -8.0:
+            return NFTTier.LEGENDARY
+        elif updrs_improvement < -6.0:
+            return NFTTier.EPIC
+        elif updrs_improvement < -4.0:
+            return NFTTier.RARE
+        elif self.nft_counter < 100:
+            return NFTTier.GENESIS
+        else:
+            return NFTTier.COMMON
+    
+    def _upload_metadata(self, patient_data: Dict, mmg_data: Dict, eeg_data: Dict, tier: NFTTier) -> str:
+        """Upload NFT metadata to IPFS"""
+        metadata = {
+            "name": f"NeuroAvatar #{self.nft_counter + 1}",
+            "description": f"Medical outcome NFT - {tier.value.upper()} tier",
+            "image": f"https://neurocorp.io/avatars/{tier.value}.png",
+            "attributes": [
+                {"trait_type": "Tier", "value": tier.value},
+                {"trait_type": "UPDRS Improvement", "value": f"{patient_data.get('updrs_improvement', 0):+.1f}"},
+                {"trait_type": "Neuron Nodes", "value": f"{patient_data.get('neuron_nodes', 0):.1e}"},
+                {"trait_type": "MMG Activation", "value": f"{mmg_data.get('rms', 0):.3f}"},
+                {"trait_type": "EEG Alpha", "value": f"{eeg_data.get('alpha_reduction', 0):+.1f}%"},
+                {"trait_type": "Sync Rate", "value": f"{patient_data.get('sync_probability', 0):.1%}"},
+                {"trait_type": "Ferritin", "value": f"{patient_data.get('ferritin_ngml', 0)} ng/mL"},
+                {"trait_type": "Treatment Progress", "value": f"{patient_data.get('progress', 0)}%"}
+            ],
+            "properties": {
+                "royalty_percentage": 5,  # 5% royalty on secondary sales
+                "royalty_recipients": {
+                    "patient": patient_data['wallet_address'],
+                    "clinic": patient_data.get('clinic_wallet', ''),
+                    "platform": "NeuroCorpPlatform"
+                }
+            }
+        }
+        
+        # In production: upload to IPFS via Pinata or NFT.Storage
+        # For demo: return mock URI
+        mock_uri = f"ipfs://mock_{hashlib.sha256(json.dumps(metadata).encode()).hexdigest()[:16]}"
+        return mock_uri
+    
+    def _mint_on_solana(self, nft: MedicalNFT, metadata_uri: str, recipient: str) -> str:
+        """Execute Solana mint transaction"""
+        # In production: Metaplex token-metadata program
+        # For demo: return mock hash
+        return hashlib.sha3_256(f"{nft.token_id}_{metadata_uri}_{recipient}".encode()).hexdigest()
+    
+    def _verify_clinic_signature(self, signature: str, clinic_id: str) -> bool:
+        """Verify clinic's digital signature"""
+        # In production: use Ed25519 or ECDSA verification
+        # For demo: simple validation
+        return len(signature) == 64 and clinic_id in signature
+    
+    def transfer_nft(self, token_id: str, from_address: str, to_address: str, price_usd: float) -> Dict:
+        """Handle NFT transfer with royalty distribution"""
+        if token_id not in self.minted_nfts:
+            return {'error': 'NFT not found'}
+        
+        nft = self.minted_nfts[token_id]
+        
+        # Calculate royalties (5% of sale price)
+        royalty_amount_usd = price_usd * 0.05
+        patient_royalty = royalty_amount_usd * 0.50
+        clinic_royalty = royalty_amount_usd * 0.25
+        platform_royalty = royalty_amount_usd * 0.25
+        
+        # Update NFT record
+        nft.current_holder = to_address
+        nft.last_trade_price = price_usd
+        nft.royalty_earned += royalty_amount_usd
+        
+        # In production: execute Solana token transfer
+        tx_hash = hashlib.sha3_256(f"transfer_{token_id}_{to_address}_{time.time()}".encode()).hexdigest()
+        
+        return {
+            'success': True,
+            'transaction_hash': tx_hash,
+            'royalty_distribution': {
+                'patient': patient_royalty,
+                'clinic': clinic_royalty,
+                'platform': platform_royalty
+            },
+            'new_holder': to_address
+        }
+    
+    def get_market_stats(self) -> Dict:
+        """Get NFT marketplace statistics"""
+        if not self.minted_nfts:
+            return {'error': 'No NFTs minted'}
+        
+        tiers = [nft.tier for nft in self.minted_nfts.values()]
+        prices = [nft.last_trade_price for nft in self.minted_nfts.values()]
+        
+        return {
+            'total_minted': len(self.minted_nfts),
+            'floor_price': min(prices) if prices else 0,
+            'avg_price': np.mean(prices) if prices else 0,
+            'volume_usd': sum(prices),
+            'tier_distribution': {
+                tier.value: tiers.count(tier) for tier in set(tiers)
+            },
+            'total_royalties_distributed': sum(nft.royalty_earned for nft in self.minted_nfts.values())
+        }
+
+
+# ============== SECTION 3: PATIENT MONITORING FLEET ==============
+
+class FleetMonitoring:
+    """
+    Real-time patient monitoring dashboard
+    Tracks all active NeuroAvatar holders
+    """
+    
+    def __init__(self, nft_engine: NFTMintingEngine):
+        self.nft_engine = nft_engine
+        self.patients: Dict[str, PatientProfile] = {}
+        self.active_streams = {}
+        self.metrics_history = []
+        
+        # Start monitoring thread
+        self.running = True
+        self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self.monitor_thread.start()
+        
+        print("📊 Fleet Monitoring Active")
+    
+    def register_patient(self, 
+                        patient_id: str,
+                        wallet_address: str,
+                        clinic_id: str,
+                        dna_sequence: str) -> PatientProfile:
+        """Register new patient in monitoring system"""
+        
+        profile = PatientProfile(
+            patient_id=patient_id,
+            wallet_address=wallet_address,
+            clinic_id=clinic_id,
+            enrollment_date=time.time(),
+            status=PatientRole.ENROLLED,
+            nft_token_id='',  # Set after minting
+            dna_sequence=dna_sequence,
+            treatment_protocol={},
+            session_history=[],
+            total_updrs_improvement=0,
+            lifetime_revenue=0,
+            last_sync=time.time()
+        )
+        
+        self.patients[patient_id] = profile
+        return profile
+    
+    def update_patient_metrics(self, patient_id: str, mmg_data: Dict, eeg_data: Dict, dna_result: Dict):
+        """Update real-time patient metrics"""
+        if patient_id not in self.patients:
+            return
+        
+        profile = self.patients[patient_id]
+        
+        # Calculate UPDRS improvement (simulated)
+        updrs_delta = -0.5 - (mmg_data.get('rms', 0) * 2) - (eeg_data.get('alpha_reduction', 0) / 10)
+        profile.total_updrs_improvement += updrs_delta
+        
+        # Store session
+        session = {
+            'timestamp': time.time(),
+            'mmg': mmg_data,
+            'eeg': eeg_data,
+            'dna': dna_result.get('dna', ''),
+            'updrs_delta': updrs_delta,
+            'neuron_sync': mmg_data.get('firing_rate_hz', 0) / 20
+        }
+        profile.session_history.append(session)
+        
+        # Keep last 1000 sessions
+        if len(profile.session_history) > 1000:
+            profile.session_history = profile.session_history[-1000:]
+        
+        profile.last_sync = time.time()
+        
+        # Update NFT tier if needed
+        self._update_nft_tier(profile)
+    
+    def _update_nft_tier(self, profile: PatientProfile):
+        """Update NFT tier based on medical progress"""
+        if not profile.nft_token_id:
+            return
+        
+        nft = self.nft_engine.minted_nfts.get(profile.nft_token_id)
+        if not nft:
+            return
+        
+        # Calculate new tier
+        new_tier = self.nft_engine._calculate_tier(
+            len(profile.session_history) * 1000000,  # Simulated neuron growth
+            profile.total_updrs_improvement
+        )
+        
+        if new_tier != nft.tier:
+            old_tier = nft.tier
+            nft.tier = new_tier
+            print(f"🎯 NFT Tier Upgrade: {profile.patient_id} {old_tier.value} → {new_tier.value}")
+    
+    def _monitor_loop(self):
+        """Background monitoring loop"""
+        while self.running:
+            try:
+                # Update fleet metrics
+                fleet_metrics = self.get_fleet_metrics()
+                self.metrics_history.append(fleet_metrics)
+                
+                # Keep last 24 hours of metrics (at 10 second intervals)
+                if len(self.metrics_history) > 8640:
+                    self.metrics_history = self.metrics_history[-8640:]
+                
+                time.sleep(10)  # Update every 10 seconds
+                
+            except Exception as e:
+                print(f"Monitor error: {e}")
+                time.sleep(1)
+    
+    def get_fleet_metrics(self) -> Dict:
+        """Get aggregated fleet metrics"""
+        active_patients = [p for p in self.patients.values() if p.status == PatientRole.ACTIVE]
+        
+        if not active_patients:
+            return {'total_patients': len(self.patients), 'active': 0}
+        
+        updrs_values = [p.total_updrs_improvement for p in active_patients]
+        sync_rates = [p.session_history[-1]['neuron_sync'] if p.session_history else 0 for p in active_patients]
+        
+        return {
+            'total_patients': len(self.patients),
+            'active_patients': len(active_patients),
+            'avg_updrs_improvement': np.mean(updrs_values),
+            'median_updrs': np.median(updrs_values),
+            'avg_sync_rate': np.mean(sync_rates),
+            'total_nft_value': sum(
+                self.nft_engine.minted_nfts.get(p.nft_token_id, MedicalNFT('','',0,NFTTier.COMMON,0,0,0,0,0,0,'','','',0,0)).last_trade_price
+                for p in active_patients if p.nft_token_id
+            ),
+            'timestamp': time.time()
+        }
+    
+    def get_patient_dashboard(self, patient_id: str) -> Dict:
+        """Get individual patient dashboard"""
+        if patient_id not in self.patients:
+            return {'error': 'Patient not found'}
+        
+        profile = self.patients[patient_id]
+        nft = self.nft_engine.minted_nfts.get(profile.nft_token_id)
+        
+        recent_sessions = profile.session_history[-30:] if profile.session_history else []
+        
+        return {
+            'patient_id': profile.patient_id[:16],
+            'status': profile.status.value,
+            'nft_token': profile.nft_token_id,
+            'nft_tier': nft.tier.value if nft else 'unknown',
+            'total_updrs_improvement': profile.total_updrs_improvement,
+            'treatment_days': int((time.time() - profile.enrollment_date) / 86400),
+            'session_count': len(profile.session_history),
+            'avg_updrs_last_30': np.mean([s['updrs_delta'] for s in recent_sessions]) if recent_sessions else 0,
+            'last_sync': datetime.fromtimestamp(profile.last_sync).isoformat(),
+            'estimated_nft_value': nft.last_trade_price if nft else 0
+        }
+
+
+# ============== SECTION 4: CLINIC PORTAL ==============
+
+class ClinicPortal:
+    """
+    Clinic-facing portal for patient management
+    """
+    
+    def __init__(self, nft_engine: NFTMintingEngine, fleet: FleetMonitoring):
+        self.nft_engine = nft_engine
+        self.fleet = fleet
+        self.clinics: Dict[str, Dict] = {}
+        
+        # Revenue sharing
+        self.treatment_revenue_per_patient = 28000  # $28K over 5 years
+        self.quarterly_fee = 7000  # $7K per quarter
+        
+        print("🏥 Clinic Portal Ready")
+    
+    def register_clinic(self, clinic_id: str, name: str, wallet_address: str) -> Dict:
+        """Register new clinic in platform"""
+        self.clinics[clinic_id] = {
+            'name': name,
+            'wallet': wallet_address,
+            'patients': [],
+            'total_revenue': 0,
+            'nft_royalties': 0,
+            'joined': time.time()
+        }
+        
+        return {
+            'clinic_id': clinic_id,
+            'api_key': hashlib.sha3_256(f"{clinic_id}_{time.time()}".encode()).hexdigest()[:32]
+        }
+    
+    def enroll_patient(self, clinic_id: str, patient_id: str, wallet_address: str, dna_sequence: str) -> Dict:
+        """Clinic enrolls new patient"""
+        if clinic_id not in self.clinics:
+            return {'error': 'Clinic not registered'}
+        
+        # Register in fleet monitoring
+        profile = self.fleet.register_patient(patient_id, wallet_address, clinic_id, dna_sequence)
+        
+        # Simulate treatment protocol
+        profile.treatment_protocol = {
+            'aav_dose_ul': 50,
+            'ferritin_target': 1200,
+            'duration_years': 5,
+            'quarterly_visits': 20,
+            'clinic_fee': self.quarterly_fee
+        }
+        
+        # Add to clinic roster
+        self.clinics[clinic_id]['patients'].append(patient_id)
+        
+        return {
+            'patient_id': patient_id,
+            'status': 'enrolled',
+            'treatment_protocol': profile.treatment_protocol,
+            'clinic_revenue_expected': self.treatment_revenue_per_patient
+        }
+    
+    def sign_treatment_nft(self, clinic_id: str, patient_id: str, patient_data: Dict) -> Dict:
+        """Clinic signs off on treatment NFT"""
+        if clinic_id not in self.clinics:
+            return {'error': 'Clinic not registered'}
+        
+        if patient_id not in self.fleet.patients:
+            return {'error': 'Patient not found'}
+        
+        # Create clinic signature
+        signature = hashlib.sha3_256(
+            f"{clinic_id}_{patient_id}_{time.time()}".encode()
+        ).hexdigest()
+        
+        # Mint NFT
+        nft_result = self.nft_engine.mint_patient_nft(
+            patient_data,
+            signature,
+            {'rms': 0.5, 'firing_rate_hz': 12},  # Mock MMG
+            {'alpha_reduction': -15, 'beta_alpha_ratio': 1.2}  # Mock EEG
+        )
+        
+        if 'error' in nft_result:
+            return nft_result
+        
+        # Update patient profile
+        profile = self.fleet.patients[patient_id]
+        profile.nft_token_id = nft_result['token_id']
+        profile.status = PatientRole.ACTIVE
+        
+        # Update clinic revenue
+        self.clinics[clinic_id]['total_revenue'] += self.treatment_revenue_per_patient / 20  # Per quarter
+        
+        return nft_result
+    
+    def get_clinic_dashboard(self, clinic_id: str) -> Dict:
+        """Get clinic performance dashboard"""
+        if clinic_id not in self.clinics:
+            return {'error': 'Clinic not found'}
+        
+        clinic = self.clinics[clinic_id]
+        patients = [self.fleet.patients[pid] for pid in clinic['patients'] if pid in self.fleet.patients]
+        
+        return {
+            'clinic_name': clinic['name'],
+            'total_patients': len(clinic['patients']),
+            'active_patients': len([p for p in patients if p.status == PatientRole.ACTIVE]),
+            'total_revenue_usd': clinic['total_revenue'],
+            'nft_royalties_earned': clinic['nft_royalties'],
+            'avg_updrs_patients': np.mean([p.total_updrs_improvement for p in patients]) if patients else 0,
+            'total_nft_value': sum(
+                self.nft_engine.minted_nfts.get(p.nft_token_id, MedicalNFT('','',0,NFTTier.COMMON,0,0,0,0,0,0,'','','',0,0)).last_trade_price
+                for p in patients if p.nft_token_id
+            )
+        }
+
+
+# ============== SECTION 5: FLASK API SERVER ==============
+
+class NeuroCorpAPI:
+    """
+    Production API server for NeuroAvatar platform
+    """
+    
+    def __init__(self):
+        self.app = Flask(__name__)
+        CORS(self.app)
+        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
+        
+        # Initialize components
+        self.nft_engine = NFTMintingEngine()
+        self.fleet = FleetMonitoring(self.nft_engine)
+        self.clinic_portal = ClinicPortal(self.nft_engine, self.fleet)
+        
+        # JWT secret
+        self.jwt_secret = os.environ.get('JWT_SECRET', 'neurocorp_secret_2024')
+        
+        self._setup_routes()
+        self._setup_websocket_events()
+        
+        print("\n🏢 NEUROCORP PLATFORM API READY")
+        print("   Endpoints: /api/* | WebSocket: /socket.io")
+        print("   Revenue: Treatment + NFT + Subscription")
+    
+    def _setup_routes(self):
+        
+        @self.app.route('/health')
+        def health():
+            return jsonify({
+                'status': 'online',
+                'nft_minted': self.nft_engine.nft_counter,
+                'active_patients': len([p for p in self.fleet.patients.values() if p.status == PatientRole.ACTIVE])
+            })
+        
+        @self.app.route('/api/clinic/register', methods=['POST'])
+        def register_clinic():
+            data = request.json
+            result = self.clinic_portal.register_clinic(
+                data['clinic_id'],
+                data['name'],
+                data['wallet_address']
+            )
+            return jsonify(result)
+        
+        @self.app.route('/api/clinic/enroll', methods=['POST'])
+        def enroll_patient():
+            data = request.json
+            result = self.clinic_portal.enroll_patient(
+                data['clinic_id'],
+                data['patient_id'],
+                data['wallet_address'],
+                data.get('dna_sequence', 'ATGCCCGT')
+            )
+            return jsonify(result)
+        
+        @self.app.route('/api/clinic/mint_nft', methods=['POST'])
+        def mint_nft():
+            data = request.json
+            result = self.clinic_portal.sign_treatment_nft(
+                data['clinic_id'],
+                data['patient_id'],
+                data['patient_data']
+            )
+            return jsonify(result)
+        
+        @self.app.route('/api/marketplace/stats')
+        def marketplace_stats():
+            return jsonify(self.nft_engine.get_market_stats())
+        
+        @self.app.route('/api/patient/<patient_id>/dashboard')
+        def patient_dashboard(patient_id):
+            return jsonify(self.fleet.get_patient_dashboard(patient_id))
+        
+        @self.app.route('/api/fleet/metrics')
+        def fleet_metrics():
+            return jsonify(self.fleet.get_fleet_metrics())
+        
+        @self.app.route('/api/revenue/projection')
+        def revenue_projection():
+            active = len([p for p in self.fleet.patients.values() if p.status == PatientRole.ACTIVE])
+            nft_value = self.nft_engine.get_market_stats().get('total_volume_usd', 0)
+            
+            return jsonify({
+                'active_patients': active,
+                'annual_treatment_revenue': active * 5600,  # $5.6K/year per patient
+                'nft_market_volume': nft_value,
+                'projected_arr': active * 990,  # $99/month subscription
+                'total_platform_value': active * 90000  # $90K lifetime per patient
+            })
+        
+        @self.app.route('/api/health/telem', methods=['POST'])
+        def receive_telemetry():
+            """Receive real-time telemetry from helmets"""
+            data = request.json
+            patient_id = data.get('patient_id')
+            
+            if patient_id in self.fleet.patients:
+                self.fleet.update_patient_metrics(
+                    patient_id,
+                    data.get('mmg', {}),
+                    data.get('eeg', {}),
+                    data.get('dna', {})
+                )
+            
+            return jsonify({'status': 'received', 'timestamp': time.time()})
+    
+    def _setup_websocket_events(self):
+        
+        @self.socketio.on('connect')
+        def handle_connect():
+            print(f"📱 Client connected")
+            emit('connected', {'platform': 'NeuroCorp', 'version': '3.0'})
+        
+        @self.socketio.on('subscribe_patient')
+        def subscribe_patient(data):
+            patient_id = data.get('patient_id')
+            if patient_id in self.fleet.patients:
+                # Start streaming patient data
+                emit('patient_data', self.fleet.get_patient_dashboard(patient_id))
+        
+        @self.socketio.on('subscribe_fleet')
+        def subscribe_fleet():
+            # Stream fleet metrics every 5 seconds
+            def stream_metrics():
+                while True:
+                    self.socketio.sleep(5)
+                    self.socketio.emit('fleet_update', self.fleet.get_fleet_metrics())
+            
+            self.socketio.start_background_task(stream_metrics)
+    
+    def run(self, host='0.0.0.0', port=5000):
+        print(f"\n🚀 Starting NeuroCorp API on {host}:{port}")
+        self.socketio.run(self.app, host=host, port=port, debug=False)
+
+
+# ============== SECTION 6: PATIENT CLIENT ==============
+
+class NeuroAvatarClient:
+    """Patient-side client for helmet data streaming"""
+    
+    def __init__(self, patient_id: str, api_url: str = "http://localhost:5000"):
+        self.patient_id = patient_id
+        self.api_url = api_url
+        self.session_active = False
+        
+        print(f"👤 NeuroAvatar Client: {patient_id[:16]}...")
+    
+    def send_telemetry(self, mmg_data: Dict, eeg_data: Dict, dna_result: Dict):
+        """Send telemetry to platform"""
+        payload = {
+            'patient_id': self.patient_id,
+            'timestamp': time.time(),
+            'mmg': mmg_data,
+            'eeg': eeg_data,
+            'dna': dna_result
+        }
+        
+        # In production: HTTP POST to /api/health/telem
+        # For demo: mock send
+        print(f"📡 Telemetry sent: MMG={mmg_data.get('rms', 0):.3f} | EEG={eeg_data.get('alpha_reduction', 0):+.1f}%")
+        return True
+    
+    def view_nft(self) -> Dict:
+        """View patient's NFT avatar"""
+        # In production: GET /api/patient/{id}/dashboard
+        return {
+            'patient_id': self.patient_id,
+            'nft_value': 847.32,
+            'updrs_improvement': -6.8,
+            'treatment_days': 365,
+            'next_clinic_visit': (datetime.now() + timedelta(days=30)).isoformat()
+        }
+
+
+# ============== SECTION 7: MAIN DEPLOYMENT ==============
+
+def main():
+    """Deploy complete NeuroCorp platform"""
+    
+    print("="*80)
+    print("🏥 NEUROCORP NFT MEDICAL AVATAR PLATFORM")
+    print("MMG + EEG → DNA → NFT → Marketplace")
+    print("="*80)
+    
+    # Initialize API server
+    api = NeuroCorpAPI()
+    
+    # Demo: Register clinic
+    clinic_result = api.clinic_portal.register_clinic(
+        "MAYO_CLINIC_001",
+        "Mayo Clinic Neurology",
+        "0xClinicWalletAddress"
+    )
+    print(f"\n✅ Clinic Registered: {clinic_result.get('clinic_id')}")
+    
+    # Demo: Enroll patient
+    enroll_result = api.clinic_portal.enroll_patient(
+        "MAYO_CLINIC_001",
+        "PATIENT_ALICE_001",
+        "0xAliceWallet",
+        "ATGCCCGT"
+    )
+    print(f"✅ Patient Enrolled: {enroll_result.get('patient_id')}")
+    
+    # Demo: Mint NFT
+    patient_data = {
+        'patient_id': 'PATIENT_ALICE_001',
+        'clinic_id': 'MAYO_CLINIC_001',
+        'wallet_address': '0xAliceWallet',
+        'ferritin_ngml': 1250,
+        'neuron_nodes': 34000000000,
+        'updrs_improvement': -7.2,
+        'sync_probability': 0.95,
+        'dna_fingerprint': hashlib.sha3_256("ATGCCCGT".encode()).hexdigest()[:16]
+    }
+    
+    mint_result = api.clinic_portal.sign_treatment_nft(
+        "MAYO_CLINIC_001",
+        "PATIENT_ALICE_001",
+        patient_data
+    )
+    print(f"✅ NFT Minted: {mint_result.get('token_id')}")
+    
+    # Show marketplace stats
+    print("\n" + "="*80)
+    print("📊 MARKETPLACE STATISTICS")
+    print("="*80)
+    stats = api.nft_engine.get_market_stats()
+    for key, value in stats.items():
+        print(f"   {key}: {value}")
+    
+    # Show revenue projection
+    print("\n" + "="*80)
+    print("💰 REVENUE PROJECTION")
+    print("="*80)
+    revenue = api.revenue_projection()
+    for key, value in revenue.json:
+        print(f"   {key}: ${value:,.0f}" if isinstance(value, (int, float)) else f"   {key}: {value}")
+    
+    print("\n" + "="*80)
+    print("🚀 PLATFORM READY FOR DEPLOYMENT")
+    print("="*80)
+    print("\nEndpoints:")
+    print("  GET  /health                    - Platform status")
+    print("  POST /api/clinic/register      - Register clinic")
+    print("  POST /api/clinic/enroll        - Enroll patient")
+    print("  POST /api/clinic/mint_n

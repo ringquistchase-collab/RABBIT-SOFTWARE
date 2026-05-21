@@ -1,0 +1,7 @@
+# Register patient with UUID
+patient = {
+    "patient_id": "bd6e1085-9450-485a-a30a-0bb68669c75b",
+    "nft_token": f"NEUROAVATAR_{uuid.uuid4().hex[:8]}",
+    "wallet_address": "0x...",
+    "enrolled": datetime.utcnow().isoformat()
+}

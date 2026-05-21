@@ -1,0 +1,18 @@
+>>> record 0 2000
+
+✓ Block #42
+  Block hash:   7f3e9a2b1c4d5e6f7a8b9c0d1e2f3a4b...
+  Channel:      Fp1 (CH0)
+  Dominant:     alpha @ 9.82 Hz
+  SNR:          18.4 dB
+  Entropy:      5.23 bits
+  Tokens:       a3f7c8e1b2d4f6a8c9e0f1d2c3b4a5e6...
+
+LLM Analysis:
+  SIGNAL_QUALITY: GOOD — SNR 18.4 dB, no saturation
+  DOMINANT_RHYTHM: alpha at 9.8 Hz
+  FEATURES: posterior dominant rhythm, normal variability
+  INTERPRETATION: Resting-state EEG shows typical alpha rhythm...
+  FLAGS: NONE
+
+📡 Anchored to Ethereum: 0x7f3e9a2b1c4d5e6f...

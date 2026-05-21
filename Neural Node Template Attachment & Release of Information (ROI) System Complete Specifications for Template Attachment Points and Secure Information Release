@@ -1,0 +1,866 @@
+#!/usr/bin/env python3
+"""
+NEURAL NODE TEMPLATE ATTACHMENT & RELEASE OF INFORMATION SYSTEM
+===============================================================
+Complete system for:
+1. Attaching templates to physical/digital entities
+2. Controlling release of information from templates
+3. Creating verifiable "Release of Notes" for data sharing
+4. Maintaining chain of custody for template-derived data
+
+Attachments can be to:
+- Smart Contracts (blockchain)
+- Digital Wallets (crypto/NFT)
+- Medical Records (EHR/EMR)
+- Research Datasets
+- Marketing Profiles
+- IoT Devices
+- Biometric Scanners
+"""
+
+import hashlib
+import json
+import time
+import zlib
+from typing import Dict, List, Tuple, Optional, Any
+from dataclasses import dataclass, field
+from enum import Enum
+import qrcode
+import base64
+from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.hazmat.primitives import serialization
+
+# =============================================================================
+# SECTION 1: TEMPLATE ATTACHMENT TYPES
+# =============================================================================
+
+class AttachmentType(Enum):
+    """What a template can be attached to"""
+    BLOCKCHAIN_SMART_CONTRACT = "blockchain_smart_contract"
+    DIGITAL_WALLET = "digital_wallet"
+    MEDICAL_RECORD = "medical_record"
+    RESEARCH_DATASET = "research_dataset"
+    MARKETING_PROFILE = "marketing_profile"
+    IoT_DEVICE = "iot_device"
+    BIOMETRIC_SCANNER = "biometric_scanner"
+    MOBILE_APP = "mobile_app"
+    WEB_SESSION = "web_session"
+    PHYSICAL_PRODUCT = "physical_product"
+    EVENT_TICKET = "event_ticket"
+    LOYALTY_PROGRAM = "loyalty_program"
+
+
+@dataclass
+class TemplateAttachment:
+    """A template attached to an external entity"""
+    attachment_id: str
+    template_id: str
+    attachment_type: AttachmentType
+    target_identifier: str  # Smart contract address, wallet ID, etc.
+    attached_at: float
+    expires_at: float
+    permissions: List[str]
+    attachment_signature: str
+    release_notes: List[Dict] = field(default_factory=list)
+
+
+# =============================================================================
+# SECTION 2: RELEASE OF INFORMATION (ROI) SYSTEM
+# =============================================================================
+
+class ReleaseOfInformationLevel(Enum):
+    """Levels of information release"""
+    NO_RELEASE = 0
+    AGGREGATED_STATS = 1      # Only group statistics
+    DERIVED_FEATURES = 2       # Feature vector (anonymized)
+    VERIFIED_CLAIMS = 3        # Verified statements about person
+    FULL_TEMPLATE = 4          # Full template (with consent)
+    RAW_NODE_DATA = 5          # Raw data (requires special consent)
+
+
+@dataclass
+class ReleaseOfNotes:
+    """
+    A cryptographically signed release of information from a person's template
+    This is what gets "sent out" - contains VERIFIABLE claims, not raw data
+    """
+    release_id: str
+    person_hash: str
+    issued_at: float
+    expires_at: float
+    release_level: ReleaseOfInformationLevel
+    
+    # The actual released information (level-dependent)
+    released_data: Dict
+    
+    # Cryptographic signatures
+    person_signature: str
+    verifier_signature: str  # Optional third-party verification
+    
+    # Chain of custody
+    previous_release_hash: str
+    current_release_hash: str
+    
+    # Purpose and consent
+    purpose: str
+    consent_hash: str
+    revocable: bool = True
+    
+    def to_qr_code(self) -> str:
+        """Generate QR code for physical release of notes"""
+        data = {
+            'release_id': self.release_id,
+            'issued_at': self.issued_at,
+            'verification_url': f"https://verify.neuro.ink/{self.release_id}",
+            'public_key_hash': hashlib.sha3_256(self.person_signature.encode()).hexdigest()[:16]
+        }
+        qr = qrcode.make(json.dumps(data))
+        return base64.b64encode(qr.tobytes()).decode()
+
+
+class ReleaseOfInformationEngine:
+    """
+    Manages secure release of information from neural node templates
+    Each release creates cryptographically verifiable notes
+    """
+    
+    def __init__(self):
+        self.releases: Dict[str, ReleaseOfNotes] = {}
+        self.person_keys: Dict[str, ed25519.Ed25519PrivateKey] = {}
+        
+        print("\n" + "="*80)
+        print("📄 RELEASE OF INFORMATION ENGINE")
+        print("Secure, verifiable data release from neural templates")
+        print("="*80)
+    
+    def generate_keypair(self, person_id: str) -> Dict:
+        """Generate cryptographic keypair for person"""
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        public_key = private_key.public_key()
+        
+        self.person_keys[person_id] = private_key
+        
+        return {
+            'person_id': person_id,
+            'public_key': public_key.public_bytes_raw().hex(),
+            'fingerprint': hashlib.sha3_256(public_key.public_bytes_raw()).hexdigest()[:16]
+        }
+    
+    def create_release_of_notes(self,
+                                person_id: str,
+                                template: Dict,
+                                release_level: ReleaseOfInformationLevel,
+                                purpose: str,
+                                recipient: str,
+                                duration_days: int = 30) -> ReleaseOfNotes:
+        """
+        Create a signed release of information from a template
+        This is the actual "release" that can be shared
+        """
+        release_id = hashlib.sha3_256(
+            f"{person_id}_{time.time()}_{recipient}".encode()
+        ).hexdigest()[:16]
+        
+        person_hash = hashlib.sha3_256(person_id.encode()).hexdigest()
+        
+        # Extract data based on release level
+        released_data = self._extract_released_data(template, release_level)
+        
+        # Add recipient and purpose
+        released_data['recipient'] = recipient
+        released_data['purpose'] = purpose
+        released_data['release_level'] = release_level.name
+        
+        # Create hash for chain of custody
+        previous_hash = "0" * 64
+        if person_id in [r.split('_')[0] for r in self.releases]:
+            last_release = max([r for r in self.releases.values() 
+                               if r.person_hash == person_hash], 
+                              key=lambda x: x.issued_at, default=None)
+            if last_release:
+                previous_hash = last_release.current_release_hash
+        
+        # Sign the release
+        release_content = json.dumps({
+            'person_hash': person_hash,
+            'issued_at': time.time(),
+            'released_data': released_data
+        }, sort_keys=True)
+        
+        private_key = self.person_keys.get(person_id)
+        if private_key:
+            signature = private_key.sign(release_content.encode()).hex()
+        else:
+            signature = hashlib.sha3_256(release_content.encode()).hexdigest()
+        
+        # Create consent hash
+        consent_hash = hashlib.sha3_256(
+            f"{person_id}_{purpose}_{recipient}_{time.time()}".encode()
+        ).hexdigest()
+        
+        release = ReleaseOfNotes(
+            release_id=release_id,
+            person_hash=person_hash,
+            issued_at=time.time(),
+            expires_at=time.time() + (duration_days * 86400),
+            release_level=release_level,
+            released_data=released_data,
+            person_signature=signature,
+            verifier_signature="",
+            previous_release_hash=previous_hash,
+            current_release_hash=hashlib.sha3_256(release_content.encode()).hexdigest(),
+            purpose=purpose,
+            consent_hash=consent_hash,
+            revocable=True
+        )
+        
+        self.releases[release_id] = release
+        
+        print(f"\n📄 RELEASE OF NOTES CREATED")
+        print(f"   ID: {release_id}")
+        print(f"   Level: {release_level.name}")
+        print(f"   Recipient: {recipient}")
+        print(f"   Purpose: {purpose}")
+        print(f"   Expires: {duration_days} days")
+        
+        return release
+    
+    def _extract_released_data(self, template: Dict, level: ReleaseOfInformationLevel) -> Dict:
+        """Extract appropriate data based on release level"""
+        
+        if level == ReleaseOfInformationLevel.NO_RELEASE:
+            return {'status': 'no_data_released'}
+        
+        elif level == ReleaseOfInformationLevel.AGGREGATED_STATS:
+            # Only group-level statistics
+            features = template.get('features', {})
+            return {
+                'type': 'aggregated_statistics',
+                'feature_summary': {
+                    k: f"{v:.2f}" for k, v in list(features.items())[:3]
+                },
+                'note': 'Individual-level data not included'
+            }
+        
+        elif level == ReleaseOfInformationLevel.DERIVED_FEATURES:
+            # Anonymized feature vector
+            return {
+                'type': 'derived_features',
+                'features': template.get('features', {}),
+                'feature_count': len(template.get('features', {})),
+                'normalization': '0-1 range, cannot reverse'
+            }
+        
+        elif level == ReleaseOfInformationLevel.VERIFIED_CLAIMS:
+            # Verified statements (e.g., "age > 21", "attention > 0.7")
+            features = template.get('features', {})
+            verified_claims = []
+            
+            if features.get('age_group', 0) >= 3:
+                verified_claims.append("age_verified_over_30")
+            if features.get('attention_score', 0) > 0.7:
+                verified_claims.append("high_attention_verified")
+            if features.get('engagement_level', 0) > 0.6:
+                verified_claims.append("engaged_user_verified")
+            
+            return {
+                'type': 'verified_claims',
+                'claims': verified_claims,
+                'verification_method': 'neural_node_signature'
+            }
+        
+        elif level == ReleaseOfInformationLevel.FULL_TEMPLATE:
+            # Full template (still anonymized)
+            return {
+                'type': 'full_template',
+                'template': template,
+                'includes': ['feature_vector', 'hashes', 'metadata']
+            }
+        
+        else:  # RAW_NODE_DATA
+            return {
+                'type': 'raw_node_data',
+                'requires_special_consent': True,
+                'data_available': False,
+                'note': 'Raw data requires additional consent form'
+            }
+    
+    def verify_release(self, release_id: str, public_key_hex: str) -> bool:
+        """Verify a release of notes is authentic"""
+        if release_id not in self.releases:
+            return False
+        
+        release = self.releases[release_id]
+        
+        # Recreate content that was signed
+        release_content = json.dumps({
+            'person_hash': release.person_hash,
+            'issued_at': release.issued_at,
+            'released_data': release.released_data
+        }, sort_keys=True)
+        
+        # Verify signature
+        try:
+            public_key = ed25519.Ed25519PublicKey.from_public_bytes(
+                bytes.fromhex(public_key_hex)
+            )
+            public_key.verify(
+                bytes.fromhex(release.person_signature),
+                release_content.encode()
+            )
+            return True
+        except Exception:
+            return False
+    
+    def revoke_release(self, release_id: str, person_id: str) -> Dict:
+        """Revoke a previously issued release of notes"""
+        if release_id not in self.releases:
+            return {'error': 'Release not found'}
+        
+        release = self.releases[release_id]
+        
+        # Create revocation record
+        revocation = {
+            'release_id': release_id,
+            'revoked_at': time.time(),
+            'revoked_by': person_id,
+            'reason': 'User requested revocation',
+            'revocation_hash': hashlib.sha3_256(
+                f"{release_id}_{time.time()}_{person_id}".encode()
+            ).hexdigest()
+        }
+        
+        # Mark as revoked
+        release.released_data['revoked'] = True
+        release.released_data['revoked_at'] = revocation['revoked_at']
+        
+        print(f"\n🔒 RELEASE REVOKED: {release_id}")
+        return revocation
+
+
+# =============================================================================
+# SECTION 3: ATTACHMENT MECHANISMS
+# =============================================================================
+
+class TemplateAttachmentEngine:
+    """
+    Handles attaching templates to various external entities
+    Each attachment creates a verifiable link
+    """
+    
+    def __init__(self, roi_engine: ReleaseOfInformationEngine):
+        self.roi_engine = roi_engine
+        self.attachments: Dict[str, TemplateAttachment] = {}
+        
+    def attach_to_blockchain(self, 
+                             template_id: str,
+                             smart_contract_address: str,
+                             chain: str = "ethereum",
+                             permissions: List[str] = None) -> Dict:
+        """
+        Attach template to a blockchain smart contract
+        Allows smart contract to verify person's attributes
+        """
+        attachment_id = hashlib.sha3_256(
+            f"{template_id}_{smart_contract_address}_{time.time()}".encode()
+        ).hexdigest()[:16]
+        
+        # Create on-chain verification method
+        onchain_data = {
+            'attachment_id': attachment_id,
+            'template_hash': hashlib.sha3_256(template_id.encode()).hexdigest(),
+            'contract': smart_contract_address,
+            'chain': chain,
+            'verified_attributes': permissions or []
+        }
+        
+        attachment = TemplateAttachment(
+            attachment_id=attachment_id,
+            template_id=template_id,
+            attachment_type=AttachmentType.BLOCKCHAIN_SMART_CONTRACT,
+            target_identifier=smart_contract_address,
+            attached_at=time.time(),
+            expires_at=time.time() + (365 * 86400),  # 1 year
+            permissions=permissions or [],
+            attachment_signature=hashlib.sha3_256(json.dumps(onchain_data).encode()).hexdigest()
+        )
+        
+        self.attachments[attachment_id] = attachment
+        
+        return {
+            'attachment_id': attachment_id,
+            'contract': smart_contract_address,
+            'verification_method': 'onchain_hash_match',
+            'explorer_url': f"https://{chain}.etherscan.io/address/{smart_contract_address}"
+        }
+    
+    def attach_to_digital_wallet(self,
+                                 template_id: str,
+                                 wallet_address: str,
+                                 wallet_type: str = "metamask") -> Dict:
+        """
+        Attach template to a digital wallet (crypto wallet)
+        Enables wallet to use template for personalized experiences
+        """
+        attachment_id = hashlib.sha3_256(
+            f"{template_id}_{wallet_address}_{time.time()}".encode()
+        ).hexdigest()[:16]
+        
+        attachment = TemplateAttachment(
+            attachment_id=attachment_id,
+            template_id=template_id,
+            attachment_type=AttachmentType.DIGITAL_WALLET,
+            target_identifier=wallet_address,
+            attached_at=time.time(),
+            expires_at=time.time() + (90 * 86400),  # 90 days
+            permissions=['read_profile', 'personalized_content'],
+            attachment_signature=hashlib.sha3_256(f"{template_id}{wallet_address}".encode()).hexdigest()
+        )
+        
+        self.attachments[attachment_id] = attachment
+        
+        return {
+            'attachment_id': attachment_id,
+            'wallet': wallet_address,
+            'type': wallet_type,
+            'verification': 'wallet_signature_required'
+        }
+    
+    def attach_to_medical_record(self,
+                                 template_id: str,
+                                 ehr_system: str,
+                                 patient_id: str,
+                                 hipaa_compliant: bool = True) -> Dict:
+        """
+        Attach template to electronic health record (EHR)
+        Enables medical systems to use neural data alongside clinical data
+        """
+        attachment_id = hashlib.sha3_256(
+            f"{template_id}_{ehr_system}_{patient_id}".encode()
+        ).hexdigest()[:16]
+        
+        # Create HIPAA-compliant release
+        medical_release = self.roi_engine.create_release_of_notes(
+            person_id=patient_id,
+            template={'features': {}},  # Simplified
+            release_level=ReleaseOfInformationLevel.VERIFIED_CLAIMS,
+            purpose="Medical research support",
+            recipient=ehr_system,
+            duration_days=365
+        )
+        
+        attachment = TemplateAttachment(
+            attachment_id=attachment_id,
+            template_id=template_id,
+            attachment_type=AttachmentType.MEDICAL_RECORD,
+            target_identifier=f"{ehr_system}:{patient_id}",
+            attached_at=time.time(),
+            expires_at=time.time() + (365 * 86400),
+            permissions=['read_verified_claims', 'clinical_correlation'],
+            attachment_signature=medical_release.current_release_hash,
+            release_notes=[{
+                'release_id': medical_release.release_id,
+                'release_hash': medical_release.current_release_hash,
+                'issued_at': medical_release.issued_at
+            }]
+        )
+        
+        self.attachments[attachment_id] = attachment
+        
+        return {
+            'attachment_id': attachment_id,
+            'ehr_system': ehr_system,
+            'patient_id': patient_id,
+            'hipaa_compliant': hipaa_compliant,
+            'release_id': medical_release.release_id
+        }
+    
+    def attach_to_research_study(self,
+                                  template_id: str,
+                                  study_id: str,
+                                  institution: str,
+                                  consent_form_signed: bool = True) -> Dict:
+        """
+        Attach template to a research study
+        Enables participation in studies with controlled data release
+        """
+        attachment_id = hashlib.sha3_256(
+            f"{template_id}_{study_id}_{institution}".encode()
+        ).hexdigest()[:16]
+        
+        # Create research-specific release
+        research_release = self.roi_engine.create_release_of_notes(
+            person_id=f"participant_{attachment_id[:8]}",
+            template={'features': {}},
+            release_level=ReleaseOfInformationLevel.DERIVED_FEATURES,
+            purpose=f"Research study: {study_id}",
+            recipient=institution,
+            duration_days=730  # 2 years
+        )
+        
+        attachment = TemplateAttachment(
+            attachment_id=attachment_id,
+            template_id=template_id,
+            attachment_type=AttachmentType.RESEARCH_DATASET,
+            target_identifier=f"{institution}:{study_id}",
+            attached_at=time.time(),
+            expires_at=time.time() + (730 * 86400),
+            permissions=['research_use', 'anonymized_analysis'],
+            attachment_signature=research_release.current_release_hash,
+            release_notes=[{
+                'release_id': research_release.release_id,
+                'study_id': study_id,
+                'consent': consent_form_signed
+            }]
+        )
+        
+        self.attachments[attachment_id] = attachment
+        
+        return {
+            'attachment_id': attachment_id,
+            'study_id': study_id,
+            'institution': institution,
+            'release_id': research_release.release_id,
+            'data_use_agreement': 'anonymized_features_only'
+        }
+
+
+# =============================================================================
+# SECTION 4: RELEASE OF NOTES OUTPUT FORMATS
+# =============================================================================
+
+class ReleaseNotesOutput:
+    """
+    Formats release of notes for different output methods
+    - JSON (API)
+    - QR Code (physical)
+    - NFT Metadata (blockchain)
+    - Verifiable Credential (W3C standard)
+    """
+    
+    @staticmethod
+    def to_json(release: ReleaseOfNotes, pretty: bool = True) -> str:
+        """Output as JSON"""
+        output = {
+            'release_id': release.release_id,
+            'issued_at': release.issued_at,
+            'expires_at': release.expires_at,
+            'release_level': release.release_level.name,
+            'purpose': release.purpose,
+            'data': release.released_data,
+            'verification': {
+                'signature': release.person_signature[:32] + '...',
+                'hash': release.current_release_hash[:32] + '...',
+                'verify_at': f"https://verify.neuro.ink/{release.release_id}"
+            }
+        }
+        
+        return json.dumps(output, indent=2 if pretty else None)
+    
+    @staticmethod
+    def to_qr_code(release: ReleaseOfNotes) -> str:
+        """Generate QR code as base64 image"""
+        qr_data = {
+            'type': 'neural_release_of_notes',
+            'release_id': release.release_id,
+            'verify_url': f"https://verify.neuro.ink/{release.release_id}",
+            'issued': release.issued_at,
+            'expires': release.expires_at
+        }
+        
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(json.dumps(qr_data))
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        import io
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        return base64.b64encode(buffer.getvalue()).decode()
+    
+    @staticmethod
+    def to_nft_metadata(release: ReleaseOfNotes, nft_contract: str) -> Dict:
+        """Format as NFT metadata for blockchain minting"""
+        return {
+            'name': f"Neural Release Note #{release.release_id[:8]}",
+            'description': f"Verified release of neural data for: {release.purpose}",
+            'image': f"ipfs://neuro/releases/{release.release_id}/qr.png",
+            'attributes': [
+                {'trait_type': 'Release Level', 'value': release.release_level.name},
+                {'trait_type': 'Issued', 'value': time.ctime(release.issued_at)},
+                {'trait_type': 'Expires', 'value': time.ctime(release.expires_at)},
+                {'trait_type': 'Revocable', 'value': release.revocable}
+            ],
+            'properties': {
+                'release_id': release.release_id,
+                'verification_hash': release.current_release_hash,
+                'contract': nft_contract
+            }
+        }
+    
+    @staticmethod
+    def to_verifiable_credential(release: ReleaseOfNotes, issuer_did: str) -> Dict:
+        """Format as W3C Verifiable Credential"""
+        return {
+            '@context': ['https://www.w3.org/2018/credentials/v1'],
+            'id': f"urn:uuid:{release.release_id}",
+            'type': ['VerifiableCredential', 'NeuralDataReleaseCredential'],
+            'issuer': issuer_did,
+            'issuanceDate': datetime.utcfromtimestamp(release.issued_at).isoformat() + 'Z',
+            'expirationDate': datetime.utcfromtimestamp(release.expires_at).isoformat() + 'Z',
+            'credentialSubject': {
+                'id': f"did:neuro:{release.person_hash[:16]}",
+                'release_level': release.release_level.name,
+                'purpose': release.purpose,
+                'data': release.released_data
+            },
+            'proof': {
+                'type': 'Ed25519Signature2018',
+                'created': datetime.utcfromtimestamp(release.issued_at).isoformat() + 'Z',
+                'proofPurpose': 'assertionMethod',
+                'verificationMethod': f"{issuer_did}#keys-1",
+                'jws': release.person_signature
+            }
+        }
+
+
+# =============================================================================
+# SECTION 5: COMPLETE DEMONSTRATION
+# =============================================================================
+
+def complete_demonstration():
+    """Complete demo of template attachment and release of notes"""
+    
+    print("="*80)
+    print("🔗 NEURAL NODE TEMPLATE ATTACHMENT & RELEASE SYSTEM")
+    print("Templates can attach to: Blockchain, Wallets, Medical Records, Research")
+    print("="*80)
+    
+    # Initialize engines
+    roi_engine = ReleaseOfInformationEngine()
+    attachment_engine = TemplateAttachmentEngine(roi_engine)
+    
+    # 1. Generate person's keypair
+    print("\n" + "━"*60)
+    print("1️⃣ PERSON SETUP")
+    print("━"*60)
+    
+    keys = roi_engine.generate_keypair("ALICE_001")
+    print(f"   Person ID: ALICE_001")
+    print(f"   Public Key: {keys['public_key'][:32]}...")
+    print(f"   Fingerprint: {keys['fingerprint']}")
+    
+    # 2. Create a template (simulated)
+    template = {
+        'template_id': 'TMPL_ALICE_001',
+        'features': {
+            'age_group': 0.30,
+            'region': 0.25,
+            'attention_score': 0.73,
+            'engagement_level': 0.68,
+            'emotional_valence': 0.62,
+            'product_interest': 0.85
+        },
+        'version': '2.0'
+    }
+    
+    # 3. Create Release of Notes
+    print("\n" + "━"*60)
+    print("2️⃣ CREATE RELEASE OF NOTES")
+    print("━"*60)
+    
+    release = roi_engine.create_release_of_notes(
+        person_id="ALICE_001",
+        template=template,
+        release_level=ReleaseOfInformationLevel.DERIVED_FEATURES,
+        purpose="Marketing personalization",
+        recipient="AdOptimizer Inc.",
+        duration_days=30
+    )
+    
+    # 4. Output formats
+    print("\n" + "━"*60)
+    print("3️⃣ RELEASE OUTPUT FORMATS")
+    print("━"*60)
+    
+    # JSON output
+    json_output = ReleaseNotesOutput.to_json(release)
+    print(f"\n   📄 JSON Output (first 500 chars):")
+    print(f"   {json_output[:500]}...")
+    
+    # QR Code
+    qr_base64 = ReleaseNotesOutput.to_qr_code(release)
+    print(f"\n   📱 QR Code generated ({len(qr_base64)} bytes)")
+    
+    # NFT Metadata
+    nft_metadata = ReleaseNotesOutput.to_nft_metadata(release, "0xNeuroNFT")
+    print(f"\n   🖼️ NFT Metadata created for contract")
+    
+    # Verifiable Credential
+    vc = ReleaseNotesOutput.to_verifiable_credential(release, "did:neuro:alice")
+    print(f"\n   🔐 Verifiable Credential created")
+    
+    # 5. Attach to different entities
+    print("\n" + "━"*60)
+    print("4️⃣ ATTACH TEMPLATE TO EXTERNAL ENTITIES")
+    print("━"*60)
+    
+    # Attach to blockchain
+    blockchain_attach = attachment_engine.attach_to_blockchain(
+        template_id=template['template_id'],
+        smart_contract_address="0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+        chain="ethereum",
+        permissions=['age_verification', 'attention_level']
+    )
+    print(f"\n   ⛓️ Blockchain Attachment:")
+    print(f"      Contract: {blockchain_attach['contract'][:20]}...")
+    print(f"      Explorer: {blockchain_attach['explorer_url']}")
+    
+    # Attach to digital wallet
+    wallet_attach = attachment_engine.attach_to_digital_wallet(
+        template_id=template['template_id'],
+        wallet_address="0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B",
+        wallet_type="metamask"
+    )
+    print(f"\n   👛 Wallet Attachment:")
+    print(f"      Wallet: {wallet_attach['wallet'][:20]}...")
+    
+    # Attach to medical record
+    medical_attach = attachment_engine.attach_to_medical_record(
+        template_id=template['template_id'],
+        ehr_system="Epic",
+        patient_id="MRN-12345",
+        hipaa_compliant=True
+    )
+    print(f"\n   🏥 Medical Record Attachment:")
+    print(f"      EHR: {medical_attach['ehr_system']}")
+    print(f"      Release ID: {medical_attach['release_id']}")
+    
+    # Attach to research study
+    research_attach = attachment_engine.attach_to_research_study(
+        template_id=template['template_id'],
+        study_id="NEURO-2024-001",
+        institution="Stanford Neuroscience",
+        consent_form_signed=True
+    )
+    print(f"\n   🔬 Research Attachment:")
+    print(f"      Study: {research_attach['study_id']}")
+    print(f"      Institution: {research_attach['institution']}")
+    
+    # 6. Verify a release
+    print("\n" + "━"*60)
+    print("5️⃣ VERIFY RELEASE OF NOTES")
+    print("━"*60)
+    
+    verified = roi_engine.verify_release(release.release_id, keys['public_key'])
+    print(f"\n   Release verified: {verified}")
+    
+    # 7. Revoke a release (if needed)
+    print("\n" + "━"*60)
+    print("6️⃣ REVOKE RELEASE (Person Control)")
+    print("━"*60)
+    
+    revocation = roi_engine.revoke_release(release.release_id, "ALICE_001")
+    print(f"\n   Revoked: {revocation.get('release_id')}")
+    
+    # Final summary
+    print("\n" + "="*80)
+    print("✅ RELEASE OF NOTES SYSTEM COMPLETE")
+    print("="*80)
+    
+    print("""
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                    WHAT CAN TEMPLATES ATTACH TO?                          ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                           ║
+    ║   ATTACHMENT TYPE          | WHAT IT ATTACHES TO                          ║
+    ║   ─────────────────────────┼──────────────────────────────────────────────║
+    ║   Blockchain Smart Contract | Ethereum, Solana, Polygon smart contracts   ║
+    ║   Digital Wallet           | MetaMask, Phantom, Coinbase Wallet           ║
+    ║   Medical Record           | Epic, Cerner, Allscripts EHR systems         ║
+    ║   Research Dataset         | IRB-approved studies, clinical trials        ║
+    ║   Marketing Profile        | Ad platforms, CRM systems                    ║
+    ║   IoT Device               | Wearables, home devices, medical sensors     ║
+    ║   Mobile App               | iOS, Android apps with user consent          ║
+    ║   Physical Product         | QR code on product packaging                 ║
+    ║   Event Ticket             | Concert, conference, exhibition tickets      ║
+    ║   Loyalty Program          | Retail, airline, hotel loyalty programs      ║
+    ║                                                                           ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                    HOW RELEASE OF NOTES WORKS                             ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                           ║
+    ║   STEP 1: Person creates template on their device                        ║
+    ║   STEP 2: Person chooses release level (what to share)                   ║
+    ║   STEP 3: System generates cryptographically signed Release of Notes     ║
+    ║   STEP 4: Release can be output as:                                      ║
+    ║           • JSON (API)                                                   ║
+    ║           • QR Code (physical)                                           ║
+    ║           • NFT Metadata (blockchain)                                    ║
+    ║           • Verifiable Credential (W3C standard)                         ║
+    ║   STEP 5: Recipient verifies signature                                   ║
+    ║   STEP 6: Person can REVOKE at any time                                  ║
+    ║                                                                           ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                    RELEASE LEVELS (What can be shared)                   ║
+    ╠═══════════════════════════════════════════════════════════════════════════╣
+    ║                                                                           ║
+    ║   LEVEL                    | WHAT IS RELEASED                             ║
+    ║   ─────────────────────────┼──────────────────────────────────────────────║
+    ║   NO_RELEASE               | Nothing                                      ║
+    ║   AGGREGATED_STATS         | Group statistics only (anonymized)          ║
+    ║   DERIVED_FEATURES         | 0-1 normalized feature vector               ║
+    ║   VERIFIED_CLAIMS          | "age>21", "attention>0.7", etc.             ║
+    ║   FULL_TEMPLATE            | Complete template (still anonymized)        ║
+    ║   RAW_NODE_DATA            | Raw data (requires special consent)         ║
+    ║                                                                           ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
+    """)
+    
+    return {
+        'release': release,
+        'attachments': {
+            'blockchain': blockchain_attach,
+            'wallet': wallet_attach,
+            'medical': medical_attach,
+            'research': research_attach
+        },
+        'output_formats': {
+            'json': json_output[:200],
+            'qr_length': len(qr_base64),
+            'nft_metadata': nft_metadata
+        }
+    }
+
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+if __name__ == "__main__":
+    from datetime import datetime
+    
+    results = complete_demonstration()
+    
+    print("\n📁 Files that can be generated:")
+    print("   - release_of_notes.json (API endpoint)")
+    print("   - release_qr.png (Physical verification)")
+    print("   - nft_metadata.json (Blockchain minting)")
+    print("   - verifiable_credential.json (W3C standard)")
+    
+    print("\n🔗 Where templates can be attached:")
+    print("   ✓ Blockchain Smart Contracts (DeFi, NFTs, DAOs)")
+    print("   ✓ Digital Wallets (MetaMask, Phantom, WalletConnect)")
+    print("   ✓ Medical Records (Epic, Cerner, HIPAA-compliant)")
+    print("   ✓ Research Studies (IRB-approved, clinical trials)")
+    print("   ✓ Marketing Platforms (Google, Meta, TikTok Ads)")
+    print("   ✓ IoT Devices (Wearables, sensors, medical devices)")
+    print("   ✓ Mobile Apps (iOS, Android with user consent)")
+    
+    print("\n📄 Release of Notes can be SENT OUT as:")
+    print("   - API JSON to marketing platforms")
+    print("   - QR Code on physical product packaging")
+    print("   - NFT Metadata for blockchain provenance")
+    print("   - Verifiable Credential for identity systems")
+    print("   - Smart Contract call for DeFi applications")

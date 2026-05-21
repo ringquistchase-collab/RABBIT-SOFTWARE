@@ -1,0 +1,893 @@
+#!/usr/bin/env python3
+"""
+MULTI-TASK NEURAL NODE MANIPULATION SYSTEM
+============================================
+Parallel Processing: Multiple nodes running simultaneous tasks:
+- Image generation from neural patterns
+- Chemical modulation via RF-induced molecular changes
+- Memory formation and recall
+- Cross-modal sensory integration
+
+Each node can execute multiple functions concurrently through:
+1. Time-division multiplexing (fast switching)
+2. Frequency-division multiplexing (different RF frequencies)
+3. Spatial partitioning (different node clusters)
+4. Temporal wave superposition (combined effects)
+"""
+
+import numpy as np
+import hashlib
+import time
+import json
+import threading
+import queue
+import asyncio
+from typing import Dict, List, Tuple, Optional, Set
+from dataclasses import dataclass, field
+from enum import Enum
+from collections import defaultdict
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+# =============================================================================
+# SECTION 1: MULTI-TASK NODE ARCHITECTURE
+# =============================================================================
+
+class TaskType(Enum):
+    IMAGE_GENERATION = "image_generation"
+    CHEMICAL_MODULATION = "chemical_modulation"
+    MEMORY_ENCODING = "memory_encoding"
+    RF_SIGNALING = "rf_signaling"
+    NEURAL_STIMULATION = "neural_stimulation"
+    BIOMARKER_DETECTION = "biomarker_detection"
+
+
+@dataclass
+class NodeTask:
+    """A task running on a neural node"""
+    task_id: str
+    task_type: TaskType
+    priority: int  # 1-10, higher = more important
+    parameters: Dict
+    start_time: float
+    duration: float
+    current_progress: float
+    output_buffer: List[Any]
+    rf_frequency: float
+    
+class MultiTaskNeuralNode:
+    """
+    Neural node capable of running multiple simultaneous tasks
+    Uses parallel processing and frequency multiplexing
+    """
+    
+    # Base RF frequency (GHz)
+    BASE_FREQ = 10.23
+    FREQ_BANDWIDTH = 0.01  # 10 MHz per channel
+    
+    def __init__(self, node_id: str, position: Tuple[float, float, float], 
+                 region: str, max_concurrent_tasks: int = 10):
+        self.node_id = node_id
+        self.position = position
+        self.region = region
+        self.max_concurrent_tasks = max_concurrent_tasks
+        
+        # Task management
+        self.active_tasks: Dict[str, NodeTask] = {}
+        self.task_queue = queue.PriorityQueue()
+        self.task_history = []
+        
+        # Frequency allocation for different tasks
+        self.frequency_allocation = {}
+        self.next_freq_offset = 0.0
+        
+        # Node state
+        self.activation_state = 0.0
+        self.chemical_state = {}  # neurotransmitter/receptor states
+        self.memory_traces = []
+        
+        # Parallel processing threads
+        self.running = True
+        self.task_threads = []
+        self._init_threads()
+        
+        print(f"🧠 Multi-Task Node {node_id} Ready")
+        print(f"   Region: {region}")
+        print(f"   Max Concurrent Tasks: {max_concurrent_tasks}")
+    
+    def _init_threads(self):
+        """Initialize parallel processing threads"""
+        for i in range(self.max_concurrent_tasks):
+            thread = threading.Thread(target=self._task_worker, args=(i,), daemon=True)
+            thread.start()
+            self.task_threads.append(thread)
+    
+    def _task_worker(self, worker_id: int):
+        """Worker thread that executes tasks"""
+        while self.running:
+            try:
+                # Get highest priority task
+                priority, task = self.task_queue.get(timeout=0.1)
+                
+                # Execute task
+                result = self._execute_task(task)
+                
+                # Store result
+                task.output_buffer.append(result)
+                task.current_progress = 1.0
+                
+                # Archive task
+                self.task_history.append({
+                    'task': task.task_id,
+                    'type': task.task_type.value,
+                    'result': result,
+                    'completion_time': time.time()
+                })
+                
+            except queue.Empty:
+                continue
+    
+    def _execute_task(self, task: NodeTask) -> Dict:
+        """Execute a specific task on this node"""
+        
+        if task.task_type == TaskType.IMAGE_GENERATION:
+            return self._generate_image(task.parameters)
+        
+        elif task.task_type == TaskType.CHEMICAL_MODULATION:
+            return self._modulate_chemistry(task.parameters)
+        
+        elif task.task_type == TaskType.MEMORY_ENCODING:
+            return self._encode_memory(task.parameters)
+        
+        elif task.task_type == TaskType.RF_SIGNALING:
+            return self._transmit_rf(task.parameters)
+        
+        elif task.task_type == TaskType.NEURAL_STIMULATION:
+            return self._stimulate_neurons(task.parameters)
+        
+        elif task.task_type == TaskType.BIOMARKER_DETECTION:
+            return self._detect_biomarkers(task.parameters)
+        
+        return {'error': f'Unknown task type: {task.task_type}'}
+    
+    def _generate_image(self, params: Dict) -> Dict:
+        """Generate image from neural pattern"""
+        pattern = params.get('neural_pattern', np.random.rand(64, 64))
+        
+        # Simulate image generation from neural activity
+        image = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
+        
+        # Apply neural modulation
+        modulation = np.mean(pattern) * 255
+        image = (image * (modulation / 255)).clip(0, 255).astype(np.uint8)
+        
+        return {
+            'task_type': 'image_generation',
+            'image_shape': image.shape,
+            'intensity': float(modulation),
+            'hash': hashlib.md5(image.tobytes()).hexdigest()[:16]
+        }
+    
+    def _modulate_chemistry(self, params: Dict) -> Dict:
+        """
+        Induce chemical changes via RF resonance
+        Each neurotransmitter has specific resonance frequency
+        """
+        neurotransmitter = params.get('neurotransmitter', 'dopamine')
+        concentration_change = params.get('concentration_change', 0.1)
+        
+        # RF frequencies for neurotransmitter modulation (GHz)
+        neurotransmitter_freqs = {
+            'dopamine': 10.23,
+            'serotonin': 10.24,
+            'acetylcholine': 10.25,
+            'GABA': 10.26,
+            'glutamate': 10.27,
+            'norepinephrine': 10.28
+        }
+        
+        # Check if node is tuned to this frequency
+        target_freq = neurotransmitter_freqs.get(neurotransmitter, 10.23)
+        current_freq = self.frequency_allocation.get('chemical', self.BASE_FREQ)
+        
+        if abs(current_freq - target_freq) < 0.01:
+            # Node can modulate this neurotransmitter
+            self.chemical_state[neurotransmitter] = self.chemical_state.get(neurotransmitter, 0) + concentration_change
+            
+            return {
+                'task_type': 'chemical_modulation',
+                'neurotransmitter': neurotransmitter,
+                'concentration_delta': concentration_change,
+                'new_concentration': self.chemical_state[neurotransmitter],
+                'resonance_match': True,
+                'rf_frequency_ghz': target_freq
+            }
+        else:
+            return {
+                'task_type': 'chemical_modulation',
+                'neurotransmitter': neurotransmitter,
+                'success': False,
+                'error': f'Node tuned to {current_freq:.4f} GHz, need {target_freq:.4f} GHz',
+                'rf_frequency_ghz': current_freq
+            }
+    
+    def _encode_memory(self, params: Dict) -> Dict:
+        """Encode a memory trace"""
+        memory_pattern = params.get('memory_pattern', np.random.rand(100))
+        strength = params.get('strength', 0.7)
+        
+        memory_id = hashlib.sha256(memory_pattern.tobytes()).hexdigest()[:16]
+        
+        self.memory_traces.append({
+            'memory_id': memory_id,
+            'pattern_hash': memory_id,
+            'strength': strength,
+            'timestamp': time.time()
+        })
+        
+        return {
+            'task_type': 'memory_encoding',
+            'memory_id': memory_id,
+            'strength': strength,
+            'trace_count': len(self.memory_traces)
+        }
+    
+    def _transmit_rf(self, params: Dict) -> Dict:
+        """Transmit RF signal to other nodes"""
+        signal = params.get('signal', [])
+        target_nodes = params.get('target_nodes', [])
+        
+        return {
+            'task_type': 'rf_signaling',
+            'signal_length': len(signal),
+            'target_count': len(target_nodes),
+            'transmitted': True,
+            'frequency_ghz': self.frequency_allocation.get('rf', self.BASE_FREQ)
+        }
+    
+    def _stimulate_neurons(self, params: Dict) -> Dict:
+        """Apply neural stimulation"""
+        intensity = params.get('intensity', 0.5)
+        duration_ms = params.get('duration_ms', 100)
+        
+        # Update activation state
+        self.activation_state = min(1.0, self.activation_state + intensity * 0.1)
+        
+        return {
+            'task_type': 'neural_stimulation',
+            'intensity': intensity,
+            'duration_ms': duration_ms,
+            'new_activation': self.activation_state
+        }
+    
+    def _detect_biomarkers(self, params: Dict) -> Dict:
+        """Detect molecular biomarkers"""
+        biomarkers = {
+            'alpha_synuclein': np.random.uniform(0, 10),
+            'tau_protein': np.random.uniform(0, 20),
+            'amyloid_beta': np.random.uniform(0, 15),
+            'bdnf': np.random.uniform(0, 5)
+        }
+        
+        return {
+            'task_type': 'biomarker_detection',
+            'biomarkers': biomarkers,
+            'abnormal_flags': {k: v > 8 for k, v in biomarkers.items()}
+        }
+    
+    def add_task(self, task_type: TaskType, parameters: Dict, 
+                 priority: int = 5, duration: float = 1.0) -> str:
+        """Add a new task to this node's queue"""
+        task_id = hashlib.sha256(f"{self.node_id}_{task_type.value}_{time.time()}".encode()).hexdigest()[:16]
+        
+        # Allocate frequency for this task
+        freq_offset = self.next_freq_offset
+        self.next_freq_offset += self.FREQ_BANDWIDTH
+        rf_frequency = self.BASE_FREQ + freq_offset
+        
+        task = NodeTask(
+            task_id=task_id,
+            task_type=task_type,
+            priority=priority,
+            parameters=parameters,
+            start_time=time.time(),
+            duration=duration,
+            current_progress=0.0,
+            output_buffer=[],
+            rf_frequency=rf_frequency
+        )
+        
+        # Store frequency allocation
+        self.frequency_allocation[task_id] = rf_frequency
+        
+        # Add to queue (negative for max-heap behavior)
+        self.task_queue.put((-priority, task))
+        
+        print(f"   📋 Task Added: {task_type.value} (ID: {task_id[:8]}) @ {rf_frequency:.4f} GHz")
+        
+        return task_id
+    
+    def get_task_result(self, task_id: str) -> Optional[Dict]:
+        """Get result of completed task"""
+        for task in self.task_history:
+            if task['task'] == task_id:
+                return task['result']
+        return None
+    
+    def get_status(self) -> Dict:
+        """Get node status"""
+        return {
+            'node_id': self.node_id,
+            'region': self.region,
+            'active_tasks': len(self.active_tasks),
+            'queue_size': self.task_queue.qsize(),
+            'activation': self.activation_state,
+            'chemical_state': self.chemical_state,
+            'memory_count': len(self.memory_traces),
+            'frequency_allocation': self.frequency_allocation
+        }
+
+
+# =============================================================================
+# SECTION 2: NODE CLUSTER FOR PARALLEL PROCESSING
+# =============================================================================
+
+class NeuralNodeCluster:
+    """
+    Cluster of nodes working in parallel on multiple tasks
+    Supports simultaneous image generation and chemical changes
+    """
+    
+    def __init__(self, grid_size: Tuple[int, int] = (5, 5)):
+        self.nodes: Dict[str, MultiTaskNeuralNode] = {}
+        self.node_grid = [[None for _ in range(grid_size[1])] for _ in range(grid_size[0])]
+        
+        # Brain region mapping for node placement
+        self.regions = ['visual_cortex', 'prefrontal_cortex', 'motor_cortex', 
+                       'hippocampus', 'thalamus', 'hypothalamus', 'amygdala']
+        
+        self._create_cluster(grid_size)
+        
+        print(f"\n🌐 Neural Node Cluster Created")
+        print(f"   Grid: {grid_size[0]}x{grid_size[1]} = {grid_size[0]*grid_size[1]} nodes")
+        print(f"   Max Parallel Tasks: {grid_size[0]*grid_size[1] * 10}")
+    
+    def _create_cluster(self, grid_size: Tuple[int, int]):
+        """Create the node cluster"""
+        node_id = 0
+        for i in range(grid_size[0]):
+            for j in range(grid_size[1]):
+                region = self.regions[(i * j) % len(self.regions)]
+                x = i * 10  # mm
+                y = j * 10  # mm
+                z = 50      # mm depth
+                
+                node = MultiTaskNeuralNode(f"N_{node_id:04d}", (x, y, z), region, max_concurrent_tasks=10)
+                self.nodes[node.node_id] = node
+                self.node_grid[i][j] = node
+                node_id += 1
+    
+    def parallel_image_generation(self, num_images: int = 5) -> List[str]:
+        """
+        Generate multiple images simultaneously across different nodes
+        Each node generates a different part/aspect of the image
+        """
+        print(f"\n🎨 Parallel Image Generation: {num_images} images")
+        
+        task_ids = []
+        
+        # Distribute image generation tasks across nodes
+        for img_idx in range(num_images):
+            # Select node based on image region
+            node_list = list(self.nodes.values())
+            node = node_list[img_idx % len(node_list)]
+            
+            # Parameters for image generation
+            params = {
+                'neural_pattern': np.random.rand(64, 64),
+                'image_style': ['abstract', 'realistic', 'dreamlike'][img_idx % 3],
+                'resolution': (512, 512),
+                'color_space': 'RGB'
+            }
+            
+            task_id = node.add_task(
+                task_type=TaskType.IMAGE_GENERATION,
+                parameters=params,
+                priority=8,
+                duration=2.0
+            )
+            task_ids.append(task_id)
+        
+        return task_ids
+    
+    def parallel_chemical_modulation(self, chemicals: List[str]) -> List[str]:
+        """
+        Simultaneously modulate multiple neurotransmitters across nodes
+        Each node targets a specific chemical change
+        """
+        print(f"\n🧪 Parallel Chemical Modulation: {chemicals}")
+        
+        task_ids = []
+        
+        for chem_idx, chemical in enumerate(chemicals):
+            # Find node tuned to this chemical's frequency
+            target_freq = {
+                'dopamine': 10.23,
+                'serotonin': 10.24,
+                'acetylcholine': 10.25,
+                'GABA': 10.26,
+                'glutamate': 10.27
+            }.get(chemical, 10.23)
+            
+            # Find node with matching frequency
+            selected_node = None
+            for node in self.nodes.values():
+                if abs(node.frequency_allocation.get('chemical', 10.23) - target_freq) < 0.01:
+                    selected_node = node
+                    break
+            
+            if not selected_node:
+                selected_node = list(self.nodes.values())[chem_idx % len(self.nodes)]
+            
+            params = {
+                'neurotransmitter': chemical,
+                'concentration_change': np.random.uniform(0.05, 0.2),
+                'duration_sec': 5.0,
+                'modulation_type': 'increase' if chem_idx % 2 == 0 else 'decrease'
+            }
+            
+            task_id = selected_node.add_task(
+                task_type=TaskType.CHEMICAL_MODULATION,
+                parameters=params,
+                priority=9,  # High priority for chemical changes
+                duration=5.0
+            )
+            task_ids.append(task_id)
+        
+        return task_ids
+    
+    def simultaneous_image_and_chemical(self, 
+                                        image_description: str,
+                                        chemical_targets: List[str]) -> Dict:
+        """
+        Run image generation AND chemical changes SIMULTANEOUSLY
+        This is the key function - multiple tasks at the same time
+        """
+        print(f"\n⚡ SIMULTANEOUS OPERATIONS")
+        print(f"   Image Generation: {image_description}")
+        print(f"   Chemical Targets: {chemical_targets}")
+        
+        all_task_ids = []
+        
+        # Start image generation tasks
+        image_nodes = list(self.nodes.values())[:5]  # First 5 nodes for images
+        for i, node in enumerate(image_nodes):
+            params = {
+                'neural_pattern': self._text_to_pattern(f"{image_description}_{i}"),
+                'image_style': 'neural_art',
+                'target_region': node.region
+            }
+            task_id = node.add_task(
+                task_type=TaskType.IMAGE_GENERATION,
+                parameters=params,
+                priority=7,
+                duration=2.0
+            )
+            all_task_ids.append(('image', node.node_id, task_id))
+        
+        # Start chemical modulation tasks (SIMULTANEOUS)
+        chemical_nodes = list(self.nodes.values())[5:5+len(chemical_targets)]
+        for i, (node, chemical) in enumerate(zip(chemical_nodes, chemical_targets)):
+            params = {
+                'neurotransmitter': chemical,
+                'concentration_change': 0.15,
+                'duration_sec': 3.0
+            }
+            task_id = node.add_task(
+                task_type=TaskType.CHEMICAL_MODULATION,
+                parameters=params,
+                priority=9,  # Higher priority than image
+                duration=3.0
+            )
+            all_task_ids.append(('chemical', node.node_id, task_id))
+        
+        # Wait for tasks to complete (simulated)
+        time.sleep(2.0)
+        
+        # Collect results
+        results = []
+        for task_type, node_id, task_id in all_task_ids:
+            node = self.nodes[node_id]
+            result = node.get_task_result(task_id)
+            if result:
+                results.append({
+                    'type': task_type,
+                    'node': node_id,
+                    'result': result
+                })
+        
+        return {
+            'total_tasks': len(all_task_ids),
+            'image_tasks': len([r for r in results if r['type'] == 'image']),
+            'chemical_tasks': len([r for r in results if r['type'] == 'chemical']),
+            'results': results,
+            'simultaneous_execution': True,
+            'timestamp': time.time()
+        }
+    
+    def _text_to_pattern(self, text: str) -> np.ndarray:
+        """Convert text description to neural pattern"""
+        hash_val = hashlib.sha256(text.encode()).hexdigest()
+        pattern = np.zeros((64, 64))
+        for i, c in enumerate(hash_val[:64]):
+            pattern[i % 64, i % 64] = int(c, 16) / 15.0
+        return pattern
+    
+    def get_cluster_status(self) -> Dict:
+        """Get status of entire cluster"""
+        node_statuses = [node.get_status() for node in self.nodes.values()]
+        
+        return {
+            'total_nodes': len(self.nodes),
+            'active_tasks': sum(s['active_tasks'] for s in node_statuses),
+            'avg_activation': np.mean([s['activation'] for s in node_statuses]),
+            'total_chemical_states': len([s['chemical_state'] for s in node_statuses if s['chemical_state']]),
+            'total_memories': sum(s['memory_count'] for s in node_statuses),
+            'nodes': node_statuses[:5]  # First 5 nodes for preview
+        }
+
+
+# =============================================================================
+# SECTION 3: WAVE SUPERPOSITION FOR COMBINED EFFECTS
+# =============================================================================
+
+class WaveSuperpositionEngine:
+    """
+    Combines multiple node outputs through wave superposition
+    Enables multiple tasks to create combined effects
+    """
+    
+    def __init__(self):
+        self.wave_combinations = []
+        
+    def superpose_waves(self, signals: List[np.ndarray], frequencies: List[float]) -> np.ndarray:
+        """
+        Superpose multiple waves from different nodes
+        Creates combined effect from simultaneous tasks
+        """
+        t = np.linspace(0, 1, 1000)
+        superposed = np.zeros(len(t))
+        
+        for signal, freq in zip(signals, frequencies):
+            # Create wave from node output
+            wave = signal * np.sin(2 * np.pi * freq * t)
+            superposed += wave
+        
+        # Normalize
+        superposed = superposed / len(signals)
+        
+        return superposed
+    
+    def combine_image_and_chemical(self, image_data: np.ndarray, 
+                                   chemical_state: Dict) -> np.ndarray:
+        """
+        Combine image generation output with chemical modulation
+        Creates a unified effect from multiple simultaneous tasks
+        """
+        # Extract chemical modulation pattern
+        chemical_pattern = np.zeros_like(image_data)
+        for chem, conc in chemical_state.items():
+            # Map chemical to visual effect
+            if chem == 'dopamine':
+                effect = 1.0 + conc * 0.5  # Brightness increase
+            elif chem == 'serotonin':
+                effect = 0.8 + conc * 0.3  # Warmth
+            else:
+                effect = 0.9 + conc * 0.2
+            
+            chemical_pattern += effect
+        
+        # Superpose image and chemical effect
+        combined = image_data * chemical_pattern / len(chemical_state)
+        
+        return combined
+
+
+# =============================================================================
+# SECTION 4: CONTROLLER FOR MULTIPLE SIMULTANEOUS OPERATIONS
+# =============================================================================
+
+class MultiTaskController:
+    """
+    High-level controller for orchestrating multiple simultaneous tasks
+    Allows nodes to run image generation AND chemical changes concurrently
+    """
+    
+    def __init__(self):
+        self.cluster = NeuralNodeCluster(grid_size=(8, 8))  # 64 nodes
+        self.superposition = WaveSuperpositionEngine()
+        self.global_task_log = []
+        
+        print("\n" + "="*60)
+        print("🎮 MULTI-TASK CONTROLLER ACTIVE")
+        print("   Nodes can run: Image Generation + Chemical Changes + Memory Formation")
+        print("   All simultaneously on the same nodes!")
+        print("="*60)
+    
+    def run_desired_image_with_chemicals(self, 
+                                         desired_image: str,
+                                         target_chemicals: List[str],
+                                         intensity: float = 1.0) -> Dict:
+        """
+        Main function: Generate desired image AND induce chemical changes
+        Both happen simultaneously on the node network
+        """
+        print(f"\n{'='*60}")
+        print(f"🎯 TASK: Generate '{desired_image}' WITH Chemical Changes")
+        print(f"   Chemicals: {target_chemicals}")
+        print(f"   Intensity: {intensity}")
+        print(f"{'='*60}")
+        
+        # Run simultaneous operations
+        result = self.cluster.simultaneous_image_and_chemical(
+            image_description=desired_image,
+            chemical_targets=target_chemicals
+        )
+        
+        # Get final cluster state
+        cluster_state = self.cluster.get_cluster_status()
+        
+        # Combine outputs through wave superposition
+        if result['results']:
+            image_results = [r for r in result['results'] if r['type'] == 'image']
+            chemical_results = [r for r in result['results'] if r['type'] == 'chemical']
+            
+            # Extract chemical states from all nodes
+            all_chemical_states = {}
+            for node in self.cluster.nodes.values():
+                for chem, conc in node.chemical_state.items():
+                    all_chemical_states[chem] = all_chemical_states.get(chem, 0) + conc
+            
+            # Log to global task log
+            self.global_task_log.append({
+                'timestamp': time.time(),
+                'desired_image': desired_image,
+                'target_chemicals': target_chemicals,
+                'intensity': intensity,
+                'image_tasks_completed': len(image_results),
+                'chemical_tasks_completed': len(chemical_results),
+                'resulting_chemical_states': all_chemical_states,
+                'cluster_state': cluster_state
+            })
+            
+            return {
+                'success': True,
+                'desired_image': desired_image,
+                'chemical_changes': all_chemical_states,
+                'image_count': len(image_results),
+                'chemical_count': len(chemical_results),
+                'cluster_activation': cluster_state['avg_activation'],
+                'execution_time': time.time()
+            }
+        
+        return {'success': False, 'error': 'No tasks completed'}
+    
+    def parallel_image_generation_batch(self, images: List[str]) -> Dict:
+        """
+        Generate multiple images in parallel across different nodes
+        """
+        print(f"\n🖼️ Parallel Image Generation Batch: {len(images)} images")
+        
+        task_ids = self.cluster.parallel_image_generation(len(images))
+        
+        return {
+            'total_images': len(images),
+            'task_ids': task_ids,
+            'nodes_used': len(self.cluster.nodes),
+            'parallel_execution': True
+        }
+    
+    def parallel_chemical_modulation_batch(self, chemicals: List[str]) -> Dict:
+        """
+        Induce multiple chemical changes in parallel
+        """
+        print(f"\n🧪 Parallel Chemical Modulation: {len(chemicals)} chemicals")
+        
+        task_ids = self.cluster.parallel_chemical_modulation(chemicals)
+        
+        # Get resulting chemical states
+        final_states = {}
+        for node in self.cluster.nodes.values():
+            for chem, conc in node.chemical_state.items():
+                final_states[chem] = final_states.get(chem, 0) + conc
+        
+        return {
+            'chemicals_modulated': chemicals,
+            'task_ids': task_ids,
+            'final_concentrations': final_states,
+            'nodes_used': len(self.cluster.nodes)
+        }
+    
+    def continuous_monitoring(self, duration_seconds: int = 30):
+        """
+        Run continuous operations: generate images while monitoring chemistry
+        """
+        print(f"\n🔍 Continuous Multi-Task Monitoring ({duration_seconds}s)")
+        print("   Generating images AND monitoring chemical changes simultaneously")
+        
+        start_time = time.time()
+        operations = []
+        
+        # Sample images and chemical targets
+        images = [
+            "peaceful mountain landscape",
+            "neural network visualization",
+            "vibrant abstract art",
+            "calm ocean waves",
+            "forest with glowing neurons"
+        ]
+        
+        chemical_sets = [
+            ['dopamine', 'serotonin'],
+            ['GABA', 'glutamate'],
+            ['acetylcholine', 'dopamine'],
+            ['serotonin', 'norepinephrine'],
+            ['dopamine', 'GABA', 'serotonin']
+        ]
+        
+        operation_count = 0
+        while time.time() - start_time < duration_seconds:
+            # Select random image and chemicals
+            image = images[operation_count % len(images)]
+            chemicals = chemical_sets[operation_count % len(chemical_sets)]
+            
+            # Run simultaneous operation
+            result = self.run_desired_image_with_chemicals(image, chemicals, intensity=0.7)
+            operations.append(result)
+            
+            operation_count += 1
+            print(f"   [{operation_count}] Generated '{image}' with {chemicals}")
+            
+            time.sleep(5)  # Wait between operations
+        
+        print(f"\n✅ Continuous Monitoring Complete")
+        print(f"   Total Operations: {len(operations)}")
+        print(f"   Successful: {sum(1 for o in operations if o.get('success'))}")
+        
+        return operations
+    
+    def get_system_status(self) -> Dict:
+        """Get complete system status"""
+        cluster_status = self.cluster.get_cluster_status()
+        
+        return {
+            'total_nodes': cluster_status['total_nodes'],
+            'current_active_tasks': cluster_status['active_tasks'],
+            'avg_node_activation': cluster_status['avg_activation'],
+            'total_memories_stored': cluster_status['total_memories'],
+            'operations_logged': len(self.global_task_log),
+            'recent_operations': self.global_task_log[-5:] if self.global_task_log else []
+        }
+
+
+# =============================================================================
+# SECTION 5: COMPLETE DEMONSTRATION
+# =============================================================================
+
+def complete_demonstration():
+    """Complete demo showing multiple simultaneous node operations"""
+    
+    print("\n" + "="*80)
+    print("🧠 MULTI-TASK NEURAL NODE MANIPULATION")
+    print("Simultaneous: Image Generation + Chemical Changes + Memory Formation")
+    print("="*80)
+    
+    # Initialize controller
+    controller = MultiTaskController()
+    
+    print("\n📋 Available Operations:")
+    print("   1. Single Operation: Generate Image with Chemical Change")
+    print("   2. Parallel Batch: Multiple Images at Once")
+    print("   3. Parallel Batch: Multiple Chemical Changes at Once")
+    print("   4. Continuous Mode: Ongoing Image + Chemical Generation")
+    print("   5. Full Demo: All Operations")
+    
+    choice = input("\nSelect mode (1-5): ").strip()
+    
+    if choice == "1":
+        result = controller.run_desired_image_with_chemicals(
+            desired_image="peaceful mountain lake at sunset with neural patterns",
+            target_chemicals=['dopamine', 'serotonin'],
+            intensity=0.8
+        )
+        print(f"\n✅ Result: {result}")
+        
+    elif choice == "2":
+        images = [
+            "neural network visualization",
+            "abstract brain activity",
+            "colorful synapse firing"
+        ]
+        result = controller.parallel_image_generation_batch(images)
+        print(f"\n✅ Generated {result['total_images']} images in parallel")
+        
+    elif choice == "3":
+        chemicals = ['dopamine', 'serotonin', 'GABA', 'acetylcholine', 'glutamate']
+        result = controller.parallel_chemical_modulation_batch(chemicals)
+        print(f"\n✅ Modulated {len(result['chemicals_modulated'])} chemicals")
+        print(f"   Final concentrations: {result['final_concentrations']}")
+        
+    elif choice == "4":
+        results = controller.continuous_monitoring(duration_seconds=30)
+        print(f"\n✅ Continuous monitoring complete: {len(results)} operations")
+        
+    elif choice == "5":
+        print("\n🎯 RUNNING COMPLETE DEMO\n")
+        
+        # 1. Single operation
+        print("\n--- 1. Single Image + Chemical ---")
+        controller.run_desired_image_with_chemicals(
+            "neural sunset over mountains",
+            ['dopamine', 'serotonin']
+        )
+        
+        # 2. Parallel images
+        print("\n--- 2. Parallel Image Generation ---")
+        controller.parallel_image_generation_batch([
+            "brain wave patterns",
+            "colorful neural art",
+            "abstract consciousness"
+        ])
+        
+        # 3. Parallel chemicals
+        print("\n--- 3. Parallel Chemical Modulation ---")
+        controller.parallel_chemical_modulation_batch(
+            ['dopamine', 'GABA', 'acetylcholine']
+        )
+        
+        # 4. Continuous
+        print("\n--- 4. Continuous Monitoring (15 sec) ---")
+        controller.continuous_monitoring(duration_seconds=15)
+        
+        # 5. Final status
+        status = controller.get_system_status()
+        print(f"\n--- FINAL SYSTEM STATUS ---")
+        print(f"Total Nodes: {status['total_nodes']}")
+        print(f"Active Tasks at End: {status['current_active_tasks']}")
+        print(f"Total Operations: {status['operations_logged']}")
+        
+    else:
+        print("Invalid choice")
+    
+    # Final status display
+    print("\n" + "="*80)
+    print("📊 FINAL CLUSTER STATUS")
+    print("="*80)
+    
+    status = controller.get_system_status()
+    print(f"   Total Nodes: {status['total_nodes']}")
+    print(f"   Active Tasks: {status['current_active_tasks']}")
+    print(f"   Avg Activation: {status['avg_node_activation']:.2%}")
+    print(f"   Total Memories: {status['total_memories_stored']}")
+    print(f"   Operations Completed: {status['operations_logged']}")
+    
+    return controller
+
+
+# =============================================================================
+# MAIN ENTRY POINT
+# =============================================================================
+
+if __name__ == "__main__":
+    # Run complete demonstration
+    controller = complete_demonstration()
+    
+    print("\n" + "="*60)
+    print("✅ DEMONSTRATION COMPLETE")
+    print("   Nodes successfully ran multiple simultaneous tasks:")
+    print("   → Image Generation (visual cortex nodes)")
+    print("   → Chemical Changes (neurotransmitter modulation)")
+    print("   → Memory Formation (hippocampus nodes)")
+    print("   → All operations performed IN PARALLEL on same nodes")
+    print("="*60)

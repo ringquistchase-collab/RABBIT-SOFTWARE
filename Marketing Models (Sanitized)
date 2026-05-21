@@ -1,0 +1,15 @@
+{
+  "template_id": "n8f3h2k9...",
+  "person_anonymized": "e92f81a3...",
+  "version": "2.0",
+  "created_at": 1705333822,
+  "features": {
+    "attention_score": 0.73,
+    "engagement_level": 0.68,
+    "emotional_valence": 0.62
+  },
+  "permission_level": "BEHAVIORAL",
+  "valid_until": 1707925822,
+  "signature": "7f3e9a2b...",
+  "access_token": "k9m4p6q7..."
+}

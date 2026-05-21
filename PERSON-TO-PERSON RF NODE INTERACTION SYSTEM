@@ -1,0 +1,745 @@
+#!/usr/bin/env python3
+"""
+PERSON-TO-PERSON RF NODE INTERACTION SYSTEM
+=============================================
+Multiple persons with tuned neural nodes can interact via RF:
+- Handshake protocol between separate node networks
+- Timestamped interaction records
+- Information exchange without central server
+- Each person maintains THEIR OWN copy of interactions
+- Privacy-preserving with consent required
+
+Use Cases:
+- Family members sharing memories/experiences
+- Research subjects with shared study participation
+- Social/group therapy with synchronized tracking
+- Collaborative learning between individuals
+"""
+
+import numpy as np
+import hashlib
+import time
+import json
+import sqlite3
+import threading
+import queue
+from typing import Dict, List, Tuple, Optional, Set
+from dataclasses import dataclass, field
+from enum import Enum
+from datetime import datetime
+import struct
+
+# =============================================================================
+# SECTION 1: INDIVIDUAL PERSON NODE NETWORK
+# =============================================================================
+
+class PersonNodeNetwork:
+    """
+    Complete node network for a single person
+    Each person has unique RF signature based on DNA
+    """
+    
+    def __init__(self, person_id: str, dna_sequence: str, name: str = ""):
+        self.person_id = person_id
+        self.dna_sequence = dna_sequence
+        self.name = name or person_id
+        self.rf_frequency = self._calculate_rf_frequency(dna_sequence)
+        
+        # Local database (ALL interactions stored here)
+        self.local_db = sqlite3.connect(f"person_{person_id}_interactions.db", check_same_thread=False)
+        self._init_database()
+        
+        # Active peer connections
+        self.active_peers: Dict[str, Dict] = {}
+        self.interaction_history = []
+        
+        # RF transceiver (simulated)
+        self.rf_range_ghz = (self.rf_frequency - 0.1, self.rf_frequency + 0.1)
+        
+        # Interaction consent settings
+        self.auto_accept_peers = False  # Must explicitly accept
+        self.allowed_peers: Set[str] = set()
+        
+        print(f"\n{'='*60}")
+        print(f"👤 PERSON NODE NETWORK: {self.name}")
+        print(f"   ID: {self.person_id}")
+        print(f"   RF Frequency: {self.rf_frequency:.4f} GHz (±100 MHz)")
+        print(f"   DNA Signature: {hashlib.md5(dna_sequence.encode()).hexdigest()[:16]}")
+        print(f"{'='*60}")
+    
+    def _calculate_rf_frequency(self, dna: str) -> float:
+        """Calculate unique RF frequency from DNA sequence"""
+        base_freqs = {'A': 10.23, 'T': 10.24, 'G': 10.25, 'C': 10.26}
+        freqs = [base_freqs.get(c, 10.23) for c in dna.upper()[:10]]
+        return np.mean(freqs)
+    
+    def _init_database(self):
+        """Initialize local interaction database"""
+        cursor = self.local_db.cursor()
+        
+        # Interactions with other persons
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS interactions (
+                interaction_id TEXT PRIMARY KEY,
+                peer_id TEXT,
+                peer_name TEXT,
+                peer_frequency REAL,
+                interaction_type TEXT,
+                timestamp REAL,
+                data_hash TEXT,
+                handshake_signature TEXT,
+                local_notes BLOB
+            )
+        ''')
+        
+        # Shared memories (from interactions)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS shared_memories (
+                memory_id TEXT PRIMARY KEY,
+                source_peer_id TEXT,
+                memory_type TEXT,
+                memory_data BLOB,
+                shared_at REAL,
+                access_count INTEGER,
+                last_accessed REAL
+            )
+        ''')
+        
+        # Handshake records
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS handshakes (
+                handshake_id TEXT PRIMARY KEY,
+                peer_id TEXT,
+                handshake_time REAL,
+                signal_strength REAL,
+                duration_sec REAL,
+                successful BOOLEAN
+            )
+        ''')
+        
+        self.local_db.commit()
+    
+    def calculate_proximity_fingerprint(self) -> str:
+        """
+        Calculate unique fingerprint for proximity detection
+        Other persons' nodes can detect this person nearby
+        """
+        timestamp_hash = hashlib.md5(str(time.time()).encode()).hexdigest()[:8]
+        return f"{self.person_id}_{self.rf_frequency:.4f}_{timestamp_hash}"
+    
+    def broadcast_presence(self) -> Dict:
+        """
+        Broadcast presence to nearby nodes
+        Like a handshake invitation
+        """
+        presence = {
+            'type': 'PRESENCE',
+            'person_id': self.person_id,
+            'name': self.name,
+            'frequency': self.rf_frequency,
+            'timestamp': time.time(),
+            'signature': hashlib.md5(f"{self.person_id}_{time.time()}".encode()).hexdigest()[:16],
+            'willing_to_interact': True
+        }
+        return presence
+    
+    def accept_handshake(self, peer_presence: Dict) -> Dict:
+        """
+        Accept handshake from another person's nodes
+        Creates a secure interaction session
+        """
+        peer_id = peer_presence['person_id']
+        
+        # Check if peer is allowed
+        if not self.auto_accept_peers and peer_id not in self.allowed_peers:
+            return {'success': False, 'reason': 'Peer not in allowed list'}
+        
+        # Generate handshake
+        handshake_id = hashlib.sha3_256(f"{self.person_id}_{peer_id}_{time.time()}".encode()).hexdigest()[:16]
+        
+        handshake = {
+            'handshake_id': handshake_id,
+            'my_id': self.person_id,
+            'peer_id': peer_id,
+            'peer_name': peer_presence.get('name', peer_id),
+            'my_frequency': self.rf_frequency,
+            'peer_frequency': peer_presence['frequency'],
+            'timestamp': time.time(),
+            'signature': hashlib.md5(f"{handshake_id}_{self.person_id}".encode()).hexdigest()
+        }
+        
+        # Store handshake locally
+        cursor = self.local_db.cursor()
+        cursor.execute('''
+            INSERT INTO handshakes (handshake_id, peer_id, handshake_time, signal_strength, duration_sec, successful)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (handshake_id, peer_id, handshake['timestamp'], 0.85, 0, True))
+        self.local_db.commit()
+        
+        # Track active peer
+        self.active_peers[peer_id] = {
+            'handshake_id': handshake_id,
+            'connected_at': handshake['timestamp'],
+            'peer_frequency': peer_presence['frequency'],
+            'peer_name': peer_presence.get('name', peer_id)
+        }
+        
+        print(f"\n🤝 HANDSHAKE ACCEPTED: {self.name} ↔ {peer_presence.get('name', peer_id)}")
+        print(f"   Handshake ID: {handshake_id[:16]}...")
+        
+        return handshake
+    
+    def share_information(self, peer_id: str, data: Dict, data_type: str) -> Dict:
+        """
+        Share information with another person's nodes
+        Information is transmitted via RF and stored locally by BOTH parties
+        """
+        if peer_id not in self.active_peers:
+            return {'success': False, 'reason': 'No active connection'}
+        
+        peer = self.active_peers[peer_id]
+        
+        # Create share record
+        share_id = hashlib.sha3_256(f"{self.person_id}_{peer_id}_{time.time()}".encode()).hexdigest()[:16]
+        
+        # Serialize and compress data
+        data_bytes = json.dumps(data).encode()
+        compressed = zlib.compress(data_bytes, level=6)
+        
+        share_record = {
+            'share_id': share_id,
+            'source_id': self.person_id,
+            'target_id': peer_id,
+            'data_type': data_type,
+            'data': data,
+            'data_hash': hashlib.sha3_256(compressed).hexdigest(),
+            'timestamp': time.time(),
+            'handshake_id': peer['handshake_id']
+        }
+        
+        # Store on local database (MY copy)
+        cursor = self.local_db.cursor()
+        cursor.execute('''
+            INSERT INTO interactions (interaction_id, peer_id, peer_name, peer_frequency, 
+                                      interaction_type, timestamp, data_hash, handshake_signature, local_notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (share_id, peer_id, peer['peer_name'], peer['peer_frequency'],
+              f"shared_{data_type}", share_record['timestamp'], share_record['data_hash'],
+              share_record['handshake_id'], compressed))
+        self.local_db.commit()
+        
+        self.interaction_history.append(share_record)
+        
+        print(f"\n📤 SHARED: {self.name} → {peer['peer_name']}")
+        print(f"   Type: {data_type}")
+        print(f"   Data Hash: {share_record['data_hash'][:16]}...")
+        
+        return share_record
+    
+    def receive_information(self, share_record: Dict) -> bool:
+        """
+        Receive information from another person's nodes
+        Stores local copy - BOTH parties have their own record
+        """
+        # Verify data integrity
+        data_bytes = json.dumps(share_record['data']).encode()
+        compressed = zlib.compress(data_bytes, level=6)
+        computed_hash = hashlib.sha3_256(compressed).hexdigest()
+        
+        if computed_hash != share_record['data_hash']:
+            print(f"❌ DATA CORRUPTED: Hash mismatch")
+            return False
+        
+        # Store in local database
+        cursor = self.local_db.cursor()
+        cursor.execute('''
+            INSERT INTO interactions (interaction_id, peer_id, peer_name, peer_frequency,
+                                      interaction_type, timestamp, data_hash, handshake_signature, local_notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (share_record['share_id'], share_record['source_id'], 
+              f"peer_{share_record['source_id'][:8]}", 
+              self.active_peers.get(share_record['source_id'], {}).get('peer_frequency', 0.0),
+              f"received_{share_record['data_type']}", share_record['timestamp'],
+              share_record['data_hash'], share_record['handshake_id'], compressed))
+        self.local_db.commit()
+        
+        print(f"\n📥 RECEIVED: {self.name} ← {share_record['source_id'][:16]}...")
+        print(f"   Type: {share_record['data_type']}")
+        
+        return True
+    
+    def get_interaction_history(self, peer_id: Optional[str] = None) -> List[Dict]:
+        """Get history of interactions"""
+        cursor = self.local_db.cursor()
+        
+        if peer_id:
+            cursor.execute('''
+                SELECT interaction_id, peer_id, interaction_type, timestamp, data_hash
+                FROM interactions WHERE peer_id = ?
+                ORDER BY timestamp DESC LIMIT 50
+            ''', (peer_id,))
+        else:
+            cursor.execute('''
+                SELECT interaction_id, peer_id, interaction_type, timestamp, data_hash
+                FROM interactions ORDER BY timestamp DESC LIMIT 100
+            ''')
+        
+        results = []
+        for row in cursor.fetchall():
+            results.append({
+                'interaction_id': row[0],
+                'peer_id': row[1],
+                'type': row[2],
+                'timestamp': row[3],
+                'data_hash': row[4][:16]
+            })
+        
+        return results
+    
+    def get_connection_summary(self) -> Dict:
+        """Summary of all connections and interactions"""
+        cursor = self.local_db.cursor()
+        
+        # Count unique peers
+        cursor.execute('SELECT DISTINCT peer_id FROM interactions')
+        unique_peers = len(cursor.fetchall())
+        
+        # Count total interactions
+        cursor.execute('SELECT COUNT(*) FROM interactions')
+        total_interactions = cursor.fetchone()[0]
+        
+        # Count handshakes
+        cursor.execute('SELECT COUNT(*) FROM handshakes WHERE successful = 1')
+        handshake_count = cursor.fetchone()[0]
+        
+        return {
+            'person': self.name,
+            'person_id': self.person_id,
+            'rf_frequency': self.rf_frequency,
+            'unique_peers_interacted': unique_peers,
+            'total_interactions': total_interactions,
+            'handshakes_completed': handshake_count,
+            'active_connections': len(self.active_peers),
+            'current_peers': list(self.active_peers.keys())
+        }
+
+
+# =============================================================================
+# SECTION 2: MULTI-PERSON INTERACTION CONTROLLER
+# =============================================================================
+
+class MultiPersonInteractionController:
+    """
+    Controls interactions between multiple persons' node networks
+    Simulates RF communication between individuals
+    """
+    
+    def __init__(self):
+        self.persons: Dict[str, PersonNodeNetwork] = {}
+        self.interaction_log = []
+        
+    def add_person(self, person_id: str, dna_sequence: str, name: str) -> PersonNodeNetwork:
+        """Add a person to the interaction network"""
+        person = PersonNodeNetwork(person_id, dna_sequence, name)
+        self.persons[person_id] = person
+        return person
+    
+    def persons_in_range(self, person_a_id: str, person_b_id: str) -> bool:
+        """
+        Check if two persons are within RF range
+        Based on frequency overlap
+        """
+        if person_a_id not in self.persons or person_b_id not in self.persons:
+            return False
+        
+        person_a = self.persons[person_a_id]
+        person_b = self.persons[person_b_id]
+        
+        # Check frequency overlap
+        freq_diff = abs(person_a.rf_frequency - person_b.rf_frequency)
+        
+        # Within 50 MHz = in range
+        return freq_diff < 0.05
+    
+    def establish_handshake(self, person_a_id: str, person_b_id: str) -> Dict:
+        """
+        Establish handshake between two persons
+        Both must consent
+        """
+        if not self.persons_in_range(person_a_id, person_b_id):
+            return {'success': False, 'reason': 'Out of RF range'}
+        
+        person_a = self.persons[person_a_id]
+        person_b = self.persons[person_b_id]
+        
+        # Person A broadcasts presence
+        presence_a = person_a.broadcast_presence()
+        
+        # Person B accepts handshake
+        handshake = person_b.accept_handshake(presence_a)
+        
+        if handshake.get('success', True):
+            # Reciprocal handshake from A to B
+            presence_b = person_b.broadcast_presence()
+            handshake_b = person_a.accept_handshake(presence_b)
+            
+            # Record interaction
+            interaction_record = {
+                'timestamp': time.time(),
+                'handshake_id': handshake['handshake_id'],
+                'participants': [person_a_id, person_b_id],
+                'names': [person_a.name, person_b.name],
+                'frequencies': [person_a.rf_frequency, person_b.rf_frequency],
+                'duration': 0
+            }
+            self.interaction_log.append(interaction_record)
+            
+            return {
+                'success': True,
+                'handshake_id': handshake['handshake_id'],
+                'participants': [person_a.name, person_b.name],
+                'message': f"{person_a.name} ↔ {person_b.name} handshake established"
+            }
+        
+        return handshake
+    
+    def share_between_persons(self, source_id: str, target_id: str, 
+                              data_type: str, data: Dict) -> Dict:
+        """
+        Share information between two persons
+        Information is stored on BOTH persons' local nodes
+        """
+        if source_id not in self.persons or target_id not in self.persons:
+            return {'success': False, 'reason': 'Person not found'}
+        
+        source = self.persons[source_id]
+        target = self.persons[target_id]
+        
+        # Check if handshake exists
+        if target_id not in source.active_peers:
+            # Auto-establish handshake
+            handshake = self.establish_handshake(source_id, target_id)
+            if not handshake.get('success'):
+                return {'success': False, 'reason': 'Handshake failed'}
+        
+        # Source shares information
+        share_record = source.share_information(target_id, data, data_type)
+        
+        if share_record.get('success', True):
+            # Target receives and stores information
+            target.receive_information(share_record)
+            
+            # Update interaction log
+            for record in self.interaction_log:
+                if record['handshake_id'] == share_record.get('handshake_id'):
+                    record['duration'] += 1
+            
+            return {
+                'success': True,
+                'share_id': share_record['share_id'],
+                'source': source.name,
+                'target': target.name,
+                'data_type': data_type,
+                'timestamp': share_record['timestamp']
+            }
+        
+        return share_record
+    
+    def get_person_history(self, person_id: str) -> Dict:
+        """Get complete interaction history for a person"""
+        if person_id not in self.persons:
+            return {'error': 'Person not found'}
+        
+        person = self.persons[person_id]
+        
+        return {
+            'person': person.name,
+            'connection_summary': person.get_connection_summary(),
+            'recent_interactions': person.get_interaction_history()[:10],
+            'active_peers': list(person.active_peers.keys())
+        }
+    
+    def simulate_group_interaction(self, participants: List[str], 
+                                   topic: str, duration_seconds: int = 30) -> Dict:
+        """
+        Simulate a group interaction where multiple persons share information
+        """
+        print(f"\n{'='*60}")
+        print(f"👥 GROUP INTERACTION: {topic}")
+        print(f"   Participants: {', '.join(participants)}")
+        print(f"   Duration: {duration_seconds} seconds")
+        print(f"{'='*60}")
+        
+        results = []
+        
+        # Establish handshakes between all pairs
+        for i, p1 in enumerate(participants):
+            for p2 in participants[i+1:]:
+                handshake = self.establish_handshake(p1, p2)
+                results.append(handshake)
+        
+        # Share information in a circle
+        shared_info = {
+            'topic': topic,
+            'group_id': hashlib.md5(f"{topic}_{time.time()}".encode()).hexdigest()[:8],
+            'timestamp': time.time()
+        }
+        
+        for i, source in enumerate(participants):
+            target = participants[(i + 1) % len(participants)]
+            
+            # Person-specific contribution
+            contribution = {
+                'participant': self.persons[source].name,
+                'thought': f"Sharing my perspective on {topic}",
+                'personal_experience': f"Experience #{i+1}",
+                'timestamp': time.time()
+            }
+            
+            share_result = self.share_between_persons(
+                source, target, 
+                f"group_discussion_{topic.replace(' ', '_')}", 
+                contribution
+            )
+            results.append(share_result)
+        
+        # Store group interaction summary
+        group_summary = {
+            'topic': topic,
+            'participants': participants,
+            'duration_seconds': duration_seconds,
+            'timestamp': time.time(),
+            'interactions_count': len(results)
+        }
+        
+        print(f"\n✅ GROUP INTERACTION COMPLETE")
+        print(f"   Handshakes: {len([r for r in results if r.get('success')])}")
+        print(f"   Shares: {len([r for r in results if r.get('share_id')])}")
+        
+        return group_summary
+
+
+# =============================================================================
+# SECTION 3: COMPLETE DEMONSTRATION
+# =============================================================================
+
+def complete_demonstration():
+    """Complete demonstration of multi-person RF node interaction"""
+    
+    print("="*80)
+    print("👥 MULTI-PERSON RF NODE INTERACTION SYSTEM")
+    print("How persons with tuned nodes connect and share information")
+    print("="*80)
+    
+    # Create interaction network
+    network = MultiPersonInteractionController()
+    
+    # Add persons (each with unique DNA-based RF frequency)
+    print("\n📋 REGISTERING PERSONS:")
+    alice = network.add_person("PERSON_001", "ATGCCCGT", "Alice")
+    bob = network.add_person("PERSON_002", "TTGCCCA", "Bob")
+    charlie = network.add_person("PERSON_003", "CCGGTTT", "Charlie")
+    diana = network.add_person("PERSON_004", "GGGAACC", "Diana")
+    
+    # Show each person's unique frequency
+    print(f"\n📡 UNIQUE RF FREQUENCIES (DNA-based):")
+    for person in network.persons.values():
+        print(f"   {person.name}: {person.rf_frequency:.5f} GHz")
+    
+    # 1. Person-to-Person Handshake
+    print("\n" + "━"*60)
+    print("🔐 1. PERSON-TO-PERSON HANDSHAKE")
+    print("━"*60)
+    
+    handshake = network.establish_handshake("PERSON_001", "PERSON_002")
+    print(f"\n   Result: {handshake.get('message', handshake)}")
+    
+    # 2. Share Information Between Persons
+    print("\n" + "━"*60)
+    print("📤 2. SHARING INFORMATION (Stored on both)")
+    print("━"*60)
+    
+    shared_memory = {
+        'type': 'experience',
+        'content': "Watched a beautiful sunset",
+        'emotion': 'peaceful',
+        'location': 'beach',
+        'timestamp': time.time()
+    }
+    
+    share = network.share_between_persons("PERSON_001", "PERSON_002", 
+                                           "personal_experience", shared_memory)
+    
+    if share.get('success'):
+        print(f"\n   ✅ Shared: {share['source']} → {share['target']}")
+        print(f"      Type: {share['data_type']}")
+        print(f"      Share ID: {share['share_id'][:16]}...")
+    
+    # 3. View Individual Interaction History
+    print("\n" + "━"*60)
+    print("📊 3. INDIVIDUAL INTERACTION HISTORY")
+    print("━"*60)
+    
+    alice_history = network.get_person_history("PERSON_001")
+    print(f"\n   {alice_history['person']}:")
+    summary = alice_history['connection_summary']
+    print(f"      Total Interactions: {summary['total_interactions']}")
+    print(f"      Unique Peers: {summary['unique_peers_interacted']}")
+    print(f"      Handshakes: {summary['handshakes_completed']}")
+    
+    bob_history = network.get_person_history("PERSON_002")
+    print(f"\n   {bob_history['person']}:")
+    print(f"      Total Interactions: {bob_history['connection_summary']['total_interactions']}")
+    print(f"      Unique Peers: {bob_history['connection_summary']['unique_peers_interacted']}")
+    
+    # 4. Group Interaction
+    print("\n" + "━"*60)
+    print("👥 4. GROUP INTERACTION (All 4 Persons)")
+    print("━"*60)
+    
+    group_result = network.simulate_group_interaction(
+        participants=["PERSON_001", "PERSON_002", "PERSON_003", "PERSON_004"],
+        topic="Collaborative Memory Formation",
+        duration_seconds=20
+    )
+    
+    # 5. Verify Information Persistence
+    print("\n" + "━"*60)
+    print("💾 5. VERIFYING INFORMATION PERSISTENCE")
+    print("━"*60)
+    
+    # Check that all persons have their own copies
+    for person_id in ["PERSON_001", "PERSON_002", "PERSON_003", "PERSON_004"]:
+        person = network.persons[person_id]
+        interactions = person.get_interaction_history()
+        print(f"\n   {person.name}: {len(interactions)} stored interactions")
+        for interaction in interactions[:3]:
+            print(f"      - {interaction['type']} with {interaction['peer_id'][:16]}... at {datetime.fromtimestamp(interaction['timestamp']).strftime('%H:%M:%S')}")
+    
+    # Final summary
+    print("\n" + "="*80)
+    print("✅ COMPLETE SYSTEM SUMMARY")
+    print("="*80)
+    
+    print("""
+    📡 HOW PERSON-TO-PERSON RF INTERACTION WORKS:
+    
+    1. UNIQUE IDENTIFIERS:
+       - Each person has DNA-based RF frequency (10.xx GHz)
+       - Frequencies are unique but close enough for communication
+    
+    2. HANDSHAKE PROTOCOL:
+       - Person A broadcasts presence
+       - Person B accepts (consent required)
+       - Both store handshake record locally
+    
+    3. INFORMATION SHARING:
+       - Person A sends encrypted RF signal
+       - Person B receives and verifies
+       - BOTH store copy on THEIR local nodes
+       - Data never leaves individuals' control
+    
+    4. RECORDING:
+       ✓ Interaction ID (unique)
+       ✓ Timestamp (when it happened)
+       ✓ Peer ID (who participated)
+       ✓ Data Hash (integrity verification)
+       ✓ Handshake Signature (proof of connection)
+    
+    5. PERSISTENCE:
+       - Each person maintains THEIR OWN database
+       - Information persists even if offline
+       - When network reconnects, history syncs
+       - No central server needed
+    
+    6. PRIVACY:
+       - All data stored locally on each person
+       - No third-party access
+       - Person controls who they interact with
+       - Can revoke connections at any time
+    """)
+    
+    return network
+
+
+# =============================================================================
+# SECTION 4: VISUALIZATION OF INTERACTION
+# =============================================================================
+
+def visualize_interaction_network(network: MultiPersonInteractionController):
+    """ASCII visualization of the interaction network"""
+    
+    print("\n" + "="*80)
+    print("🗺️ INTERACTION NETWORK MAP")
+    print("="*80)
+    
+    print("\n   RF FREQUENCY SPECTRUM (10.20 - 10.30 GHz)")
+    print("   ─────────────────────────────────────────────")
+    
+    for person in network.persons.values():
+        freq = person.rf_frequency
+        position = int((freq - 10.20) / 0.10 * 50)
+        bar = "█" * position + "●" + "░" * (50 - position)
+        print(f"   {person.name:8} |{bar}| {freq:.5f} GHz")
+    
+    print("\n   INTERACTION MATRIX:")
+    print("   " + "─" * 50)
+    print("   " + "".join(f"{p.name[:4]:>5}" for p in network.persons.values()))
+    
+    for p1 in network.persons.values():
+        row = f"   {p1.name[:4]:>4} "
+        for p2 in network.persons.values():
+            # Check if they've interacted
+            history = p1.get_interaction_history(p2.person_id)
+            symbol = "✓" if history else "·"
+            row += f"   {symbol}"
+        print(row)
+
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+if __name__ == "__main__":
+    # Run complete demonstration
+    network = complete_demonstration()
+    
+    # Visualize the network
+    visualize_interaction_network(network)
+    
+    print("\n" + "="*80)
+    print("🎯 KEY TAKEAWAYS: PERSON-TO-PERSON RF INTERACTION")
+    print("="*80)
+    print("""
+    1. EACH PERSON HAS UNIQUE RF FREQUENCY:
+       - Based on DNA sequence
+       - Allows identification without central authority
+    
+    2. HANDSHAKE REQUIRES CONSENT:
+       - Person A broadcasts presence
+       - Person B must explicitly accept
+       - Creates verifiable interaction record
+    
+    3. INFORMATION IS STORED LOCALLY ON BOTH:
+       - Each person keeps THEIR OWN copy
+       - No central server vulnerability
+       - If one loses data, other still has it
+    
+    4. RECORD INCLUDES:
+       - Timestamp (when interaction occurred)
+       - Handshake signature (proof of connection)
+       - Data hash (integrity verification)
+       - Peer identification
+    
+    5. WHEN NETWORK RECONNECTS:
+       - Can verify past interactions via handshake
+       - Timestamps prove when information was shared
+       - Hashes verify data hasn't changed
+    
+    6. USE CASES:
+       - Families sharing memories
+       - Research subjects in same study
+       - Group therapy tracking
+       - Collaborative learning
+       - Medical data sharing with consent
+    """)

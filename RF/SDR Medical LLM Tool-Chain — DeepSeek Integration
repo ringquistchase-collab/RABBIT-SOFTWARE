@@ -1,0 +1,735 @@
+"""
+RF/SDR Medical LLM Tool-Chain — DeepSeek Integration
+=====================================================
+Connects DeepSeek AI to RF/SDR medical testing instruments
+(NeuroMind, EEG, ECG, impedance analyzers, etc.)
+
+Requirements:
+  pip install openai numpy scipy pyserial websocket-client rich
+
+Usage:
+  python rf_sdr_llm_toolchain.py --mode cli
+  python rf_sdr_llm_toolchain.py --mode server --port 8765
+"""
+
+import json
+import time
+import struct
+import asyncio
+import argparse
+import threading
+import datetime
+import numpy as np
+from typing import Any, Optional
+from dataclasses import dataclass, field, asdict
+
+# ── Optional imports (graceful degradation) ────────────────────────────────────
+try:
+    from openai import OpenAI          # DeepSeek uses OpenAI-compatible API
+    HAS_OPENAI = True
+except ImportError:
+    HAS_OPENAI = False
+    print("[WARN] openai not installed — LLM calls will be simulated")
+
+try:
+    import serial
+    HAS_SERIAL = True
+except ImportError:
+    HAS_SERIAL = False
+
+try:
+    from scipy import signal as sp_signal
+    HAS_SCIPY = True
+except ImportError:
+    HAS_SCIPY = False
+
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    console = Console()
+    RICH = True
+except ImportError:
+    RICH = False
+    class Console:
+        def print(self, *a, **kw): print(*a)
+        def rule(self, *a, **kw): print("─" * 60)
+    console = Console()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CONFIGURATION
+# ══════════════════════════════════════════════════════════════════════════════
+
+DEEPSEEK_API_KEY  = "YOUR_DEEPSEEK_API_KEY"   # Replace or set env DEEPSEEK_API_KEY
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+DEEPSEEK_MODEL    = "deepseek-chat"
+
+SYSTEM_PROMPT = """You are a medical RF/SDR signal analysis assistant integrated
+with hardware instruments (NeuroMind, EEG, ECG, impedance analyzers, SDR
+receivers). You can call tools to:
+  • Read live RF/SDR sensor data
+  • Run spectral analysis (FFT, bandpower, coherence)
+  • Filter signals (bandpass, notch, wavelet)
+  • Detect biomarkers in neural/cardiac signals
+  • Generate clinical reports
+  • Adjust hardware parameters
+
+Always interpret results in a medical context. Flag anomalies. Be concise.
+Never provide a diagnosis — only signal-level observations for clinicians."""
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DATA CLASSES
+# ══════════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class SensorReading:
+    device_id: str
+    timestamp: str
+    channel: int
+    sample_rate_hz: float
+    duration_ms: float
+    signal_raw: list[float]
+    unit: str = "µV"
+    metadata: dict = field(default_factory=dict)
+
+@dataclass
+class SpectralResult:
+    freqs: list[float]
+    psd: list[float]
+    bands: dict[str, float]       # delta/theta/alpha/beta/gamma power
+    peak_freq: float
+    snr_db: float
+
+@dataclass
+class FilterResult:
+    filter_type: str
+    cutoff_hz: list[float]
+    order: int
+    signal_filtered: list[float]
+    rms_before: float
+    rms_after: float
+
+@dataclass
+class AnomalyReport:
+    detected: bool
+    anomaly_type: str
+    confidence: float
+    segments: list[dict]
+    recommendation: str
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HARDWARE ABSTRACTION LAYER  (real or simulated)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class SDRHardware:
+    """
+    Wraps real SDR/medical device I/O.
+    Supports:  serial COM port  |  USB HID  |  TCP socket  |  simulation
+    """
+    SUPPORTED_DEVICES = {
+        "neuromind_v2":  {"channels": 8,  "sample_rate": 256,  "freq_range": [0.1, 100]},
+        "neuromind_v3":  {"channels": 16, "sample_rate": 512,  "freq_range": [0.1, 150]},
+        "eeg_generic":   {"channels": 32, "sample_rate": 1000, "freq_range": [0.5, 300]},
+        "ecg_12lead":    {"channels": 12, "sample_rate": 500,  "freq_range": [0.05, 150]},
+        "impedance_sdr": {"channels": 4,  "sample_rate": 2000, "freq_range": [1, 1000]},
+    }
+
+    def __init__(self, device_type: str = "neuromind_v2", port: Optional[str] = None):
+        self.device_type = device_type
+        self.port        = port
+        self.spec        = self.SUPPORTED_DEVICES.get(device_type, self.SUPPORTED_DEVICES["neuromind_v2"])
+        self._ser        = None
+        self._connected  = False
+        self._connect()
+
+    def _connect(self):
+        if self.port and HAS_SERIAL:
+            try:
+                self._ser = serial.Serial(self.port, baudrate=115200, timeout=1)
+                self._connected = True
+                console.print(f"[green]✓ Connected to {self.device_type} on {self.port}[/green]")
+                return
+            except Exception as e:
+                console.print(f"[yellow]⚠ Serial failed ({e}) — using simulation[/yellow]")
+        console.print(f"[blue]ℹ Simulation mode: {self.device_type}[/blue]")
+        self._connected = False
+
+    def read(self, channel: int, duration_ms: float) -> SensorReading:
+        """Read from hardware or generate realistic simulated EEG/ECG."""
+        n = int(self.spec["sample_rate"] * duration_ms / 1000)
+        t = np.linspace(0, duration_ms / 1000, n)
+
+        if self._connected and self._ser:
+            raw = self._read_hardware(channel, n)
+        else:
+            raw = self._simulate_signal(t, channel)
+
+        return SensorReading(
+            device_id   = self.device_type,
+            timestamp   = datetime.datetime.utcnow().isoformat() + "Z",
+            channel     = channel,
+            sample_rate_hz = self.spec["sample_rate"],
+            duration_ms = duration_ms,
+            signal_raw  = raw.tolist(),
+            unit        = "µV",
+            metadata    = {"simulated": not self._connected, "spec": self.spec},
+        )
+
+    def _read_hardware(self, channel: int, n_samples: int) -> np.ndarray:
+        """Read n_samples from physical device over serial."""
+        cmd = struct.pack(">BBH", 0xA5, channel, n_samples)
+        self._ser.write(cmd)
+        raw_bytes = self._ser.read(n_samples * 4)
+        return np.frombuffer(raw_bytes, dtype=np.float32)
+
+    def _simulate_signal(self, t: np.ndarray, channel: int) -> np.ndarray:
+        """Generate realistic multi-band EEG with per-channel variation."""
+        rng = np.random.default_rng(channel + int(time.time()) % 1000)
+        sig = (
+            15.0 * np.sin(2 * np.pi * 1.5 * t + rng.uniform(0, 2 * np.pi))  # delta
+          + 10.0 * np.sin(2 * np.pi * 6.0 * t + rng.uniform(0, 2 * np.pi))  # theta
+          +  8.0 * np.sin(2 * np.pi * 10.0 * t + rng.uniform(0, 2 * np.pi)) # alpha
+          +  4.0 * np.sin(2 * np.pi * 20.0 * t + rng.uniform(0, 2 * np.pi)) # beta
+          +  2.0 * rng.standard_normal(len(t))                                # noise
+        )
+        # Occasional spike artifact
+        if rng.random() < 0.15:
+            idx = rng.integers(0, len(t))
+            sig[idx] += rng.uniform(80, 150)
+        return sig
+
+    def set_gain(self, gain_db: float) -> dict:
+        if self._connected and self._ser:
+            self._ser.write(struct.pack(">Bf", 0xA6, gain_db))
+        return {"status": "ok", "gain_db": gain_db}
+
+    def set_filter(self, low_hz: float, high_hz: float) -> dict:
+        if self._connected and self._ser:
+            self._ser.write(struct.pack(">Bff", 0xA7, low_hz, high_hz))
+        return {"status": "ok", "bandpass": [low_hz, high_hz]}
+
+    def get_impedance(self, channel: int) -> dict:
+        if self._connected and self._ser:
+            self._ser.write(struct.pack(">BB", 0xA8, channel))
+            raw = self._ser.read(4)
+            ohms = struct.unpack(">f", raw)[0]
+        else:
+            ohms = np.random.uniform(1000, 50000)
+        quality = "GOOD" if ohms < 5000 else ("FAIR" if ohms < 20000 else "POOR")
+        return {"channel": channel, "impedance_ohms": round(ohms, 1), "quality": quality}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SIGNAL PROCESSING ENGINE
+# ══════════════════════════════════════════════════════════════════════════════
+
+class SignalProcessor:
+    EEG_BANDS = {
+        "delta":  (0.5, 4.0),
+        "theta":  (4.0, 8.0),
+        "alpha":  (8.0, 13.0),
+        "beta":   (13.0, 30.0),
+        "gamma":  (30.0, 100.0),
+    }
+
+    @staticmethod
+    def fft_analysis(reading: SensorReading) -> SpectralResult:
+        sig = np.array(reading.signal_raw)
+        fs  = reading.sample_rate_hz
+        n   = len(sig)
+        win = np.hanning(n)
+        fft_vals = np.fft.rfft(sig * win)
+        freqs = np.fft.rfftfreq(n, 1.0 / fs)
+        psd   = (np.abs(fft_vals) ** 2) / (fs * (win ** 2).sum())
+
+        bands = {}
+        for band, (lo, hi) in SignalProcessor.EEG_BANDS.items():
+            mask = (freqs >= lo) & (freqs <= hi)
+            bands[band] = float(np.trapz(psd[mask], freqs[mask])) if mask.any() else 0.0
+
+        peak_idx = np.argmax(psd[1:]) + 1
+        signal_p = np.sum(psd[1:])
+        noise_p  = np.mean(psd[-20:]) * len(psd)
+        snr = 10 * np.log10(signal_p / (noise_p + 1e-12))
+
+        return SpectralResult(
+            freqs     = freqs[:200].tolist(),
+            psd       = psd[:200].tolist(),
+            bands     = {k: round(v, 4) for k, v in bands.items()},
+            peak_freq = round(float(freqs[peak_idx]), 2),
+            snr_db    = round(float(snr), 2),
+        )
+
+    @staticmethod
+    def bandpass_filter(reading: SensorReading, low_hz: float, high_hz: float, order: int = 4) -> FilterResult:
+        sig = np.array(reading.signal_raw)
+        fs  = reading.sample_rate_hz
+        nyq = fs / 2.0
+        rms_before = float(np.sqrt(np.mean(sig ** 2)))
+
+        if HAS_SCIPY:
+            b, a = sp_signal.butter(order, [low_hz / nyq, high_hz / nyq], btype="band")
+            filtered = sp_signal.filtfilt(b, a, sig)
+        else:
+            # Simple moving average fallback
+            kernel = int(fs / ((low_hz + high_hz) / 2))
+            filtered = np.convolve(sig, np.ones(kernel) / kernel, mode="same")
+
+        return FilterResult(
+            filter_type    = "butterworth_bandpass",
+            cutoff_hz      = [low_hz, high_hz],
+            order          = order,
+            signal_filtered = filtered.tolist(),
+            rms_before     = round(rms_before, 4),
+            rms_after      = round(float(np.sqrt(np.mean(filtered ** 2))), 4),
+        )
+
+    @staticmethod
+    def notch_filter(reading: SensorReading, notch_hz: float = 50.0, q: float = 30.0) -> FilterResult:
+        sig = np.array(reading.signal_raw)
+        fs  = reading.sample_rate_hz
+        rms_before = float(np.sqrt(np.mean(sig ** 2)))
+
+        if HAS_SCIPY:
+            b, a = sp_signal.iirnotch(notch_hz, q, fs)
+            filtered = sp_signal.filtfilt(b, a, sig)
+        else:
+            filtered = sig.copy()
+
+        return FilterResult(
+            filter_type    = "iir_notch",
+            cutoff_hz      = [notch_hz],
+            order          = 2,
+            signal_filtered = filtered.tolist(),
+            rms_before     = round(rms_before, 4),
+            rms_after      = round(float(np.sqrt(np.mean(filtered ** 2))), 4),
+        )
+
+    @staticmethod
+    def detect_anomalies(reading: SensorReading) -> AnomalyReport:
+        sig   = np.array(reading.signal_raw)
+        mean  = np.mean(sig)
+        std   = np.std(sig)
+        threshold = mean + 4.5 * std
+        spike_mask = np.abs(sig - mean) > threshold
+        spike_indices = np.where(spike_mask)[0]
+
+        segments = []
+        for idx in spike_indices[:10]:
+            segments.append({
+                "sample_index": int(idx),
+                "time_ms": round(idx / reading.sample_rate_hz * 1000, 1),
+                "amplitude_uv": round(float(sig[idx]), 2),
+            })
+
+        detected = len(spike_indices) > 0
+        return AnomalyReport(
+            detected      = detected,
+            anomaly_type  = "spike_artifact" if detected else "none",
+            confidence    = min(0.95, len(spike_indices) / 5.0) if detected else 0.0,
+            segments      = segments,
+            recommendation = (
+                "Review artifacts — consider electrode impedance check."
+                if detected else "Signal quality nominal."
+            ),
+        )
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TOOL REGISTRY  — these become DeepSeek function-calling tools
+# ══════════════════════════════════════════════════════════════════════════════
+
+class ToolRegistry:
+    def __init__(self, hardware: SDRHardware, processor: SignalProcessor):
+        self.hw   = hardware
+        self.proc = processor
+        self._last_reading: Optional[SensorReading] = None
+
+    # ── Tool schemas (OpenAI function format) ──────────────────────────────────
+    @property
+    def schemas(self) -> list[dict]:
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "read_sensor",
+                    "description": "Read live RF/SDR signal from a hardware channel.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "channel":     {"type": "integer", "description": "Channel 0–15"},
+                            "duration_ms": {"type": "number",  "description": "Duration in ms (100–10000)"},
+                        },
+                        "required": ["channel", "duration_ms"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "run_fft",
+                    "description": "Run FFT spectral analysis on the last or specified reading.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "channel": {"type": "integer", "description": "Channel to analyse (uses last reading if omitted)"},
+                        },
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "apply_bandpass",
+                    "description": "Apply Butterworth bandpass filter.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "low_hz":  {"type": "number", "description": "Lower cutoff frequency"},
+                            "high_hz": {"type": "number", "description": "Upper cutoff frequency"},
+                            "order":   {"type": "integer", "description": "Filter order (default 4)"},
+                        },
+                        "required": ["low_hz", "high_hz"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "apply_notch",
+                    "description": "Apply notch filter to suppress mains interference.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "notch_hz": {"type": "number", "description": "Notch frequency (50 or 60 Hz)"},
+                            "q_factor": {"type": "number", "description": "Quality factor (default 30)"},
+                        },
+                        "required": ["notch_hz"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "detect_anomalies",
+                    "description": "Detect spike artifacts or anomalies in the last reading.",
+                    "parameters": {"type": "object", "properties": {}},
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "check_impedance",
+                    "description": "Check electrode impedance for a channel.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "channel": {"type": "integer"},
+                        },
+                        "required": ["channel"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "set_hardware_gain",
+                    "description": "Set amplifier gain in dB.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "gain_db": {"type": "number"},
+                        },
+                        "required": ["gain_db"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generate_report",
+                    "description": "Generate a structured clinical signal report from accumulated data.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "patient_id":  {"type": "string"},
+                            "session_id":  {"type": "string"},
+                            "notes":       {"type": "string"},
+                        },
+                        "required": ["patient_id"],
+                    },
+                },
+            },
+        ]
+
+    # ── Tool dispatchers ───────────────────────────────────────────────────────
+    def call(self, name: str, args: dict) -> dict:
+        dispatch = {
+            "read_sensor":       self._read_sensor,
+            "run_fft":           self._run_fft,
+            "apply_bandpass":    self._apply_bandpass,
+            "apply_notch":       self._apply_notch,
+            "detect_anomalies":  self._detect_anomalies,
+            "check_impedance":   self._check_impedance,
+            "set_hardware_gain": self._set_gain,
+            "generate_report":   self._generate_report,
+        }
+        fn = dispatch.get(name)
+        if fn is None:
+            return {"error": f"Unknown tool: {name}"}
+        try:
+            return fn(**args)
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _read_sensor(self, channel: int, duration_ms: float) -> dict:
+        reading = self.hw.read(channel, duration_ms)
+        self._last_reading = reading
+        return {
+            "status": "ok",
+            "channel": channel,
+            "samples": len(reading.signal_raw),
+            "sample_rate_hz": reading.sample_rate_hz,
+            "duration_ms": duration_ms,
+            "rms_uv": round(float(np.sqrt(np.mean(np.array(reading.signal_raw) ** 2))), 3),
+            "peak_uv": round(float(np.max(np.abs(reading.signal_raw))), 3),
+            "timestamp": reading.timestamp,
+        }
+
+    def _run_fft(self, channel: Optional[int] = None) -> dict:
+        if self._last_reading is None:
+            return {"error": "No reading available — call read_sensor first"}
+        result = self.proc.fft_analysis(self._last_reading)
+        return {
+            "peak_freq_hz": result.peak_freq,
+            "snr_db": result.snr_db,
+            "band_power": result.bands,
+            "dominant_band": max(result.bands, key=result.bands.get),
+        }
+
+    def _apply_bandpass(self, low_hz: float, high_hz: float, order: int = 4) -> dict:
+        if self._last_reading is None:
+            return {"error": "No reading available"}
+        result = self.proc.bandpass_filter(self._last_reading, low_hz, high_hz, order)
+        self._last_reading.signal_raw = result.signal_filtered
+        return {
+            "filter": result.filter_type,
+            "cutoff_hz": result.cutoff_hz,
+            "rms_before_uv": result.rms_before,
+            "rms_after_uv": result.rms_after,
+            "attenuation_db": round(20 * np.log10((result.rms_after + 1e-12) / (result.rms_before + 1e-12)), 2),
+        }
+
+    def _apply_notch(self, notch_hz: float, q_factor: float = 30.0) -> dict:
+        if self._last_reading is None:
+            return {"error": "No reading available"}
+        result = self.proc.notch_filter(self._last_reading, notch_hz, q_factor)
+        self._last_reading.signal_raw = result.signal_filtered
+        return {"filter": result.filter_type, "notch_hz": notch_hz, "rms_after_uv": result.rms_after}
+
+    def _detect_anomalies(self) -> dict:
+        if self._last_reading is None:
+            return {"error": "No reading available"}
+        report = self.proc.detect_anomalies(self._last_reading)
+        return asdict(report)
+
+    def _check_impedance(self, channel: int) -> dict:
+        return self.hw.get_impedance(channel)
+
+    def _set_gain(self, gain_db: float) -> dict:
+        return self.hw.set_gain(gain_db)
+
+    def _generate_report(self, patient_id: str, session_id: str = "auto", notes: str = "") -> dict:
+        ts = datetime.datetime.utcnow().isoformat() + "Z"
+        session_id = session_id if session_id != "auto" else f"SES-{int(time.time())}"
+        return {
+            "report_id": f"RPT-{patient_id}-{session_id}",
+            "generated_at": ts,
+            "device": self.hw.device_type,
+            "patient_id": patient_id,
+            "session_id": session_id,
+            "notes": notes,
+            "last_channel": self._last_reading.channel if self._last_reading else None,
+            "summary": "Signal acquisition session complete. Review attached waveforms.",
+            "status": "READY_FOR_REVIEW",
+        }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DEEPSEEK AGENT  — agentic loop with tool-calling
+# ══════════════════════════════════════════════════════════════════════════════
+
+class DeepSeekAgent:
+    def __init__(self, registry: ToolRegistry, api_key: str = DEEPSEEK_API_KEY):
+        self.registry = registry
+        self.history: list[dict] = []
+
+        if HAS_OPENAI:
+            self.client = OpenAI(api_key=api_key, base_url=DEEPSEEK_BASE_URL)
+        else:
+            self.client = None
+
+    def chat(self, user_message: str, max_tool_rounds: int = 8) -> str:
+        """
+        Send a message and run the agentic tool-call loop.
+        Returns the final text response.
+        """
+        self.history.append({"role": "user", "content": user_message})
+
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}] + self.history
+
+        for round_num in range(max_tool_rounds):
+            if self.client is None:
+                # Simulation fallback
+                response_text = self._simulate_response(user_message)
+                self.history.append({"role": "assistant", "content": response_text})
+                return response_text
+
+            response = self.client.chat.completions.create(
+                model   = DEEPSEEK_MODEL,
+                messages = messages,
+                tools   = self.registry.schemas,
+                tool_choice = "auto",
+            )
+            msg = response.choices[0].message
+
+            # No tool call → done
+            if not msg.tool_calls:
+                text = msg.content or ""
+                self.history.append({"role": "assistant", "content": text})
+                return text
+
+            # Execute tool calls
+            messages.append(msg)
+            for tc in msg.tool_calls:
+                args = json.loads(tc.function.arguments)
+                console.print(f"  [cyan]⚙ Tool: {tc.function.name}({args})[/cyan]")
+                result = self.registry.call(tc.function.name, args)
+                console.print(f"  [green]  → {result}[/green]")
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(result),
+                })
+
+        return "[max tool rounds reached]"
+
+    def _simulate_response(self, msg: str) -> str:
+        """Return a simulated response when openai package is unavailable."""
+        return (
+            f"[SIMULATION] DeepSeek response to: '{msg}'\n"
+            "Install openai package and set DEEPSEEK_API_KEY for real responses.\n"
+            "Tools available: " + ", ".join(s["function"]["name"] for s in self.registry.schemas)
+        )
+
+    def reset(self):
+        self.history.clear()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WebSocket SERVER  — expose agent over network for web UI
+# ══════════════════════════════════════════════════════════════════════════════
+
+async def websocket_server(agent: DeepSeekAgent, host: str = "0.0.0.0", port: int = 8765):
+    try:
+        import websockets
+    except ImportError:
+        print("pip install websockets  to enable server mode")
+        return
+
+    async def handler(ws):
+        console.print(f"[green]WS client connected: {ws.remote_address}[/green]")
+        async for raw in ws:
+            try:
+                pkt = json.loads(raw)
+                cmd = pkt.get("cmd", "chat")
+
+                if cmd == "chat":
+                    reply = agent.chat(pkt["message"])
+                    await ws.send(json.dumps({"type": "reply", "text": reply}))
+
+                elif cmd == "read_sensor":
+                    result = agent.registry.call("read_sensor", pkt.get("args", {}))
+                    await ws.send(json.dumps({"type": "sensor", "data": result}))
+
+                elif cmd == "reset":
+                    agent.reset()
+                    await ws.send(json.dumps({"type": "ok", "message": "Session reset"}))
+
+                else:
+                    await ws.send(json.dumps({"type": "error", "message": f"Unknown cmd: {cmd}"}))
+
+            except Exception as e:
+                await ws.send(json.dumps({"type": "error", "message": str(e)}))
+
+    async with websockets.serve(handler, host, port):
+        console.print(f"[bold green]WS server running on ws://{host}:{port}[/bold green]")
+        await asyncio.Future()   # run forever
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CLI  — interactive terminal session
+# ══════════════════════════════════════════════════════════════════════════════
+
+def run_cli(agent: DeepSeekAgent):
+    console.rule("[bold]RF/SDR Medical LLM Tool-Chain — DeepSeek[/bold]")
+    console.print("Type a command or question. 'quit' to exit. 'reset' to clear session.\n")
+
+    # Quick-start examples
+    examples = [
+        "Read 2 seconds from channel 0 and run FFT analysis",
+        "Apply a 1–40 Hz bandpass filter then detect any anomalies",
+        "Check electrode impedance on channels 0 through 3",
+        "Generate a session report for patient P-001",
+        "What is the dominant EEG band in the last reading?",
+    ]
+    console.print("[dim]Example prompts:[/dim]")
+    for i, ex in enumerate(examples, 1):
+        console.print(f"  [dim]{i}. {ex}[/dim]")
+    console.print()
+
+    while True:
+        try:
+            user_in = input("You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+
+        if not user_in:
+            continue
+        if user_in.lower() in ("quit", "exit", "q"):
+            break
+        if user_in.lower() == "reset":
+            agent.reset()
+            console.print("[yellow]Session reset.[/yellow]")
+            continue
+        if user_in.isdigit() and 1 <= int(user_in) <= len(examples):
+            user_in = examples[int(user_in) - 1]
+            console.print(f"[dim]→ {user_in}[/dim]")
+
+        console.print()
+        reply = agent.chat(user_in)
+        console.print(f"\n[bold]Agent:[/bold] {reply}\n")
+        console.rule()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ENTRY POINT
+# ══════════════════════════════════════════════════════════════════════════════
+
+def main():
+    parser = argparse.ArgumentParser(description="RF/SDR Medical LLM Tool-Chain")
+    parser.add_argument("--mode",   choices=["cli", "server"], default="cli")
+    parser.add_argument("--device", default="neuromind_v2",
+                        choices=list(SDRHardware.SUPPORTED_DEVICES.keys()))
+    parser.add_argument("--port",   type=str, default=None,
+                        help="Serial port (e.g. /dev/ttyUSB0 or COM3)")
+    parser.add_argument("--ws-port", type=int, default=8765)
+    parser.add_argument("--api-key", default=DEEPSEEK_API_KEY)
+    args = parser.parse_args()
+
+    hw       = SDRHardware(device_type=args.device, port=args.port)
+    proc     = SignalProcessor()
+    registry = ToolRegistry(hw, proc)
+    agent    = DeepSeekAgent(registry, api_key=args.api_key)
+
+    if args.mode == "server":
+        asyncio.run(websocket_server(agent, port=args.ws_port))
+    else:
+        run_cli(agent)
+
+if __name__ == "__main__":
+    main()
