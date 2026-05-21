@@ -1,0 +1,61 @@
+
+#ifndef DDS_DRIVER_HPP
+#define DDS_DRIVER_HPP
+
+#include <stdint.h>
+
+// Dynamic driver implementation for compiling Signal Generator 15 MHz
+// Targeted chip config: AD9833
+
+#define AD9833_REG_CMD      0x0000
+#define AD9833_REG_FREQ0    0x4000
+#define AD9833_REG_FREQ1    0x8000
+#define AD9833_REG_PHASE0   0xC000
+#define AD9833_REG_PHASE1   0xE000
+
+#define AD9833_B28          0x2000 // 28-bit write mode
+#define AD9833_HLB          0x1000 // High/Low byte selection
+#define AD9833_FSELECT      0x0800 // Freq select (FREQ0/FREQ1)
+#define AD9833_PSELECT      0x0400 // Phase select
+#define AD9833_RESET        0x0100 // Reset bit
+#define AD9833_SLEEP1       0x0080 // DAC Sleep
+#define AD9833_SLEEP12      0x0040 // Internal clock Sleep
+#define AD9833_OPBITSEN     0x0020 // DAC control bypass
+#define AD9833_SIGN_BIT     0x0008 // Output sign-bit
+#define AD9833_DIV2         0x0004 // MSB division
+#define AD9833_MODE         0x0002 // Triangular mode
+
+
+class DDSDriver {
+public:
+    DDSDriver();
+    ~DDSDriver();
+
+    /**
+     * Initializes the communications interface (SPI/I2C/GPIO) and performs physical configuration
+     */
+    bool init();
+
+    /**
+     * Sets the physical signal frequency specified in Hertz and wave pattern.
+     * Supports high speed hardware updates up to 15,000,000 Hz.
+     */
+    void setFrequencyAndWave(double frequency, uint8_t waveType);
+
+    /**
+     * Sets duty cycle (only applicable to square waves or clock outputs)
+     */
+    void setDutyCycle(float percent);
+
+    /**
+     * Disables or enables the output port
+     */
+    void setOutputEnabled(bool enabled);
+
+private:
+    void writeRegister(uint16_t value);
+    void writeI2C(uint8_t reg, uint8_t data);
+};
+
+#endif // DDS_DRIVER_HPP
+
