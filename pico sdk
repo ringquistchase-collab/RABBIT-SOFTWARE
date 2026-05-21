@@ -1,0 +1,21 @@
+
+# pico_sdk_import.cmake (Auto-generated Import Stub)
+# This allows CMake to find the Raspberry Pi Pico SDK.
+# Typically, standard Pico projects import this script to locate the firmware templates.
+
+if (DEFINED ENV{PICO_SDK_PATH} AND NOT PICO_SDK_PATH)
+    set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
+endif()
+
+if (NOT PICO_SDK_PATH)
+    message(FATAL_ERROR "SDK location was not specified. Please set PICO_SDK_PATH environment variable.")
+endif()
+
+get_filename_component(PICO_SDK_PATH "${PICO_SDK_PATH}" ABSOLUTE)
+if (NOT EXISTS "${PICO_SDK_PATH}/pico_sdk_init.cmake")
+    message(FATAL_ERROR "Directory '${PICO_SDK_PATH}' is not a valid Pico SDK directory.")
+endif()
+
+set(PICO_SDK_PATH "${PICO_SDK_PATH}" CACHE PATH "Path to the Pico SDK" FORCE)
+include("${PICO_SDK_PATH}/pico_sdk_init.cmake")
+
