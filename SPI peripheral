@@ -1,0 +1,103 @@
+
+#include "dds_driver.hpp"
+#include "pico/stdlib.h"
+#include "hardware/spi.h"
+#include "hardware/i2c.h"
+#include "hardware/pwm.h"
+#include "hardware/dma.h"
+#include <math.h>
+
+// Pin configurations matching user dashboard
+#define PIN_CS   17
+#define PIN_MOSI 19
+#define PIN_SCK  18
+#define PIN_SDA  4
+#define PIN_SCL  5
+#define PIN_DAC  26
+
+
+DDSDriver::DDSDriver() {}
+DDSDriver::~DDSDriver() {}
+
+bool DDSDriver::init() {
+    
+    // Set pins as output and init SPI peripheral
+#if defined(PICO_BOARD)
+    spi_init(spi0, 10000000); // Fast 10 MHz SPI Clock
+    gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
+    gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
+    
+    // CS is manually toggled for precision timing
+    gpio_init(PIN_CS);
+    gpio_set_dir(PIN_CS, GPIO_OUT);
+    gpio_put(PIN_CS, 1);
+#endif
+
+    // Reset sequence AD9833 register setup
+    writeRegister(AD9833_RESET); 
+    writeRegister(AD9833_B28); // Enable 28-bit write frequency register 0
+    writeRegister(0x0000); // Bring out of reset, default wave=sine
+    return true;
+}
+
+void DDSDriver::setFrequencyAndWave(double frequency, uint8_t waveType) {
+    
+    uint64_t mclk = 25000000; // AD9833 has a 25MHz external crystal oscillator
+    if (frequency > 15000000.0) frequency = 15000000.0;
+    if (frequency < 0.0) frequency = 0.0;
+
+    // Calculate FTW: ftw = (F_out * 2^28) / F_MCLK
+    uint32_t ftw = (uint32_t)((frequency * 268435456.0) / mclk);
+
+    // Split frequency into two 14-bit words for FREQ0 write
+    uint16_t lsb = 0x4000 | (ftw & 0x3FFF);
+    uint16_t msb = 0x4000 | ((ftw >> 14) & 0x3FFF);
+
+    // Wave type settings map:
+    // 0 = SINE, 1 = SQUARE, 2 = TRIANGLE
+    uint16_t configMask = AD9833_B28; // Start with 28-bit mode
+
+    if (waveType == 1) { // Square Wave
+        configMask |= AD9833_SIGN_BIT | AD9833_DIV2; // Pin output sign-bit mapped to DAC output
+    } else if (waveType == 2) { // Triangle Wave
+        configMask |= AD9833_MODE; // Enable DAC Mode triangle
+    }
+
+    // SPI Writes: B28 mode register config, then LSB write, MSB write, then active config
+    writeRegister(AD9833_RESET | AD9833_B28); 
+    writeRegister(lsb);
+    writeRegister(msb);
+    writeRegister(configMask); // Complete reset and output waveform!
+}
+
+void DDSDriver::setOutputEnabled(bool enabled) {
+    
+    if (enabled) {
+        writeRegister(0x0000); // Fast wake
+    } else {
+        // Sleep Mode: Send SLEEP12 to shut down DAC out
+        writeRegister(AD9833_SLEEP12 | AD9833_SLEEP1);
+    }
+}
+
+// Low-level helper for SPI register write
+void DDSDriver::writeRegister(uint16_t value) {
+#if defined(PICO_BOARD)
+    uint8_t buffer[2];
+    buffer[0] = (value >> 8) & 0xFF; // High byte
+    buffer[1] = value & 0xFF;        // Low byte
+    
+    gpio_put(PIN_CS, 0);
+    spi_write_blocking(spi0, buffer, 2);
+    gpio_put(PIN_CS, 1);
+#endif
+}
+
+// Low-level helper for I2C register write
+void DDSDriver::writeI2C(uint8_t reg, uint8_t data) {
+#if defined(PICO_BOARD)
+    uint8_t buf[2] = { reg, data };
+    i2c_write_blocking(i2c0, SI5351_BUS_ADDR, buf, 2, false);
+#endif
+}
+
