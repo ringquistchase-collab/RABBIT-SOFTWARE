@@ -1,0 +1,77 @@
+
+# 15 MHz DDS Signal Generator Firmware Suite
+
+This project is a high-performance, real-time frequency synthesis driver designed for **Raspberry Pi Pico (RP2040)** utilizing the **AD9833** Direct Digital Synthesis chip. 
+
+This firmware manages real-time frequency tuning up to 15,000,000 Hz, duty-cycle shaping, and waveform outputs with clean signal synthesis.
+
+---
+
+## Technical Specifications
+- **Frequency Range:** 0.1 Hz to 15.0 MHz (sub-Hz resolution limit)
+- **Active Frequency:** `1,000,000 Hz`
+- **Active Waveform:** `SINE`
+- **Output Driver:** AD9833 Synthesis Logic
+- **Build System:** CMake modern cross-compilation toolchain
+
+---
+
+## Wiring/Connection Architecture
+
+Please connect the DDS board to the **Raspberry Pi Pico (RP2040)** according to the following hardware schematic layout:
+
+
+| Target MCU Pin | Signal Description | AD9833 Module Pin | Notes |
+| :--- | :--- | :--- | :--- |
+| **GPIO 19** | SPI Master-Out Slave-In (MOSI) | **SDATA / DATA** | Serial Data interface |
+| **GPIO 18** | SPI Clock (SCK) | **SCLK / CLK** | Serial Clock interface |
+| **GPIO 17** | Active-Low Chip Select (CS) | **FSYNC / FQ_UD** | Frame synchronization / load |
+| **GND** | Comm ground reference | **GND** | Common ground reference |
+| **3.3V / 5V** | Power rail | **VCC** | 3.3V for AD9833 / 5V for AD9850 |
+
+
+*Ensure appropriate power filtering is enabled on VCC bypass capacitors to avoid RF ripple on output waves at high MHz frequencies.*
+
+---
+
+## Compilation & Flashing Instructions (using CMake)
+
+Ensure the software suite **CMake** and appropriate compiler toolchains are installed on your desktop.
+
+### 1. Prerequisites Command Line Setup
+
+#### For Raspberry Pi Pico (RP2040)
+Make sure you have downloaded the `pico-sdk` somewhere on your machine and set the environmental variable:
+```bash
+export PICO_SDK_PATH="/path/to/pico-sdk"
+```
+
+### 2. Standard CMake Build Cycle
+
+Execute the following commands in the folder hosting these files to build:
+
+```bash
+# Create build directory
+mkdir build
+cd build
+
+# Run CMake Configuration 
+cmake ..
+
+# Compile the source files
+make -j4
+```
+
+This will generate compile artifacts inside the `build` folder:
+- **UF2 Binaries:** `dds_signal_gen.uf2` (simply drag/drop directly onto target RP2040 bootloader to flash instantly!)
+- **HEX Files:** `dds_signal_gen.hex` for STM32/OpenOCD flash support
+- **ELF Debug File:** `dds_signal_gen.elf`
+
+---
+
+## Active Register Map Summary (Theoretical Model)
+When generating **1,000,000 Hz** on a **AD9833** DDS at module start:
+- Target Frequency Tuning Word (FTW): Calculated mathematically and written over raw SPI/I2C to match maximum phase alignment.
+- Clock parameters mapped inside `dds_driver.cpp` optimized for low Jitter.
+
+Show quoted text
