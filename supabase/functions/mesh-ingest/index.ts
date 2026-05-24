@@ -1,4 +1,4 @@
-// mesh-ingest: 26-node biometric mesh ingestion
+// mesh-ingest: 32-node biometric mesh ingestion (26 EEG/biometric + 6 vascular)
 //
 // Two modes controlled by the optional `freeze` field:
 //
@@ -26,11 +26,17 @@ type AlertLevel  = 'INFO' | 'WARNING' | 'CRITICAL'
 type AnomalyType = 'IDENTITY_DEVIATION' | 'TOPOLOGY_SHIFT' | 'PATTERN_INJECTION' | 'COHERENCE_BREAK'
 
 interface NodeReading {
-  node_id:      number                                   // 1-26
-  band_powers?: Partial<Record<EegBand, number>>         // EEG nodes
-  amplitude_uv?: number                                  // EEG nodes
-  phase_deg?:    number                                  // EEG nodes
-  raw_value?:    number                                  // biometric nodes
+  node_id:           number                           // 1-32
+  band_powers?:      Partial<Record<EegBand, number>> // EEG nodes
+  amplitude_uv?:     number                           // EEG nodes
+  phase_deg?:        number                           // EEG nodes
+  raw_value?:        number                           // biometric nodes
+  // Vascular nodes (27-32)
+  phase_shift_rad?:  number                           // RF phase shift (rad)
+  pulse_amplitude?:  number                           // pulsatile amplitude 0-1
+  carrier_freq_ghz?: number                           // RF carrier (default 10.245)
+  beat_interval_ms?: number                           // R-R interval (ms)
+  vasc_state?:       string                           // VascState enum value
 }
 
 interface EdgeReading {
@@ -214,19 +220,23 @@ async function freezeSnapshot(
   if (snapErr || !snap) throw new Error(`snapshot insert failed: ${snapErr?.message}`)
 
   const stateRows = nodes.map(r => ({
-    snapshot_id:     snap.id,
-    node_id:         r.node_id,
-    delta_power:     r.band_powers?.delta   ?? null,
-    theta_power:     r.band_powers?.theta   ?? null,
-    alpha_power:     r.band_powers?.alpha   ?? null,
-    beta_power:      r.band_powers?.beta    ?? null,
-    gamma_power:     r.band_powers?.gamma   ?? null,
-    dominant_band:   r.band_powers ? dominantBand(r.band_powers) : null,
-    mean_amplitude:  r.amplitude_uv ?? r.raw_value ?? null,
-    std_amplitude:   0,    // single-point capture; widen with multi-sample window if needed
-    biometric_value: r.raw_value    ?? null,
-    biometric_unit:  null as string | null,
-    coherence_map:   null as Record<string, number> | null,
+    snapshot_id:      snap.id,
+    node_id:          r.node_id,
+    delta_power:      r.band_powers?.delta  ?? null,
+    theta_power:      r.band_powers?.theta  ?? null,
+    alpha_power:      r.band_powers?.alpha  ?? null,
+    beta_power:       r.band_powers?.beta   ?? null,
+    gamma_power:      r.band_powers?.gamma  ?? null,
+    dominant_band:    r.band_powers ? dominantBand(r.band_powers) : null,
+    mean_amplitude:   r.amplitude_uv ?? r.raw_value ?? r.phase_shift_rad ?? null,
+    std_amplitude:    0,
+    biometric_value:  r.raw_value         ?? null,
+    biometric_unit:   null as string | null,
+    coherence_map:    null as Record<string, number> | null,
+    phase_shift_rad:  r.phase_shift_rad   ?? null,
+    pulse_amplitude:  r.pulse_amplitude   ?? null,
+    beat_interval_ms: r.beat_interval_ms  ?? null,
+    vasc_state:       r.vasc_state        ?? null,
   }))
 
   const { error: stateErr } = await supabase.from('frozen_node_states').insert(stateRows)
@@ -269,8 +279,8 @@ Deno.serve(async (req) => {
   if (!twin_id || !sensor_id || !Array.isArray(nodes) || nodes.length === 0) {
     return new Response(JSON.stringify({ error: 'Missing twin_id, sensor_id, or nodes' }), { status: 400 })
   }
-  if (nodes.length > 26) {
-    return new Response(JSON.stringify({ error: 'nodes array exceeds 26-node mesh limit' }), { status: 400 })
+  if (nodes.length > 32) {
+    return new Response(JSON.stringify({ error: 'nodes array exceeds 32-node mesh limit' }), { status: 400 })
   }
 
   const timestamp = body.timestamp ?? new Date().toISOString()
@@ -308,7 +318,7 @@ Deno.serve(async (req) => {
   const { snapshotId, nodes: baseline } = await getActiveBaseline(twin_id)
 
   const readingRows = nodes.map(r => {
-    const liveVal  = r.amplitude_uv ?? r.raw_value ?? null
+    const liveVal  = r.amplitude_uv ?? r.raw_value ?? r.phase_shift_rad ?? null
     const base     = baseline.get(r.node_id)
     const devZ     = (liveVal !== null && base) ? computeDeviationZ(liveVal, base) : null
 
@@ -318,10 +328,15 @@ Deno.serve(async (req) => {
       sensor_id,
       timestamp,
       band:                 r.band_powers ? dominantBand(r.band_powers) : null,
-      amplitude_uv:         r.amplitude_uv  ?? null,
-      phase_deg:            r.phase_deg     ?? null,
-      band_powers:          r.band_powers   ?? null,
-      raw_value:            r.raw_value     ?? null,
+      amplitude_uv:         r.amplitude_uv      ?? null,
+      phase_deg:            r.phase_deg          ?? null,
+      band_powers:          r.band_powers        ?? null,
+      raw_value:            r.raw_value          ?? null,
+      phase_shift_rad:      r.phase_shift_rad    ?? null,
+      pulse_amplitude:      r.pulse_amplitude    ?? null,
+      carrier_freq_ghz:     r.carrier_freq_ghz   ?? null,
+      beat_interval_ms:     r.beat_interval_ms   ?? null,
+      vasc_state:           r.vasc_state         ?? null,
       baseline_snapshot_id: snapshotId,
       deviation_z:          devZ,
     }
