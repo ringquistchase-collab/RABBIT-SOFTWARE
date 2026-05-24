@@ -33,3 +33,8 @@ enabled = true
 
 [functions.semantic-search]
 enabled = true
+
+# xrpl-anchor: batch Merkle anchor runs hourly; individual anchors triggered on-demand
+[functions.xrpl-anchor]
+enabled = true
+schedule = "0 * * * *"
