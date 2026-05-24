@@ -24,3 +24,6 @@ schedule = "*/5 * * * *"
 [functions.data-lifecycle]
 enabled = true
 schedule = "0 2 * * *"
+
+[functions.bio-fusion]
+enabled = true
