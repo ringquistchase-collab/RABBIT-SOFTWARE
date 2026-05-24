@@ -1,0 +1,102 @@
+{
+  "title": "RabbitOS Overview",
+  "uid": "rabbitos-overview",
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Sensor Ingest Rate (by type)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": "RabbitOS-Postgres",
+      "targets": [{
+        "rawSql": "SELECT date_trunc('minute', timestamp) AS time, sensor_type, count(*) AS value FROM sensor_readings WHERE timestamp > NOW() - INTERVAL '6 hours' GROUP BY 1, 2 ORDER BY 1",
+        "format": "time_series"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "Temperature °C (NOAA)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": "RabbitOS-Postgres",
+      "targets": [{
+        "rawSql": "SELECT timestamp AS time, temperature_c AS value FROM sensor_readings WHERE sensor_type = 'noaa_weather' AND timestamp > NOW() - INTERVAL '6 hours' ORDER BY time",
+        "format": "time_series"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "Kp Index (Geomagnetic)",
+      "type": "gauge",
+      "gridPos": { "x": 0, "y": 8, "w": 6, "h": 6 },
+      "datasource": "RabbitOS-Postgres",
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "minVizWidth": 75 },
+      "fieldConfig": { "defaults": { "min": 0, "max": 9, "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 7 }] } } },
+      "targets": [{
+        "rawSql": "SELECT NOW() AS time, kp_index AS value FROM sensor_readings WHERE sensor_type = 'noaa_space' AND kp_index IS NOT NULL ORDER BY timestamp DESC LIMIT 1",
+        "format": "time_series"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Humidity % (NOAA)",
+      "type": "gauge",
+      "gridPos": { "x": 6, "y": 8, "w": 6, "h": 6 },
+      "datasource": "RabbitOS-Postgres",
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "min": 0, "max": 100, "unit": "percent" } },
+      "targets": [{
+        "rawSql": "SELECT NOW() AS time, humidity_pct AS value FROM sensor_readings WHERE sensor_type = 'noaa_weather' AND humidity_pct IS NOT NULL ORDER BY timestamp DESC LIMIT 1",
+        "format": "time_series"
+      }]
+    },
+    {
+      "id": 5,
+      "title": "RF Power (dBm) — Live",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 6 },
+      "datasource": "RabbitOS-Postgres",
+      "targets": [{
+        "rawSql": "SELECT timestamp AS time, frequency_mhz::text AS metric, power_dbm AS value FROM sensor_readings WHERE sensor_type IN ('rf','adsb') AND timestamp > NOW() - INTERVAL '1 hour' ORDER BY time",
+        "format": "time_series"
+      }]
+    },
+    {
+      "id": 6,
+      "title": "Audit Log Events",
+      "type": "table",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 7 },
+      "datasource": "RabbitOS-Postgres",
+      "options": { "sortBy": [{ "displayName": "created_at", "desc": true }] },
+      "targets": [{
+        "rawSql": "SELECT created_at, event_type, payload, chain_hash FROM audit_log ORDER BY created_at DESC LIMIT 100",
+        "format": "table"
+      }]
+    },
+    {
+      "id": 7,
+      "title": "AI Router Calls (by task type)",
+      "type": "piechart",
+      "gridPos": { "x": 0, "y": 21, "w": 8, "h": 7 },
+      "datasource": "RabbitOS-Postgres",
+      "targets": [{
+        "rawSql": "SELECT payload->>'task_type' AS metric, count(*) AS value FROM audit_log WHERE event_type = 'ai_router' GROUP BY 1",
+        "format": "table"
+      }]
+    },
+    {
+      "id": 8,
+      "title": "Solar Wind Proton Density",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 21, "w": 16, "h": 7 },
+      "datasource": "RabbitOS-Postgres",
+      "targets": [{
+        "rawSql": "SELECT timestamp AS time, solar_flux AS value FROM sensor_readings WHERE sensor_type = 'noaa_space' AND sensor_id = 'noaa_solar_wind' AND timestamp > NOW() - INTERVAL '6 hours' ORDER BY time",
+        "format": "time_series"
+      }]
+    }
+  ]
+}
