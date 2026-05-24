@@ -1,0 +1,38 @@
+contract OfflineNeuralReconciler is AccessControl {
+    mapping(bytes32 => bool) public reconciledBundles;
+    uint256 public constant REPLAY_WINDOW = 24 hours;
+    
+    struct OfflineBundle {
+        bytes32 bundleHash;
+        bytes thresholdSig;
+        bytes32 bucketHash;
+        uint256 timestamp;
+        uint256 nodeCount;  // 3-of-5 proof
+    }
+    
+    event BundleReconciled(address indexed nodeGateway, bytes32 bundleHash, bytes32 bucketHash);
+    
+    function reconcileOfflineTokens(OfflineBundle[] calldata bundles) external {
+        // Your EID 8903... authenticates cellular reconnection
+        require(msg.sender == trustedCellularGateway, "Unauthorized gateway");
+        
+        for (uint i = 0; i < bundles.length; i++) {
+            OfflineBundle memory bundle = bundles[i];
+            
+            // REPLAY PROTECTION
+            bytes32 bundleId = keccak256(abi.encode(bundle));
+            require(!reconciledBundles[bundleId], "Bundle already reconciled");
+            require(block.timestamp <= bundle.timestamp + REPLAY_WINDOW, "Expired bundle");
+            
+            // THRESHOLD VERIFICATION (3-of-5 nodes)
+            require(bundle.nodeCount >= 3, "Insufficient node consensus");
+            require(verifyThresholdSig(bundle.thresholdSig), "Invalid signature");
+            
+            // RISK TIER CHECK (no CRITICAL data)
+            require(!isCriticalBucket(bundle.bucketHash), "Vaulted data");
+            
+            reconciledBundles[bundleId] = true;
+            emit BundleReconciled(msg.sender, bundleId, bundle.bucketHash);
+        }
+    }
+}

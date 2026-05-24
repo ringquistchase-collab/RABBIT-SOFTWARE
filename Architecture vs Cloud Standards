@@ -1,0 +1,15 @@
+# AWS/GCP genetic data baseline
+Resources:
+  S3Bucket:
+    Encryption: AES-256-KMS
+    PublicAccessBlock: True
+    Logging: CloudTrail
+  VPC:
+    FlowLogs: Enabled
+    ServiceControls: Enabled
+  IAM:
+    MFA: Required
+    LeastPrivilege: Enforced
+  GuardDuty:
+    MalwareProtection: Enabled
+    S3Protection: Enabled

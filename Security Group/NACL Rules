@@ -1,0 +1,7 @@
+Security Group (Private EC2):
+HTTPS → S3 prefix list (pl-63a3694a)
+
+NACL (stateless):
+100 ALLOW TCP 443 pl-63a3694a → 10.0.10.0/24
+200 ALLOW 10.0.10.0/24 → pl-63a3694a
+* DENY 0.0.0.0/0

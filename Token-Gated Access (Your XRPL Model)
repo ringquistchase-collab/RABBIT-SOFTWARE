@@ -1,0 +1,7 @@
+Smart contract checks:
+✅ 0.001 XRP micropayment ✓
+✅ DNA threshold signature (3-of-5 nodes) ✓  
+✅ BlockGPT anomaly score <0.28 ✓
+✅ Risk tier != CRITICAL ✓
+→ Off-chain IPFS link released
+

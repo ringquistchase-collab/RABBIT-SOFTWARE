@@ -1,0 +1,7 @@
+1. **SIM-Jacking**: Multi-eSIM Shamir split (3-of-2 carriers)
+2. **Replay Attack**: Ephemeral nonces (5min validity)
+3. **Signature Forgery**: Threshold 3-of-5 nodes required
+4. **Research/Gov Abuse**: ZK proofs (prove ownership, reveal nothing)
+
+Cellular transmission:
+phone → {fingerprint_bucket, threshold_sig_3of5, nonce_1728672000}

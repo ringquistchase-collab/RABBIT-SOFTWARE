@@ -1,0 +1,5 @@
+1. **Daily**: ZK proofs over 13 STR loci (non-coding)
+2. **High-value**: Threshold 3-of-5 node consensus  
+3. **Broadcasts**: Ephemeral keys (24hr validity)
+4. **Blockchain**: Public verification keys only
+5. **Raw timelines**: Local NVMe airgap forever

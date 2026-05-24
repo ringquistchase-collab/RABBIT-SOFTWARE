@@ -1,0 +1,14 @@
+**Live Recording** (May 12, 2026 13:25 CDT):
+EEG: F3=39.2%, F4=43.1% → valence=-0.18
+θ/α=0.62 → arousal=0.71  
+Cortisol=0.51 → moderate stress
+
+**Blockchain Token**:
+{
+  "fingerprint": "a1b2c3d4e5f6789012345678901234567890abcdef",
+  "bucket": "valence_-0.2_arousal_0.7_stress_0.5",
+  "sig": "3of5:HEAD01+CHEST01+SPINE03",
+  "timestamp": 1728672000
+}
+
+**Local Storage** (NVMe): Full EEG + hormone timeline

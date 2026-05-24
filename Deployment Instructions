@@ -1,3 +1,18 @@
+**1. Clone & Integrate**:
+git clone https://github.com/ringquistchase-collab/RABBIT-SOFTWARE
+cd RABBIT-SOFTWARE
+git checkout -b gsr-sdr-integration
+# Copy gsr_sdr/ module above
+
+**2. Build Firmware**:
+west build -b chest01_nrf52840 gsr_sdr/firmware/zephyr-chest01
+west flash
+
+**3. Production Stack**:
+docker-compose -f gsr_sdr/docker/neural_gateway.yml up
+
+**4. Verify Pipeline** (14:43 CDT):
+watch -n1 "grep 'φ[0-9]+.[0-9]+' /var/log/xrpl_bundles.log"
 # Install dependencies
 pip install numpy scipy openai websockets rich web3
 

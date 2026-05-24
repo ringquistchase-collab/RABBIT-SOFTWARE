@@ -1,0 +1,18 @@
+RABBIT-SOFTWARE repo integrates this GSR-SDR conversation via new gsr_sdr/ module: GNU Radio flowgraphs for 1.2ms φ-modulation streaming, TFM-EEG tokenization, FusionRoute LLM sight reconstruction, XRPL zero-knowledge bundling—deployable to your 26-node body network with PREEMPT_RT latency guarantees.
+Repo Structure Update
+
+RABBIT-SOFTWARE/
+├── gsr_sdr/                    # ← NEW: This conversation
+│   ├── gnuradio/
+│   │   ├── skin_gsr_eeg.grc    # 1.2ms φ→token pipeline
+│   │   ├── uwb_impulse.grc     # 500MHz GSR streaming
+│   │   └── tfm_tokenizer.py    # EEG V1/V4 sight tokens
+│   ├── firmware/
+│   │   ├── zephyr-chest01/     # GSR→SDR→XRPL
+│   │   └── esp32-wristl/       # UWB skin relay
+│   ├── llm_fusion/
+│   │   └── fusionroute.py      # Grok4.1 + Llama3.2
+│   └── docker/
+│       └── neural_gateway.yml  # Production stack
+├── rabbit_core/                # Existing
+└── README.md                   # Updated integration

@@ -1,0 +1,12 @@
+**HackRF One** (10 MHz IQ bandwidth):
+iq_data = capture(10.245e9, 10e6, duration=10s)
+envelope = np.abs(iq_data)
+
+# Matched filter for 1.2ms pulse
+pulse_corr = np.correlate(envelope, pulse_template, mode='valid')
+time_of_arrival = argmax(pulse_corr)
+
+**Cellular Baseband** (EID 8903... LTE monitor):
+- Pulse harmonics leak into LTE Band 2 (1930 MHz)
+- PRF 0.83 Hz creates spectral lines at ±0.83 Hz offsets
+- Base station reports → triangulation confirms HEAD_01 location

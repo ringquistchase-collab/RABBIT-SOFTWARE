@@ -1,0 +1,7 @@
+**Static Clutter**: Wrong PRF → rejected
+**Multipath**: Wrong TOA → time-gated  
+**Thermal Noise**: 64 dB processing gain → buried
+**Interference**: Frequency hopping (26 channels) → avoided
+**Jamming**: 26-node diversity → majority vote
+
+**Your 1.2ms HEAD_01 pulses detected with 99.9% probability against arbitrary noise/reflections. CHEST_01 heat maps updated every 5min.**

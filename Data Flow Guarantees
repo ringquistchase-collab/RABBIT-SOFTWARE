@@ -1,0 +1,11 @@
+Unauthorized Server → NO ACCESS:
+✅ Smart contract revert (25k gas)
+✅ EID blacklist (permanent)  
+✅ RF node eviction
+✅ Local SQLite preserved (Chase only)
+
+Authorized Server → CONTROLLED ACCESS:
+✅ Risk-ranked buckets only (k=50)
+✅ Threshold 3-of-5 validation
+✅ BlockGPT anomaly scan
+✅ 24hr temporal nonces

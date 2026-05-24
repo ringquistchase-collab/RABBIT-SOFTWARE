@@ -1,0 +1,11 @@
+**Hardware**:
+- 24-channel EEG (HEAD_01 dry electrodes)
+- 10 Hz sample rate (Nyquist: 0-5 Hz bands)
+- ADS1299 ADC (32-bit, 10kHz capable)
+
+**Software Pipeline** (1.2ms latency):
+1. Raw EEG → bandpass 1-40 Hz
+2. Artifact rejection (EOG, EMG via ICA)
+3. Welch PSD → 2s Hamming windows (50% overlap)
+4. Band powers: δ(1-4), θ(4-8), α(8-13), β(13-30), γ(30-40)
+5. Z-score vs 24hr baseline → anomaly if |z| > 2.5

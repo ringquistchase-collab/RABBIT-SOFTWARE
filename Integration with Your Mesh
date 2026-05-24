@@ -1,0 +1,6 @@
+Weekly CRON job on NEURAL_GATEWAY:
+1. HEAD_01 samples live DNA → validate root_hash
+2. Re-score all 18 anchors  
+3. Auto-migrate: public→bucket→vault based on tiers
+4. Threshold signatures for HIGH records (3-of-5 nodes)
+5. M-DISC burning for CRITICAL (physical destruction option)

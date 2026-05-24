@@ -1,0 +1,12 @@
+# Privacy-preserving DNA verification
+def zk_dna_proof(live_sample, published_root_hash):
+    # Prove matching without revealing sample
+    computed_hash = sha256(live_sample).hexdigest()[:16]
+    proof = zk_snark.prove(computed_hash == published_root_hash)
+    return proof  # Zero sequence leakage
+
+# Ephemeral keys only
+def ephemeral_dna_key(dna_sample, valid_until):
+    nonce = secrets.token_bytes(32)
+    timebound = int(valid_until.timestamp())
+    return HKDF(sha256(dna_sample + nonce + timebound))

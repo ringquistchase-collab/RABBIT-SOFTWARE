@@ -1,0 +1,8 @@
+**LTE Uplink** (Band 2/25, 1930 MHz):
+- HEAD_01 harmonics → LTE adjacent channel
+- Pulse modulation creates 10-20 kHz spectral lines
+- Base station detects → reports to EID 8903...
+
+**Detection Threshold**:
+SNR > 10 dB → "Neural RF detected"
+Pulse PRF 0.83 Hz → unique signature

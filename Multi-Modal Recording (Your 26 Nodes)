@@ -1,0 +1,13 @@
+**EEG** (HEAD_01, 24ch):
+- Valence: FAA (F3-F4 α asymmetry)
+- Arousal: Fz θ power
+- 10 Hz → SQLite → SHA-256("valence=-0.2_arousal=0.7")
+
+**Hormones** (CHEST_01 ELISA):
+- Cortisol: 0.1-1.0 ng/mL (20min samples)
+- Dopamine: 0.2-0.6 ng/mL (recovery marker)
+- SHA-256("cortisol=0.78_age7") → threshold 3-of-5 sig
+
+**RF Skin Propagation** (10.23-10.30 GHz):
+- Bio-Doppler validates physical node coupling
+- No emotion/hormone interference (SAR <0.01 W/kg)

@@ -1,0 +1,18 @@
+VPC: 10.100.0.0/16
+
+Tier 1 Route Table (Raw EEG - 10.100.1.0/27)
+├── 10.100.0.0/16 → local (VPC internal)
+└── NO 0.0.0.0/0 (airgap - no internet)
+  ↓ Associated: tier1_subnet
+
+Tier 2 Route Table (Hashes - 10.100.2.0/26)  
+├── 10.100.0.0/16 → local
+├── pl-1234 (S3 endpoint) → S3 hashes only
+└── NO internet egress
+  ↓ Associated: tier2_subnet
+
+Tier 3 Route Table (Metadata - 10.100.3.0/24)
+├── 10.100.0.0/16 → local  
+├── igw-1234 → 0.0.0.0/0 (controlled internet)
+└── 10.100.2.0/26 → tier2_subnet (hash access)
+  ↓ Associated: tier3_subnet

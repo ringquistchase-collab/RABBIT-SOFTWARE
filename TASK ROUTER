@@ -1,0 +1,11 @@
+# rabbitos/core/router.py
+
+class TaskRouter:
+    def __init__(self, queue, event_bus):
+        self.queue = queue
+        self.bus = event_bus
+
+    def submit(self, task: dict):
+        task_id = self.queue.push(task)
+        self.bus.emit("task_submitted", task)
+        return task_id

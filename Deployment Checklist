@@ -1,0 +1,6 @@
+✅ Deploy with Chase hardware wallet as owner
+✅ Grant 3 test researchers (revoke-safe)
+✅ Test revoke/restore cycle  
+✅ Verify emergency admin recovery
+✅ Audit gas costs (<50k per revocation)
+✅ Document 365-day cooldown for non-Chase admins

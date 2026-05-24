@@ -1,0 +1,51 @@
+
+#include <stdio.h>
+#include "dds_driver.hpp"
+
+#if defined(PICO_BOARD)
+#include "pico/stdlib.h"
+#define LED_PIN 25
+#endif
+
+// Target Configuration
+// Frequency configured dynamically from interactive Web UI: 1000000 Hz
+// Selected wave mode: SINE
+#define GENERATOR_FREQUENCY  1000000.000
+#define GENERATOR_WAVE_TYPE  0
+
+int main() {
+#if defined(PICO_BOARD)
+    stdio_init_all();
+    
+    // Status indicator LED pin
+    gpio_init(LED_PIN);
+    gpio_set_dir(LED_PIN, GPIO_OUT);
+#endif
+
+    printf("DDS Signal Generator Suite Initialising...\r\n");
+    printf("Configuring Output Frequency: %f Hz\r\n", GENERATOR_FREQUENCY);
+
+    DDSDriver generator;
+    if (generator.init()) {
+        printf("Hardware DDS unit successfully online!\r\n");
+        
+        // Push selected dashboard configuration to hardware registers
+        generator.setFrequencyAndWave(GENERATOR_FREQUENCY, GENERATOR_WAVE_TYPE);
+        generator.setOutputEnabled(true);
+    } else {
+        printf("Error: DDS Device initialization failed! Verify connection pins.\r\n");
+    }
+
+    // Infinite heartbeat display loop
+    while (true) {
+        
+        gpio_put(LED_PIN, 1);
+        sleep_ms(250);
+        gpio_put(LED_PIN, 0);
+        sleep_ms(250);
+    
+    }
+
+    return 0;
+}
+

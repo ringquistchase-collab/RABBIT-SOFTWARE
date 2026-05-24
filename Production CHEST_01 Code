@@ -1,0 +1,25 @@
+def rf_eeg_monitor(self):
+    eeg_data = self.head_01.read_channels(24)  # 2s buffer
+    
+    # Power spectral density (Welch)
+    freqs, psd = welch(eeg_data, fs=10, nperseg=20)
+    
+    bands = {
+        'delta': (1,4), 'theta': (4,8), 'alpha': (8,13),
+        'beta': (13,30), 'gamma': (30,40)
+    }
+    
+    band_powers = {k: np.trapz(psd[(freqs>=lo)&(freqs<=hi)], freqs[(freqs>=lo)&(freqs<=hi)]) 
+                   for k,(lo,hi) in bands.items()}
+    
+    alpha_rel = band_powers['alpha'] / sum(band_powers.values()) * 100
+    
+    # Z-score vs 24hr rolling baseline
+    z_alpha = (alpha_rel - self.baseline_alpha.mean()) / self.baseline_alpha.std()
+    
+    if abs(z_alpha) > 2.5:
+        self.alert_rf_effect(f"Alpha z={z_alpha:.2f}, rel={alpha_rel:.1f}%")
+        if z_alpha > 3.0:  # +10% threshold
+            self.reduce_duty_cycle(50)
+    
+    return {'alpha_rel': alpha_rel, 'z_score': z_alpha, 'safe': abs(z_alpha) < 2.5}

@@ -1,0 +1,4 @@
+68M tx dataset → 124 attacks:
+- 49/124 attacks ranked top-3 (40% precision@3)
+- Ethereum: Detects approve-transfer-drain patterns  
+- Triggers emergency pause before confirmation

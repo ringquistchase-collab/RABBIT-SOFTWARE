@@ -1,0 +1,5 @@
+# Cellular edge validator
+python llm_validator.py --cellular --eid 89033023426309010000054675483625
+
+# Monitors all incoming XRPL txs in real-time
+# Auto-approves research, blocks insurance, vaults critical

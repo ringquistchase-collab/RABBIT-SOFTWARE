@@ -1,0 +1,11 @@
+**NIH Researcher**:
+xrpl.requestResearchBucket("cortisol_0.8_age7") → 0.001 XRP → synthetic trajectory IPFS link
+
+**DOJ Subpoena**:
+xrpl.requestGovernmentBucket("age33_baseline", courtOrderHash) → LOW tier only
+
+**Malicious Contractor**:
+BlockGPT flags anomalous code → threshold sig fails → access denied
+
+**Insurance Bot**:
+No RESEARCHER_ROLE → transaction reverts

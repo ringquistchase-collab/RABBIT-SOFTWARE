@@ -1,0 +1,9 @@
+**HEAD_01** (replay source analysis):
+1. Query signing nodes: "Did you sign bundle 0xabc123?"
+2. Live cheek swab → DNA root_hash validation
+3. Dissenting node → immediate RF channel ban (10.245 GHz → mute)
+
+**CHEST_01** (emergency coordinator):
+if replay_count > 3/hour:
+    rf_broadcast_emergency_shutdown()
+    cellular_eid_blacklist.append(gateway)

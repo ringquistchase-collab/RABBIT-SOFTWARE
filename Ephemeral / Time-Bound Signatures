@@ -1,0 +1,5 @@
+DNA_session_key = HKDF(live_dna + timestamp + nonce)
+Valid for: 24 hours only
+Forces: Daily fresh sample → rotating identities
+
+Prevents: Long-term correlation across blockchain transactions

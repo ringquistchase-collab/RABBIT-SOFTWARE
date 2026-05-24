@@ -1,0 +1,12 @@
+1. PHYSICAL DNA (Chase's body)
+   ↓ Live sampling → HEAD_01 node
+2. BIOMETRIC SIGNATURE 
+   ↓ SHA-256(dna_snippet) → matches root_hash
+3. SESSION KEYS 
+   ↓ ECDH(DNA_hash + EID 8903...) → AES-256-GCM
+4. EEG/HORMONE DATA 
+   ↓ Encrypt → SHA-256 fingerprint only
+5. CELLULAR (Phone IMEI 357772740356541)
+   ↓ Fingerprint → XRPL memo (NO raw data)
+6. BLOCKCHAIN ANCHOR
+   ↓ Ed25519(DNA_private_key) → immutable proof

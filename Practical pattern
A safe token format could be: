@@ -1,0 +1,8 @@
+{
+  "subject_id": "user_8f3a",
+  "source": "consented_local_device",
+  "signal_type": "biosignal_summary",
+  "digest": "sha256:...",
+  "signature": "ed25519:...",
+  "policy": "local_only"
+}

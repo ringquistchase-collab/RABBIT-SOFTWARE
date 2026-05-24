@@ -1,0 +1,10 @@
+Internet Gateway (DISABLED for genomic data)
+        ↓
+   Public Subnets (0.0.0.0/0 → BLOCKED)
+        ↓ (VPC Endpoints ONLY)
+Private Subnets (Genomic Workloads)
+├── EC2 Compute (F3/F4 cortisol analysis)
+├── RDS (encrypted timelines)
+└── Lambda (ephemeral EEG processing)
+        ↓ (No outbound internet)
+   S3 (via VPC Endpoint)

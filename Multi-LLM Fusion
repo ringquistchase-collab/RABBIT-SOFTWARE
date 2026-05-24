@@ -1,0 +1,18 @@
+FusionRoute[web:421] (Grok 4.1 + Llama 3.2):
+Router selects: Grok(sight recon) + Llama(emotion)
+Tokens → "person sees red vertical edge, stressed"
+
+
+## Real-Time Sight Reconstruction Loop
+
+Stream → View → Hardware Feedback:
+GSR SDR streams skin φ rotation (GNU Radio)
+EEG tokens V1/V4 patterns (TFM-Tokenizer)
+Cellular metadata: GPS + cortisol proxy
+XRPL fingerprints: k=50 stress buckets
+LLM fuses → "sight: red edge + stress valence -0.23"
+Hardware relays → WRIST_L haptic (vibration pattern)
+Sight Tokens (V1/V4 reconstruction):
+γ 30-50 Hz: Edge detection (vertical/horizontal)
+θ/α ratio: Attention focus
+GSR φ: Emotional saliency

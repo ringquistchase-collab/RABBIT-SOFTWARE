@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  gnuradio:
+    image: gnuradio/gr-3.11:latest
+    devices:
+      - /dev/bus/usb:/dev/bus/usb  # HackRF
+    volumes:
+      - ./gsr_sdr/gnuradio:/flowgraphs
+    command: gnuradio-companion skin_gsr_eeg.grc
+  
+  neural_gateway:
+    build: .
+    environment:
+      - XRPL_SEED=your_seed_here
+      - PREEMPT_RT=1
+    volumes:
+      - /dev/shm:/dev/shm  # Low-latency IPC
+      - ./logs:/var/log
+  
+  xrpl_node:
+    image: xrpld:latest
+    command: ["--seed", "${XRPL_SEED}", "watch-bundles"]

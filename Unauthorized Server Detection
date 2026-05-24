@@ -1,0 +1,18 @@
+def validate_server_authorization(self, server_eid, node_signers):
+    # 1. EID whitelist check
+    if server_eid not in TRUSTED_EIDS:
+        self.blacklist_eid(server_eid)
+        self.rf_broadcast_eviction(server_eid)
+        return False
+    
+    # 2. Node proximity validation (<50cm RF)
+    for node_id in node_signers:
+        if not self.rf_proximity_check(node_id, server_eid):
+            logger.warning(f"Node {node_id} too distant from {server_eid}")
+            return False
+    
+    # 3. Live DNA root hash match
+    if not self.live_dna_validation():
+        return False
+    
+    return True

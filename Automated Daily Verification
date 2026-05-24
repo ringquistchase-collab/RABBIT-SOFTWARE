@@ -1,0 +1,6 @@
+NEURAL_GATEWAY CRON (05:00 AM CDT):
+1. HEAD_01 → cheek swab + FR → live_root_hash
+2. Query 18 frozen anchors → validate ALL signatures
+3. 26-node RF poll → consensus threshold
+4. CRITICAL failures → CHEST_01 emergency shutdown
+5. Log → blockchain audit trail (hashes only)

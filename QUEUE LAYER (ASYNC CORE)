@@ -1,0 +1,18 @@
+# rabbitos/core/queue.py
+
+class LocalQueue:
+    def __init__(self):
+        self.tasks = []
+        self.counter = 0
+
+    def push(self, task):
+        self.counter += 1
+        task["id"] = self.counter
+        self.tasks.append(task)
+        return self.counter
+
+    def pop(self):
+        return self.tasks.pop(0) if self.tasks else None
+
+    def size(self):
+        return len(self.tasks)

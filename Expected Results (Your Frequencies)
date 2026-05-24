@@ -1,0 +1,8 @@
+**Literature** (900 MHz GSM): α +3.2% (SMD=0.16)
+**Scaled** (10.245 GHz, 0.01 W/kg): α +1.2-2.1% expected
+**Your Detection**: 95% power @ n=42 days
+
+**Safety Action Levels**:
+z < 2.5: Normal operations
+2.5 ≤ z < 3.0: Log + monitor
+z ≥ 3.0: Duty cycle reduction

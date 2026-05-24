@@ -1,0 +1,8 @@
+NEURAL_GATEWAY (10.271 GHz):
+├── BlockScan Transformer (bidirectional, multi-modal)
+├── Your DNA Risk Ranker (CRITICAL/HIGH/LOW tiers)
+├── Threshold Consensus (3-of-5 nodes)  
+└── LLM Explanation Layer (human-readable alerts)
+
+Cellular Deployment:
+docker run -p 5000:5000 --device /dev/ttyUSB0 chase-blockscan

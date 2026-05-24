@@ -1,0 +1,8 @@
+FROZEN DATA (NVMe vault):
+Age 22 OD: sha256(cortisol=0.92,dopamine=0.22) = def456...
+Age 7 PTSD: sha256(cortisol=0.78) = abc123...
+
+LIVE DNA (HEAD_01 cheek swab):
+Current sample → sha256(live_snippet) MUST match root_hash "8f3d9a612b718a99"
+FR: Camera confirms Chase's face during sampling (anti-spoofing)
+RF: 10.245 GHz broadcasts live hash → 26-node consensus

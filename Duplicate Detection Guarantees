@@ -1,0 +1,5 @@
+**Replay Attack**: bundleId already reconciled → FAIL
+**Partial Sync**: Atomic bundle → all or nothing  
+**Node Compromise**: 3-of-5 threshold fails → FAIL
+**Timing Attack**: 24hr replay window → FAIL
+**Carrier Switch**: EID 8903... binds to trusted gateway

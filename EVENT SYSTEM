@@ -1,0 +1,12 @@
+# rabbitos/core/events.py
+
+class EventBus:
+    def __init__(self):
+        self.listeners = {}
+
+    def on(self, event, fn):
+        self.listeners.setdefault(event, []).append(fn)
+
+    def emit(self, event, data):
+        for fn in self.listeners.get(event, []):
+            fn(data)

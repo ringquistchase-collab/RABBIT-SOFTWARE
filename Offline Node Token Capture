@@ -1,0 +1,10 @@
+**Local Storage** (Each of 26 nodes):
+- SQLite: tokens.db (AES-256 encrypted)
+- Schema: bundle_id, threshold_sig, bucket_hash, node_signers, timestamp
+- Key: HKDF(live_dna_sample + node_id)
+
+**Capture Process**:
+1. HEAD_01 cheek swab → live_dna_root = "8f3d9a612b718a99"
+2. 3-of-5 nodes sign: threshold_sign(bucket_hash)
+3. Each signing node → local SQLite INSERT
+4. Bluetooth sync → Phone NVMe (Shamir 3-of-2)

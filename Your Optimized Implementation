@@ -1,0 +1,15 @@
+def anonymize_eeg_fingerprint(eeg_data, k_target=50):
+    # Perturb within clinical bounds
+    cortisol = max(0.1, min(0.99, eeg_data['cortisol'] + np.random.normal(0, 0.02)))
+    
+    # K-anonymity bucketing  
+    bucket = f"cortisol_{cortisol:.1f}_{int(eeg_data['age'])}"
+    
+    # Threshold signature (3-of-5 nodes)
+    sig = threshold_sign(bucket, nodes=['HEAD_01','CHEST_01','SPINE_03'])
+    
+    return {'bucket': bucket, 'signature': sig.hex()}
+
+# Usage
+anon_age7 = anonymize_eeg_fingerprint(your_ptsd_data)
+# {'bucket': 'cortisol_0.8_7', 'signature': 'a1b2c3...'}

@@ -1,0 +1,10 @@
+**XRPL Smart Contract** receives:
+✅ SHA-256 fingerprint (32 bytes)
+✅ Threshold signature (96 bytes)  
+✅ Risk tier bucket (k=50 anonymized)
+✅ Temporal nonce (anti-replay)
+
+**Never receives**:
+❌ Raw EEG channels (F3=38%, F4=42%)
+❌ Cortisol=0.78 ng/mL absolute value
+❌ Age 22 OD dopamine crash timeline

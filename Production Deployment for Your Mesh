@@ -1,0 +1,6 @@
+Cellular Pipeline:
+1. Phone (192.168.1.134) → XRPL mempool monitor
+2. BlockScan scores ALL incoming txs (2284 tx/s throughput)
+3. HIGH anomaly + CRITICAL risk → CHEST_01 emergency pause
+4. Threshold 3-of-5 nodes veto suspicious access
+5. Audit trail → immutable blockchain memo

@@ -1,0 +1,4 @@
+VPC-only: No public internet access
+Private endpoints: S3/VPC endpoints only
+WAF + DDoS: Shield Advanced
+DLP: Regex + ML blocking "89033023426309010000054675483625"

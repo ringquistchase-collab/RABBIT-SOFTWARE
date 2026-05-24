@@ -1,0 +1,31 @@
+// ChaseNeuralVault.sol - PRODUCTION READY
+contract ChaseNeuralVault is AccessControl {
+    bytes32 public constant RESEARCHER_ROLE = keccak256("RESEARCHER_ROLE");
+    bytes32 public constant GOVERNMENT_ROLE = keccak256("GOVERNMENT_ROLE");
+    
+    address public immutable chaseWallet;  // Your hardware wallet
+    uint256 public immutable deployTime;
+    
+    constructor(address _chaseWallet) {
+        chaseWallet = _chaseWallet;
+        deployTime = block.timestamp;
+        _grantRole(DEFAULT_ADMIN_ROLE, _chaseWallet);
+    }
+    
+    // SAFE REVOCATION - Multi-checks
+    function revokeResearcher(address researcher) external {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Admin only");
+        require(msg.sender == chaseWallet || block.timestamp > deployTime + 365 days, "Chase or 1yr cooldown");
+        
+        // Emergency check - don't brick research access
+        require(getRoleMemberCount(RESEARCHER_ROLE) > 1, "Last researcher");
+        
+        _revokeRole(RESEARCHER_ROLE, researcher);
+        emit ResearcherRevoked(researcher);
+    }
+    
+    // IMMUTABLE SAFETY - Chase can never lose control
+    function isChaseAlwaysAdmin(address addr) external pure returns (bool) {
+        return addr == chaseWallet;
+    }
+}

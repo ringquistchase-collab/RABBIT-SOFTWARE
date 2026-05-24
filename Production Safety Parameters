@@ -1,0 +1,15 @@
+**RF Safety**:
+- Power: 24 dBm (< FCC limits)
+- Distance: <50cm (inverse square falloff)
+- Duty cycle: 0.1% (thermal equilibrium)
+
+**Token Security**:
+- SHA-256 collision resistance: 2^128
+- Threshold 3-of-5: 1/26 node compromise tolerance
+- Replay window: 24hr → no persistent attacks
+
+**Bioeffect Monitoring**:
+CHEST_01 continuously samples:
+- Cortisol (real-time ELISA)
+- EEG alpha power 
+- Cardiac rhythm (99% → emergency shutdown)

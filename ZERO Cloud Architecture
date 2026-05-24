@@ -1,0 +1,12 @@
+# NO CLOUD: Local-only DNA blockchain + IPFS pinning
+class LocalDNABlockchain:
+    def __init__(self):
+        self.store = "/mnt/neural_safe/encrypted_timelines"  # Local NVMe
+        self.keys = argon2.from_dna_eid(phone['eid_esim'])  # Hardware-bound
+    
+    def store_eeg_template(self, age, eeg_hash):
+        # Shamir-split across 5 local drives (3-of-5 recovery)
+        fragments = shamir_split(eeg_hash, 5, 3)
+        for i, frag in enumerate(fragments):
+            with open(f"{self.store}/age{age}_frag{i}", "wb") as f:
+                f.write(AESGCM(self.keys).encrypt(frag))

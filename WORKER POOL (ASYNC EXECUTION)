@@ -1,0 +1,27 @@
+# rabbitos/workers/pool.py
+
+import threading
+import time
+
+class WorkerPool:
+    def __init__(self, queue, agents):
+        self.queue = queue
+        self.agents = agents
+        self.running = False
+
+    def start(self):
+        self.running = True
+        thread = threading.Thread(target=self._run, daemon=True)
+        thread.start()
+
+    def _run(self):
+        print("[RabbitOS] Worker Pool started")
+
+        while self.running:
+            task = self.queue.pop()
+
+            if task:
+                for agent in self.agents:
+                    agent.handle(task)
+
+            time.sleep(0.1)

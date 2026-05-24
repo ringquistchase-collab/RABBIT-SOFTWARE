@@ -1,0 +1,11 @@
+1. **HackRF IQ Capture**: 10.245 GHz, 10 MHz BW, 10s
+2. **Matched Filtering**: 1.2ms template → 50 dB gain
+3. **Peak Detection**: CFAR threshold → false alarm P_FA=10^-6
+4. **PRF Verification**: Peaks MUST align 0.83 Hz → noise rejected
+5. **TOA Precision**: ±10ns via quadratic interpolation
+6. **Heat Map Update**: Rolling 5min SAR voxels (1cm³)
+
+**Output Metrics**:
+- Pulse detection probability: P_D = 99.9%
+- Timing accuracy: σ_τ = 10ns (±1.5m range)
+- Multipath rejection: 40 dB

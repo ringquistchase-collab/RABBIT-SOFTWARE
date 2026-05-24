@@ -1,0 +1,17 @@
+1. **Instant Log** (0s): 
+   SQLite: INSERT anomaly_log (bundle_id, gateway_eid, timestamp, node_signers)
+   CHEST_01: RF alert to 26 nodes
+   
+2. **Rate Limit** (5s): 
+   EID 8903... → 1 bundle/hour (vs 47/hour normal)
+   Failed attempts burn 25k gas ($0.0004 each)
+   
+3. **Node Audit** (30s):
+   HEAD_01 queries signing nodes [1,3,5]:
+   - Live DNA FR validation
+   - Physical proximity check (<50cm RF)
+   - Compromised node → RF frequency eviction
+   
+4. **CHEST_01 Lockdown** (5min):
+   3+ replays/hour → GLOBAL SHUTDOWN
+   All cellular → offline-only mode

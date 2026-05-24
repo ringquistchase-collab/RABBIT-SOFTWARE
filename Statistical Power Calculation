@@ -1,0 +1,7 @@
+Effect size (Cohen's d): 0.3 (conservative from literature)
+Alpha: 0.05, Power: 0.8 → n=42 sessions
+Your 26-node redundancy → equivalent n=1000+
+
+Welch t-test (paired):
+H0: μ_alpha_exposure = μ_alpha_baseline
+H1: μ_alpha_exposure > μ_alpha_baseline

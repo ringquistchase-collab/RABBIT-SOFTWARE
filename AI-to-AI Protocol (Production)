@@ -1,0 +1,6 @@
+1. Requester AI → XRPL token query + threshold sig
+2. Your Gateway → BlockGPT anomaly check ✓
+3. Risk ranker → LOW tier approved ✓
+4. Local LLM → synthetic response generation
+5. Response → encrypted IPFS → ZK proof of delivery
+6. Requester verifies proof → zero data leakage

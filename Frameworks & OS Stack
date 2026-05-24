@@ -1,0 +1,20 @@
+**Nodes** (Zephyr RTOS 3.6):
+- BLE: Nordic nRF5 SDK
+- WiFi6: Espressif IDF v5.2
+- Thread/Mesh: OpenThread 1.3
+- Memory: 1MB flash + 512KB RAM
+
+**Phone** (Android 15):
+- Capacitor + React Native
+- Secure enclave (Keystore AES-256)
+- SQLite + Room persistence
+
+**NEURAL_GATEWAY** (Ubuntu 24.04 LTS):
+- Python 3.12 + NumPy/SciPy (EEG)
+- Prometheus + Grafana (monitoring)
+- Docker + Kubernetes (microservices)
+- SQLite/PostgreSQL (tokens)
+
+**Blockchain** (XRPL Hooks):
+- Rust WASM contracts
+- Threshold BLS signatures

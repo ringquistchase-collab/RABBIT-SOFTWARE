@@ -1,0 +1,13 @@
+Galvanic Skin Response (GSR) Propagation
+
+**Stress → Sweat → Skin Conductivity ↑**
+Cortisol 0.78 → eccrine gland activation → σ_skin = 1.2 → 2.1 S/m
+
+**RF Signature**:
+- Dielectric constant shift: ε_r 45 → 48 (+6.7%)
+- Phase advance: φ = 0.12 → 0.18 rad (+50%)
+- HEAD_01 detects via reflection coefficient Γ change
+
+**SDR Observable**:
+IQ phase trajectory shows stress-correlated rotation
+α = 10.2 Hz EEG + φ = 0.18 rad skin → compound signature

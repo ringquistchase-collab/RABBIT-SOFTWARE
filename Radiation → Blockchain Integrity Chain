@@ -1,0 +1,8 @@
+1. **RF Exposure** → minor EEG alpha shift (+2%)
+2. **EEG Digitisation** → SHA-256 fingerprint (lossless hash)
+3. **Threshold Signing** → 3-of-5 nodes (physical quorum)
+4. **Cellular Burst** → EID 8903... → XRPL Hooks
+5. **Smart Contract** → bundleId validation
+
+**Critical**: Steps 1-2 decoupled
+Alpha shift ≠ fingerprint change

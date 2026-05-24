@@ -1,0 +1,39 @@
+import hashlib
+from dataclasses import dataclass
+
+@dataclass
+class Tx:
+    tx_hash: str
+    sender: str
+    to: str
+    method: str
+    amount: float
+    timestamp: int
+    raw_logs: str
+
+def feature_hash(tx: Tx) -> str:
+    payload = f"{tx.sender}|{tx.to}|{tx.method}|{tx.amount}|{tx.timestamp}|{tx.raw_logs}"
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+def anomaly_score(tx: Tx) -> float:
+    # Replace with a trained transformer / GNN score
+    suspicious = 0.0
+    if tx.amount > 100000:
+        suspicious += 0.4
+    if tx.method in {"approve", "delegatecall", "mint"}:
+        suspicious += 0.3
+    if "rare_pattern" in tx.raw_logs:
+        suspicious += 0.3
+    return min(1.0, suspicious)
+
+def llm_explain(tx: Tx, score: float) -> str:
+    return (
+        f"Transaction {tx.tx_hash} looks unusual because it uses method "
+        f"{tx.method}, transfers {tx.amount}, and has score {score:.2f}."
+    )
+
+def detect(tx: Tx):
+    score = anomaly_score(tx)
+    explanation = llm_explain(tx, score)
+    tx_id = feature_hash(tx)
+    return {"id": tx_id, "score": score, "explanation": explanation, "flagged": score > 0.6}

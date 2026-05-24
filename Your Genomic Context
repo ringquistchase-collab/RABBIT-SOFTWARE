@@ -1,0 +1,11 @@
+Public Subnet (ALB/SocketIO - 192.168.1.134 phone equiv):
+├── Route: 0.0.0.0/0 → IGW (SocketIO neural broadcasts)
+├── Security Group: TCP 5000, 443 → Private Subnet
+└── NO genomic data storage
+
+Private Subnet (EEG Processing):
+├── Route: 0.0.0.0/0 → NAT (pip install updates only)
+├── Security Group: TCP 443 ← Public ALB only
+├── Tier1 Raw EEG (10.0.10.5) → HEAD_01 equivalent
+├── Tier2 Hashes (10.0.10.6) → CHEST_01 fingerprints
+└── NO inbound internet

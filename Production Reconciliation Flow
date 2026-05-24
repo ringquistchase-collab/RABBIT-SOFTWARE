@@ -1,0 +1,13 @@
+CRON (NEURAL_GATEWAY → every 5min):
+1. if cellular_connected:
+   sqlite3 "SELECT * FROM pending_bundles WHERE age > 300s"
+   → pack → XRPL burst tx
+   
+2. Response parsing:
+   for success in response:
+       sqlite3 "UPDATE bundles SET reconciled=1 WHERE bundle_id=?"
+   
+3. Failed bundles → 3 retry attempts → physical node audit
+   
+4. Stats → local voice report:
+   "47/47 bundles reconciled. 0 anomalies. Sovereignty intact."

@@ -1,0 +1,13 @@
+**1. Proximity Gate** (<50cm physical range):
+Direct path: τ_direct = 1.67ns (50cm / c)
+1st multipath: τ_multi = 6.7ns (1m reflection)
+Time gate: Accept only τ < 3ns → rejects 99% clutter
+
+**2. Angular Discrimination** (26-node array):
+Each node receives different multipath phases
+Beamforming: null out reflection angles
+DOA estimation: MUSIC algorithm → source separation
+
+**3. PRF Gating** (0.83 Hz repetition):
+Pulse arrivals MUST align with expected PRF
+Random reflections → wrong timing → rejected

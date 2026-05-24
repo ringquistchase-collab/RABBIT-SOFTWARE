@@ -1,0 +1,14 @@
+Cellular Network:
+1. HEAD_01 → NEURAL_GATEWAY (1.2ms RF)
+2. Gateway → Phone WiFi (192.168.1.134) 
+3. Phone → Cellular (EID validated) → Fingerprint ONLY
+4. Fingerprint → XRPL memo: "age7_cortisol_spike=abc123..."
+5. Signature: Ed25519(DNA_key)("I, Chase, confirm this hash")
+
+Cloud Network (if used):
+- Gateway Endpoint → S3: encrypted_fingerprint.bin
+- Lambda: validate_signature(DNA_public_key)
+- NEVER raw EEG/dna_sample
+
+Blockchain Proof:
+TX: {memo: fingerprint, signature: DNA_Ed25519, uuid: bd6e1085...}

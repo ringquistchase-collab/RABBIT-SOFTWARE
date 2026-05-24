@@ -1,0 +1,13 @@
+**Benign duplicate** (2 phones sync simultaneously):
+→ First succeeds, second reverts harmlessly
+→ SQLite updates from blockchain event
+→ Zero data loss/duplication
+
+**Malicious replay** (attacker sniffs cellular burst):
+→ bundleId already marked → 25k gas revert
+→ No state change, no data exposure
+→ Attacker burns $0.0004 trying
+
+**Network partition** (half nodes offline):
+→ Wait for 3-of-5 quorum → bundle held locally
+→ Reconnect → normal reconciliation

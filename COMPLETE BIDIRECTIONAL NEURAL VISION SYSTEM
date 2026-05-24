@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 COMPLETE BIDIRECTIONAL NEURAL VISION SYSTEM
@@ -45,6 +46,7 @@ class EEGVRHeadset:
     Virtual Reality headset with integrated EEG sensors
     Captures brain signals while displaying visual stimuli
     """
+   
     
     # Electrode placements (10-20 system)
     EEG_CHANNELS = {
@@ -55,6 +57,7 @@ class EEGVRHeadset:
         'O1': (40, 15), 'O2': (60, 15),      # Occipital (visual cortex!)
         'T3': (15, 50), 'T4': (85, 50)       # Temporal
     }
+   
     
     def __init__(self, device_id: str = "VR_HELMET_001"):
         self.device_id = device_id
@@ -62,6 +65,11 @@ class EEGVRHeadset:
         self.buffer_size = 250    # 1 second buffer
         self.running = False
         self.eeg_thread = None
+       
+        # Real-time EEG data buffer
+        self.eeg_buffer = deque(maxlen=self.sampling_rate * 10)
+        self.current_frame = None
+       
         
         # Real-time EEG data buffer
         self.eeg_buffer = deque(maxlen=self.sampling_rate * 10)
@@ -71,6 +79,11 @@ class EEGVRHeadset:
         self.display_width = 1920
         self.display_height = 1080
         self.fov_degrees = 110
+       
+        print(f"🎮 EEG-VR Headset Initialized: {device_id}")
+        print(f"   Electrodes: {len(self.EEG_CHANNELS)}")
+        print(f"   Sample Rate: {self.sampling_rate} Hz")
+   
         
         print(f"🎮 EEG-VR Headset Initialized: {device_id}")
         print(f"   Electrodes: {len(self.EEG_CHANNELS)}")
@@ -83,6 +96,7 @@ class EEGVRHeadset:
         self.eeg_thread = threading.Thread(target=self._capture_loop, daemon=True)
         self.eeg_thread.start()
         print("✅ EEG Capture Active")
+   
     
     def _capture_loop(self):
         """Simulate real EEG capture from VR headset sensors"""
@@ -90,6 +104,7 @@ class EEGVRHeadset:
         while self.running:
             # Generate realistic EEG data based on visual stimulation
             eeg_data = self._simulate_eeg_response(t)
+           
             
             # Add to buffer
             self.eeg_buffer.append({
@@ -97,6 +112,14 @@ class EEGVRHeadset:
                 'channels': eeg_data,
                 'frame_data': self.current_frame
             })
+           
+            # Callback for processing
+            if self.callback:
+                self.callback(eeg_data)
+           
+            t += 1 / self.sampling_rate
+            time.sleep(1 / self.sampling_rate)
+   
             
             # Callback for processing
             if self.callback:
@@ -111,6 +134,7 @@ class EEGVRHeadset:
         Different channels respond to different visual features
         """
         eeg_data = {}
+       
         
         for channel, (x, y) in self.EEG_CHANNELS.items():
             # Occipital channels (visual cortex) respond to visual patterns
@@ -119,16 +143,21 @@ class EEGVRHeadset:
                 vep = 10 * np.sin(2 * np.pi * 8 * t)  # 8 Hz alpha
                 vep += 5 * np.sin(2 * np.pi * 15 * t) # 15 Hz beta
                 eeg_data[channel] = vep + np.random.normal(0, 2)
+           
             
             # Frontal channels (attention/cognition)
             elif channel in ['Fp1', 'Fp2', 'F3', 'F4']:
                 theta = 5 * np.sin(2 * np.pi * 6 * t)  # Theta (attention)
                 eeg_data[channel] = theta + np.random.normal(0, 1.5)
+           
             
             # Central channels (motor/sensory)
             else:
                 alpha = 8 * np.sin(2 * np.pi * 10 * t)  # Alpha (relaxation)
                 eeg_data[channel] = alpha + np.random.normal(0, 1)
+       
+        return eeg_data
+   
         
         return eeg_data
     
@@ -137,6 +166,7 @@ class EEGVRHeadset:
         self.current_frame = frame
         # In production: send to VR display via OpenXR/WebXR
         pass
+   
     
     def stop_capture(self):
         self.running = False
@@ -153,16 +183,28 @@ class VisionNeuralNode(nn.Module):
     Neural node with built-in vision processing
     Converts visual input to neural activations and RF signals
     """
+   
     
     def __init__(self, node_id: str, receptive_field: Tuple[int, int]):
         super().__init__()
         self.node_id = node_id
         self.receptive_field = receptive_field
+       
         
         # Vision processing layers
         self.conv1 = nn.Conv2d(1, 16, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
         self.conv3 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+       
+        # Neural activation
+        self.activation = nn.Tanh()
+       
+        # RF modulation parameters
+        self.rf_frequency = 10.23  # GHz base frequency
+        self.rf_phase = 0.0
+       
+        print(f"🧠 Vision Neural Node: {node_id}")
+   
         
         # Neural activation
         self.activation = nn.Tanh()
@@ -183,6 +225,10 @@ class VisionNeuralNode(nn.Module):
         x = self.conv2(x)
         x = F.relu(x)
         x = self.conv3(x)
+       
+        # Neural activation pattern
+        neural_pattern = self.activation(x)
+       
         
         # Neural activation pattern
         neural_pattern = self.activation(x)
@@ -194,6 +240,7 @@ class VisionNeuralNode(nn.Module):
             'sparsity': (neural_pattern > 0.5).float().mean(),
             'rf_frequency': self.rf_frequency + (neural_pattern.mean().item() * 0.05)
         }
+       
         
         return {
             'neural_pattern': neural_pattern,
@@ -207,11 +254,13 @@ class VisionNeuralNetwork:
     Distributed neural network processing visual input
     Each node processes a region of the visual field
     """
+   
     
     def __init__(self, grid_size: Tuple[int, int] = (8, 8)):
         self.grid_rows, self.grid_cols = grid_size
         self.nodes = {}
         self.node_grid = [[None for _ in range(grid_size[1])] for _ in range(grid_size[0])]
+       
         
         # Create vision nodes in grid formation
         for i in range(grid_size[0]):
@@ -220,6 +269,10 @@ class VisionNeuralNetwork:
                 node = VisionNeuralNode(node_id, (32, 32))
                 self.nodes[node_id] = node
                 self.node_grid[i][j] = node
+       
+        print(f"🌐 Vision Neural Network: {len(self.nodes)} nodes")
+        print(f"   Grid: {grid_size[0]}x{grid_size[1]}")
+   
         
         print(f"🌐 Vision Neural Network: {len(self.nodes)} nodes")
         print(f"   Grid: {grid_size[0]}x{grid_size[1]}")
@@ -232,6 +285,10 @@ class VisionNeuralNetwork:
         height, width = image.shape[:2]
         patch_h = height // self.grid_rows
         patch_w = width // self.grid_cols
+       
+        node_outputs = {}
+        rf_signals = {}
+       
         
         node_outputs = {}
         rf_signals = {}
@@ -243,6 +300,26 @@ class VisionNeuralNetwork:
                 y_end = (i + 1) * patch_h
                 x_start = j * patch_w
                 x_end = (j + 1) * patch_w
+               
+                patch = image[y_start:y_end, x_start:x_end]
+               
+                # Convert to tensor
+                patch_tensor = torch.from_numpy(patch).float().unsqueeze(0).unsqueeze(0)
+               
+                # Process through node
+                node = self.node_grid[i][j]
+                output = node(patch_tensor)
+               
+                node_outputs[f"{i}_{j}"] = {
+                    'neural_pattern': output['neural_pattern'].detach().numpy(),
+                    'features': {k: v.item() if torch.is_tensor(v) else v
+                                for k, v in output['features'].items()},
+                    'position': (i, j)
+                }
+               
+                # RF signal from node
+                rf_signals[f"{i}_{j}"] = output['features']['rf_frequency']
+       
                 
                 patch = image[y_start:y_end, x_start:x_end]
                 
@@ -268,6 +345,11 @@ class VisionNeuralNetwork:
             'rf_signals': rf_signals,
             'global_features': self._aggregate_features(node_outputs)
         }
+   
+    def _aggregate_features(self, node_outputs: Dict) -> Dict:
+        """Aggregate features from all nodes"""
+        all_features = [out['features'] for out in node_outputs.values()]
+       
     
     def _aggregate_features(self, node_outputs: Dict) -> Dict:
         """Aggregate features from all nodes"""
@@ -290,6 +372,7 @@ class BidirectionalRFTransceiver:
     Full-duplex RF transceiver for neural data transmission
     Sends and receives neural patterns over RF spectrum
     """
+   
     
     def __init__(self, frequency_band_ghz: Tuple[float, float] = (10.0, 11.0)):
         self.frequency_band = frequency_band_ghz
@@ -297,6 +380,13 @@ class BidirectionalRFTransceiver:
         self.receive_queue = queue.Queue()
         self.running = False
         self.rf_thread = None
+       
+        # Frequency allocation
+        self.frequency_map = {}
+        self.next_frequency = frequency_band_ghz[0]
+       
+        print(f"📡 Bidirectional RF Transceiver: {frequency_band_ghz[0]}-{frequency_band_ghz[1]} GHz")
+   
         
         # Frequency allocation
         self.frequency_map = {}
@@ -310,6 +400,7 @@ class BidirectionalRFTransceiver:
         self.rf_thread = threading.Thread(target=self._rf_loop, daemon=True)
         self.rf_thread.start()
         print("✅ RF Transceiver Active")
+   
     
     def _rf_loop(self):
         """Main RF processing loop"""
@@ -320,11 +411,15 @@ class BidirectionalRFTransceiver:
                 self._transmit(tx_data)
             except queue.Empty:
                 pass
+           
             
             # Check for incoming signals
             rx_data = self._receive()
             if rx_data:
                 self.receive_queue.put(rx_data)
+           
+            time.sleep(0.001)  # 1ms cycle
+   
             
             time.sleep(0.001)  # 1ms cycle
     
@@ -332,6 +427,16 @@ class BidirectionalRFTransceiver:
         """Transmit data over RF"""
         node_id = data.get('node_id', 'unknown')
         neural_pattern = data.get('neural_pattern', [])
+       
+        # Encode neural pattern to RF signal
+        frequency = self._allocate_frequency(node_id)
+        signal = self._encode_neural_to_rf(neural_pattern, frequency)
+       
+        print(f"   📤 TX: {node_id} @ {frequency:.4f} GHz | Pattern: {len(neural_pattern)} bytes")
+       
+        # In production: actual SDR transmission
+        return True
+   
         
         # Encode neural pattern to RF signal
         frequency = self._allocate_frequency(node_id)
@@ -353,6 +458,7 @@ class BidirectionalRFTransceiver:
                 'frequency': self.next_frequency + np.random.uniform(-0.1, 0.1)
             }
         return None
+   
     
     def _allocate_frequency(self, node_id: str) -> float:
         """Allocate unique frequency for node"""
@@ -362,6 +468,7 @@ class BidirectionalRFTransceiver:
             if self.next_frequency > self.frequency_band[1]:
                 self.next_frequency = self.frequency_band[0]
         return self.frequency_map[node_id]
+   
     
     def _encode_neural_to_rf(self, neural_pattern: List[float], frequency: float) -> np.ndarray:
         """Encode neural pattern as RF signal"""
@@ -370,6 +477,7 @@ class BidirectionalRFTransceiver:
         carrier = np.sin(2 * np.pi * frequency * t)
         modulated = carrier * (1 + 0.5 * np.array(neural_pattern[:len(t)]))
         return modulated
+   
     
     def send_neural_pattern(self, node_id: str, neural_pattern: List[float]):
         """Send neural pattern to network"""
@@ -378,6 +486,7 @@ class BidirectionalRFTransceiver:
             'neural_pattern': neural_pattern,
             'timestamp': time.time()
         })
+   
     
     def receive_neural_pattern(self) -> Optional[Dict]:
         """Receive neural pattern from network"""
@@ -396,11 +505,13 @@ class LLMVisionTokenizer:
     Converts neural patterns to LLM tokens and generates visual descriptions
     Acts as the "receiver end" that shows as LLM/generator
     """
+   
     
     def __init__(self, model_name: str = "gpt-4-vision-preview"):
         self.model_name = model_name
         self.token_history = []
         self.generated_descriptions = []
+       
         
         # Vision-language model integration
         try:
@@ -412,6 +523,7 @@ class LLMVisionTokenizer:
         except:
             self.has_blip = False
             print("⚠️ BLIP not available - using fallback")
+       
         
         # LLM for description generation
         try:
@@ -420,6 +532,7 @@ class LLMVisionTokenizer:
             self.has_llm = True
         except:
             self.has_llm = False
+   
     
     def neural_to_tokens(self, neural_pattern: np.ndarray) -> List[str]:
         """
@@ -429,6 +542,13 @@ class LLMVisionTokenizer:
         # Quantize neural pattern to 8-bit values
         pattern_norm = (neural_pattern - neural_pattern.min()) / (neural_pattern.max() - neural_pattern.min() + 1e-6)
         quantized = (pattern_norm * 255).astype(np.uint8)
+       
+        # Convert to hex tokens
+        hex_tokens = [f"{val:02x}" for val in quantized[:64]]
+       
+        # Generate semantic tokens
+        semantic_tokens = self._extract_semantic_tokens(neural_pattern)
+       
         
         # Convert to hex tokens
         hex_tokens = [f"{val:02x}" for val in quantized[:64]]
@@ -442,6 +562,10 @@ class LLMVisionTokenizer:
             'token_count': len(hex_tokens),
             'entropy': -np.sum(pattern_norm * np.log2(pattern_norm + 1e-6))
         }
+       
+        self.token_history.append(tokens)
+        return tokens
+   
         
         self.token_history.append(tokens)
         return tokens
@@ -452,6 +576,10 @@ class LLMVisionTokenizer:
         mean_act = np.mean(neural_pattern)
         max_act = np.max(neural_pattern)
         sparsity = np.sum(neural_pattern > 0.5) / len(neural_pattern)
+       
+        # Map to semantic concepts
+        concepts = []
+       
         
         # Map to semantic concepts
         concepts = []
@@ -462,6 +590,7 @@ class LLMVisionTokenizer:
             concepts.append("DENSE_PATTERN")
         if max_act > 0.9:
             concepts.append("PEAK_RESPONSE")
+       
         
         # Visual feature detection
         if len(neural_pattern) > 10:
@@ -470,6 +599,9 @@ class LLMVisionTokenizer:
                 concepts.append("VARIED_PATTERN")
             else:
                 concepts.append("UNIFORM_PATTERN")
+       
+        return concepts
+   
         
         return concepts
     
@@ -480,6 +612,7 @@ class LLMVisionTokenizer:
         """
         print(f"\n🤖 LLM Vision Token Processor Active")
         print(f"   Processing {tokens['token_count']} visual tokens...")
+       
         
         # Use BLIP for image captioning if available
         if self.has_blip and image is not None:
@@ -489,6 +622,11 @@ class LLMVisionTokenizer:
         else:
             # Generate description from tokens
             description = self._generate_description_from_tokens(tokens)
+       
+        # Add semantic interpretation
+        semantic_text = ", ".join(tokens['semantic_tokens'])
+        final_description = f"[VISUAL SCENE] {description}\n[NEURAL SIGNATURE] {semantic_text}\n[CONFIDENCE] HIGH"
+       
         
         # Add semantic interpretation
         semantic_text = ", ".join(tokens['semantic_tokens'])
@@ -499,6 +637,9 @@ class LLMVisionTokenizer:
             'description': final_description,
             'tokens': tokens
         })
+       
+        return final_description
+   
         
         return final_description
     
@@ -515,6 +656,7 @@ class LLMVisionTokenizer:
                 return response.choices[0].message.content
             except:
                 pass
+       
         
         # Fallback deterministic description
         if "HIGH_ACTIVATION" in tokens['semantic_tokens']:
@@ -523,6 +665,7 @@ class LLMVisionTokenizer:
             return "Complex visual pattern with rich texture and detail"
         else:
             return "Neural visual field with moderate activation patterns"
+   
     
     def tokens_to_python_code(self, tokens: Dict) -> str:
         """
@@ -539,6 +682,11 @@ import matplotlib.pyplot as plt
 
 def visualize_neural_pattern():
     '''Generate visualization from neural tokens'''
+   
+    # Neural pattern reconstruction
+    pattern = np.array([{', '.join(tokens['visual_tokens'][:16])}], dtype=float)
+    pattern = pattern / 255.0
+   
     
     # Neural pattern reconstruction
     pattern = np.array([{', '.join(tokens['visual_tokens'][:16])}], dtype=float)
@@ -549,6 +697,7 @@ def visualize_neural_pattern():
     im = ax.imshow(pattern.reshape(4, 4), cmap='viridis')
     ax.set_title('Neural Visual Field Reconstruction')
     plt.colorbar(im)
+   
     
     return fig
 
@@ -567,6 +716,7 @@ class CompleteNeuralVisionSystem:
     """
     Complete bidirectional system:
     EEG/VR → Neural Nodes → RF → Vision → LLM → Python Code → Sight
+   
     
     This system runs live and can be seen on the receiver end as:
     - LLM generating descriptions
@@ -574,6 +724,7 @@ class CompleteNeuralVisionSystem:
     - Images being rendered
     - RF signals transmitting
     """
+   
     
     def __init__(self):
         # Initialize all components
@@ -581,11 +732,16 @@ class CompleteNeuralVisionSystem:
         self.vision_network = VisionNeuralNetwork(grid_size=(4, 4))
         self.rf_transceiver = BidirectionalRFTransceiver()
         self.vision_tokenizer = LLMVisionTokenizer()
+       
         
         # Live processing streams
         self.live_video_stream = None
         self.generated_images = []
         self.python_code_outputs = []
+       
+        # Start RF transceiver
+        self.rf_transceiver.start()
+       
         
         # Start RF transceiver
         self.rf_transceiver.start()
@@ -594,6 +750,17 @@ class CompleteNeuralVisionSystem:
         print("🎯 COMPLETE NEURAL VISION SYSTEM ACTIVE")
         print("   EEG/VR → Nodes → RF → LLM → Vision → Code")
         print("="*60)
+   
+    def start_live_vision_processing(self, camera_id: int = 0):
+        """Start live vision processing from camera or VR headset"""
+       
+        # Open camera for live vision
+        cap = cv2.VideoCapture(camera_id)
+        frame_count = 0
+       
+        print("\n📷 Live Vision Processing Started")
+        print("   Press 'q' to stop, 's' to save generated output")
+       
     
     def start_live_vision_processing(self, camera_id: int = 0):
         """Start live vision processing from camera or VR headset"""
@@ -609,6 +776,9 @@ class CompleteNeuralVisionSystem:
         def on_eeg_data(eeg_data):
             # EEG data is used to modulate processing
             pass
+       
+        self.vr_headset.start_capture(on_eeg_data)
+       
         
         self.vr_headset.start_capture(on_eeg_data)
         
@@ -616,6 +786,14 @@ class CompleteNeuralVisionSystem:
             ret, frame = cap.read()
             if not ret:
                 break
+           
+            # Convert to grayscale for neural processing
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray_resized = cv2.resize(gray, (320, 240))
+           
+            # Process through neural network
+            neural_output = self.vision_network.process_visual_scene(gray_resized)
+           
             
             # Convert to grayscale for neural processing
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -629,6 +807,31 @@ class CompleteNeuralVisionSystem:
             for node_out in neural_output['node_outputs'].values():
                 pattern = node_out['neural_pattern'].flatten()[:8]
                 all_patterns.extend(pattern)
+           
+            # Send to RF network
+            self.rf_transceiver.send_neural_pattern("VR_HELMET", all_patterns[:64])
+           
+            # Receive from network
+            received = self.rf_transceiver.receive_neural_pattern()
+           
+            # Convert to tokens and generate LLM output
+            tokens = self.vision_tokenizer.neural_to_tokens(np.array(all_patterns[:64]))
+           
+            # Generate visual description (THIS IS WHAT RECEIVER SEES)
+            description = self.vision_tokenizer.tokens_to_visual_description(tokens, frame)
+           
+            # Generate Python code from thoughts
+            python_code = self.vision_tokenizer.tokens_to_python_code(tokens)
+           
+            # Display on frame
+            display_frame = frame.copy()
+            cv2.putText(display_frame, description[:50], (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            cv2.putText(display_frame, f"RF Freq: {neural_output['rf_signals'].get('0_0', 10.23):.2f} GHz",
+                       (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+           
+            cv2.imshow('Neural Vision Processing - Live', display_frame)
+           
             
             # Send to RF network
             self.rf_transceiver.send_neural_pattern("VR_HELMET", all_patterns[:64])
@@ -663,6 +866,7 @@ class CompleteNeuralVisionSystem:
                     'python_code': python_code[:200] + "..."
                 })
                 print(f"\n📸 Frame {frame_count}: {description[:80]}")
+           
             
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
@@ -670,6 +874,18 @@ class CompleteNeuralVisionSystem:
             elif key == ord('s'):
                 # Save current state
                 self._save_current_state(description, python_code, frame)
+       
+        cap.release()
+        cv2.destroyAllWindows()
+        self.vr_headset.stop_capture()
+   
+    def _save_current_state(self, description: str, python_code: str, frame: np.ndarray):
+        """Save current system state"""
+        timestamp = int(time.time())
+       
+        # Save image
+        cv2.imwrite(f"neural_vision_{timestamp}.png", frame)
+       
         
         cap.release()
         cv2.destroyAllWindows()
@@ -686,6 +902,9 @@ class CompleteNeuralVisionSystem:
         with open(f"description_{timestamp}.txt", "w") as f:
             f.write(f"Neural Vision Description:\n{description}\n\n")
             f.write(f"Generated Python Code:\n{python_code}")
+       
+        print(f"💾 Saved state to neural_vision_{timestamp}.png")
+   
         
         print(f"💾 Saved state to neural_vision_{timestamp}.png")
     
@@ -704,11 +923,22 @@ class CompleteNeuralVisionSystem:
         print("   → Python code being generated in real-time")
         print("   → RF signals being decoded")
         print("="*60)
+       
         
         # Simulate receiving neural patterns
         for i in range(50):
             # Simulate received neural pattern
             received_pattern = np.random.rand(64)
+           
+            # Convert to tokens
+            tokens = self.vision_tokenizer.neural_to_tokens(received_pattern)
+           
+            # Generate description (LLM output)
+            description = self.vision_tokenizer.tokens_to_visual_description(tokens)
+           
+            # Generate Python code
+            python_code = self.vision_tokenizer.tokens_to_python_code(tokens)
+           
             
             # Convert to tokens
             tokens = self.vision_tokenizer.neural_to_tokens(received_pattern)
@@ -726,6 +956,11 @@ class CompleteNeuralVisionSystem:
             print(f"🤖 LLM VISUAL DESCRIPTION:\n{description}")
             print(f"\n🐍 GENERATED PYTHON CODE:\n{python_code[:300]}...")
             print(f"\n🔢 NEURAL TOKENS: {tokens['visual_tokens'][:8]}...")
+           
+            time.sleep(0.1)
+       
+        print("\n✅ Receiver mode complete - LLM and code generation active")
+   
             
             time.sleep(0.1)
         
@@ -740,6 +975,13 @@ class CompleteNeuralVisionSystem:
         print("🔄 BIDIRECTIONAL NEURAL VISION DEMO")
         print("   Vision → Neural → RF → Tokens → LLM → Code")
         print("="*60)
+       
+        # Test image
+        test_image = np.random.randint(0, 255, (240, 320), dtype=np.uint8)
+       
+        # Process through system
+        neural_output = self.vision_network.process_visual_scene(test_image)
+       
         
         # Test image
         test_image = np.random.randint(0, 255, (240, 320), dtype=np.uint8)
@@ -752,6 +994,13 @@ class CompleteNeuralVisionSystem:
         for node_out in neural_output['node_outputs'].values():
             pattern = node_out['neural_pattern'].flatten()[:8]
             all_patterns.extend(pattern)
+       
+        # Send via RF
+        self.rf_transceiver.send_neural_pattern("TEST_NODE", all_patterns[:64])
+       
+        # Receive
+        received = self.rf_transceiver.receive_neural_pattern()
+       
         
         # Send via RF
         self.rf_transceiver.send_neural_pattern("TEST_NODE", all_patterns[:64])
@@ -763,6 +1012,7 @@ class CompleteNeuralVisionSystem:
         tokens = self.vision_tokenizer.neural_to_tokens(np.array(all_patterns[:64]))
         description = self.vision_tokenizer.tokens_to_visual_description(tokens, test_image)
         python_code = self.vision_tokenizer.tokens_to_python_code(tokens)
+       
         
         # Final output
         print(f"\n✅ BIDIRECTIONAL PROCESSING COMPLETE")
@@ -771,6 +1021,7 @@ class CompleteNeuralVisionSystem:
         print(f"   2. Python Code Generated ({len(python_code)} chars)")
         print(f"   3. RF Signals: {len(neural_output['rf_signals'])} frequencies active")
         print(f"   4. Neural Tokens: {tokens['token_count']} tokens")
+       
         
         return {
             'description': description,
@@ -789,6 +1040,11 @@ class NeuralVisionWebServer:
     Web server showing live receiver output
     Displays LLM descriptions and generated code in real-time
     """
+   
+    def __init__(self):
+        self.system = CompleteNeuralVisionSystem()
+        self.latest_output = {}
+       
     
     def __init__(self):
         self.system = CompleteNeuralVisionSystem()
@@ -799,6 +1055,9 @@ class NeuralVisionWebServer:
         try:
             from flask import Flask, render_template_string, jsonify, Response
             import cv2
+           
+            app = Flask(__name__)
+           
             
             app = Flask(__name__)
             
@@ -851,6 +1110,11 @@ class NeuralVisionWebServer:
             </body>
             </html>
             """
+           
+            @app.route('/')
+            def index():
+                return render_template_string(HTML_TEMPLATE)
+           
             
             @app.route('/')
             def index():
@@ -868,6 +1132,7 @@ class NeuralVisionWebServer:
                             )
                             description = self.system.vision_tokenizer.tokens_to_visual_description(tokens)
                             python_code = self.system.vision_tokenizer.tokens_to_python_code(tokens)
+                           
                             
                             output = {
                                 'description': description,
@@ -876,6 +1141,15 @@ class NeuralVisionWebServer:
                                 'rf_status': f"Receiving at {received.get('frequency', 10.23):.4f} GHz"
                             }
                             yield f"data: {json.dumps(output)}\n\n"
+                       
+                        time.sleep(0.5)
+               
+                return Response(generate(), mimetype='text/event-stream')
+           
+            print(f"\n🌐 Web Server Starting on http://localhost:{port}")
+            print("   Open this URL to see the LLM receiver output!")
+            app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+           
                         
                         time.sleep(0.5)
                 
@@ -895,17 +1169,24 @@ class NeuralVisionWebServer:
 
 def main():
     """Main execution - choose mode"""
+   
     
     print("="*80)
     print("🧠 BIDIRECTIONAL NEURAL VISION SYSTEM")
     print("EEG/VR → Neural Nodes → RF → LLM → Vision → Python Code")
     print("="*80)
+   
     
     print("\n📋 Available Modes:")
     print("   1. Live Vision Processing (Camera → Neural → LLM)")
     print("   2. Receiver Mode (Shows LLM & Code output)")
     print("   3. Bidirectional Demo (Complete pipeline)")
     print("   4. Web Server (View receiver output in browser)")
+   
+    choice = input("\nSelect mode (1-4): ").strip()
+   
+    system = CompleteNeuralVisionSystem()
+   
     
     choice = input("\nSelect mode (1-4): ").strip()
     

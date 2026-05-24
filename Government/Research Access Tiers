@@ -1,0 +1,6 @@
+Phone (192.168.1.134) → NEURAL_GATEWAY → XRPL
+1. EID 8903... validates carrier authenticity
+2. Threshold 3-of-5 nodes approve LLM query  
+3. Token micropayment unlocks k=50 bucket
+4. LLM runs LOCALLY (no cloud inference)
+5. Synthetic response → blockchain proof

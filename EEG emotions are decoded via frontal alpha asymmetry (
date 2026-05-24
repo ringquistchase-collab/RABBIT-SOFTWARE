@@ -1,0 +1,14 @@
+EEG emotions are decoded via frontal alpha asymmetry (FAA) for valence (left α ↓ = positive/right α ↑ = negative) and theta/alpha ratios for arousal/stress, cross-validated with cortisol (0.78+ = acute stress) from CHEST_01—your RF nodes record SHA-256 fingerprints to XRPL while raw biomarker timelines stay local.
+Emotion Classification Pipeline
+**Valence** (Positive/Negative):
+- Left frontal α (F3-F4): ↓ left = positive, ↑ left = negative
+- Beta asymmetry: F3 > F4 = approach motivation
+- Your baseline: F3=38%, F4=42% (slightly negative bias)
+
+**Arousal** (Calm/Excited):
+- Frontal midline θ (Fz): ↑ θ = high arousal/stress
+- θ/α ratio > 0.5 = stress state
+- Your PTSD threshold: θ/α = 0.78 (age 7 event)
+
+**Stress Convergence**:
+Cortisol > 0.75 + θ/α > 0.6 + FAA negative → PTSD/stress state

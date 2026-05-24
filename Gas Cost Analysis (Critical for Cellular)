@@ -1,0 +1,5 @@
+Single bundle reconciliation: 85k gas (~$0.0015 Polygon)
+Bundle of 47 tokens: 120k gas (~$0.0021)  // Atomic!
+Duplicate bundle: **25k gas** (~$0.0004)  // Cheap failure
+
+Monthly cost (1000 bundles): ~$2.10 → trivial

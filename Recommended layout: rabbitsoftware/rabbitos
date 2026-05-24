@@ -1,0 +1,69 @@
+Recommended layout:
+Plain text
+RABBIT-SOFTWARE/
+├── docs/
+│   ├── rabbitos_integration_architecture.md
+│   ├── security/
+│   ├── networking/
+│   └── ai/
+├── core/
+├── rf_mesh/
+├── blockchain/
+├── ai_models/
+└── README.md
+Git commands:
+Bash
+git clone https://github.com/ringquistchase-collab/RABBIT-SOFTWARE.git
+
+cd RABBIT-SOFTWARE
+
+mkdir -p docs
+
+nano docs/rabbitos_integration_architecture.md
+Paste the architecture document into:
+Plain text
+docs/rabbitos_integration_architecture.md
+Then commit:
+Bash
+git add docs/rabbitos_integration_architecture.md
+
+git commit -m "Add RabbitOS integration architecture and encrypted AI pipeline design"
+
+git push origin main
+Recommended integration sections for the repo:
+Plain text
+/docs/security/
+/docs/ai/
+/docs/networking/
+/docs/medical/
+/docs/blockchain/
+/examples/
+You can also reference the document from the main README.md:
+Markdown
+## Architecture
+
+- [RabbitOS Integration Architecture](docs/rabbitos_integration_architecture.md)
+Suggested modules to connect next inside the repository:
+rf_mesh/ → encrypted telemetry transport
+ai_models/ → ONNX + local LLM inference
+blockchain/ → audit logging + XRPL anchoring
+medical/ → wearable analytics + HE pipelines
+streaming/ → OBS/WebRTC integrations
+gaming/ → telemetry overlays + optimization
+edge/ → ARM + Android Termux runtime
+security/ → AES, Ed25519, OpenFHE utilities
+Example future repo tree:
+Plain text
+RABBIT-SOFTWARE/
+├── ai_models/
+├── blockchain/
+├── docs/
+├── edge/
+├── gaming/
+├── medical/
+├── networking/
+├── rf_mesh/
+├── security/
+├── streaming/
+└── ui/
+This turns the repository into a modular RabbitOS ecosystem rather than a single script collection.

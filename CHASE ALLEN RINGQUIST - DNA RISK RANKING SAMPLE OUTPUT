@@ -1,0 +1,14 @@
+🚨 CHASE ALLEN RINGQUIST - DNA RISK RANKING
+================================================================================
+ age                    event  score      tier protection  fingerprint  cortisol
+  22  Overdose/Cardiac Arrest  97.2  CRITICAL       vault  a1b2c3def45678    0.92
+   7              PTSD Trigger  94.5  CRITICAL       vault  2d3e4f5g6h7i8j9k    0.78
+  16         Sensory Isolation  87.3      HIGH   threshold  3f4g5h6i7j8k9l0m    0.65
+  14  Major Depressive Episode  84.2      HIGH   threshold  4g5h6i7j8k9l0m1n    0.70
+  25         Business Milestone  42.1       LOW     public  5h6i7j8k9l0m1n2o    0.48
+  33             Current Baseline  35.8       LOW     public  6i7j8k9l0m1n2o3p    0.48
+
+🔒 CRITICAL (2 records): Physical vault
+ age                    event protection
+  22  Overdose/Cardiac Arrest       vault
+   7              PTSD Trigger       vault

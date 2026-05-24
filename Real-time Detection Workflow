@@ -1,0 +1,8 @@
+Mempool Monitor → New Tx → BlockGPT Pipeline:
+1. Decode tx → execution trace tokens [T1,T2,...,Tn]
+2. Score: S = -∑log P(Ti|history)  
+3. Rank: Top-10 highest S → "abnormal"
+4. Alert if S > threshold (calibrated 1% FPR)
+5. Defense: Pause contract interaction
+
+Performance: 2284 tx/s → covers Ethereum + Solana mempools

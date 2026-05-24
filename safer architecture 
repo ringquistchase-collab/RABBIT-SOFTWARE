@@ -1,0 +1,19 @@
+User Secret
+    ↓
+Generate Random Master Key (256-bit)
+    ↓
+Encrypt Secret with AES-256-GCM
+    ↓
+Split Recovery Key using Shamir Secret Sharing
+(t = 3, n = 5)
+    ↓
+Encrypt Each Share Separately
+    ↓
+Store Shares in Different Locations
+    ↓
+Recovery:
+  Passphrase + Device Key + Optional Biometric Check
+    ↓
+Reconstruct Recovery Key
+    ↓
+Decrypt Secret

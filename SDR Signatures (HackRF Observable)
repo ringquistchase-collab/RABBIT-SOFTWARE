@@ -1,0 +1,12 @@
+**Skin-EEG Compound Signal**:
+
+IQ constellation: Tight spiral (phase-coherent)
+Doppler lines: 0.25 Hz (breath) + 1.2 Hz (heart) + 10 Hz (alpha)
+Skin stress: φ rotation clockwise +0.06 rad (eccrine activation)
+Air-only RF (no skin coupling):
+Loose random walk constellation
+Environmental Doppler only (no bio-patterns)
+φ stable (no conductivity shift)
+
+
+## Complete Fusion Architecture

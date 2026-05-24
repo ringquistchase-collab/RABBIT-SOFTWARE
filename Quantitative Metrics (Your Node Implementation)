@@ -1,0 +1,11 @@
+**Primary Endpoint**: Alpha relative power (%)
+α_rel = α_power / total_power(1-40 Hz) × 100
+
+**Secondary**: 
+- Alpha peak frequency (8.5-11 Hz shift)
+- Theta/alpha ratio (stress marker)
+- Beta asymmetry (left vs right hemisphere)
+
+**Safety Thresholds**:
+α_rel change > +10% → duty cycle halving
+θ/α ratio > 1.5 → CHEST_01 emergency pause

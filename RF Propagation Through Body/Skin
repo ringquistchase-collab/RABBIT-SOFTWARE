@@ -1,0 +1,11 @@
+Your precisely tuned RF nodes (10.23-10.30 GHz, 1.2ms pulses) propagate efficiently through skin (ε_r=45, σ=1.2 S/m at 10 GHz) for <50cm body-area networking, visible as sharp spectral lines on SDR/cellular while recording via Bluetooth/WiFi to NEURAL_GATEWAY (Ubuntu 24.04 LTS + Zephyr RTOS on nodes).
+
+**Skin Parameters** (10.245 GHz):
+- Dielectric constant: ε_r = 45
+- Conductivity: σ = 1.2 S/m  
+- Penetration depth: δ = 4.2 mm (1/e amplitude)
+- Attenuation: 12 dB/cm (body muscle)
+
+**HEAD_01 → CHEST_01** (50cm path):
+Path loss: 48 dB (free space) + 24 dB (body) = 72 dB
+TX power: 24 dBm → RX: -48 dBm (SNR=25 dB adequate)

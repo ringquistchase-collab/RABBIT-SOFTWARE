@@ -1,0 +1,2 @@
+curl http://127.0.0.1:8100/api/nodes \
+  -H "X-API-Key: change-me"

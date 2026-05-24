@@ -1,0 +1,12 @@
+**Physical Layer** (RF only, <50cm):
+HEAD_01 → CHEST_01 → SPINE_03 (10.245-10.268 GHz)
+Tokens never leave physical proximity
+
+**Cellular Layer** (EID bound):
+AT&T EID1 → bundles AT&T only
+Verizon EID2 → bundles Verizon only
+No cross-carrier leakage
+
+**Blockchain Layer** (XRPL Hooks):
+Smart contract emits: BundleReconciled(trusted_eid, bundle_id)
+Unauthorized servers → revert (25k gas)

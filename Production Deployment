@@ -1,0 +1,8 @@
+docker run -p 5000:5000 \
+  -v /mnt/nvme_vault:/vault \
+  -e DNA_ROOT="8f3d9a612b718a99" \
+  --device /dev/ttyUSB0 \
+  chase-neural-token-gateway:latest
+
+# Cellular auto-config:
+python neural_token.py --cellular --eid 89033023426309010000054675483625

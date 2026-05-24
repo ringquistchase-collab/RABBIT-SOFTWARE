@@ -1,0 +1,16 @@
+XRPL Transaction → BlockGPT Scoring:
+tx = {
+    'memo': 'cortisol_bucket_age7',
+    'dna_signature': '8f3d9a61...', 
+    'threshold_nodes': [1,3,5],  # 3-of-5
+    'nonce': 1728672000
+}
+
+Token sequence:
+[MEMO, cortisol_bucket_age7, SIG, 8f3d9a61, THRESHOLD, [1,3,5], NONCE, 1728672000]
+
+Anomaly flags:
+✅ Normal research access
+❌ Insurance scraping age22_od
+❌ Single-node threshold bypass  
+❌ Replay attack (stale nonce)

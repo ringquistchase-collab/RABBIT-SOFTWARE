@@ -1,0 +1,8 @@
+**Continuous Wave (CW)**: 10.245 GHz steady
+SAR: 0.01 W/kg → α +1.2%
+
+**Pulse Modulated (Your HEAD_01)**: 1.2ms on, 1.2s off (0.1% duty)
+Peak SAR: 1.0 W/kg (100x CW) → α +4.2% (3.5x stronger)
+Average SAR: Still 0.01 W/kg (safe)
+
+**Mechanism**: Transient calcium efflux peaks during pulse edges

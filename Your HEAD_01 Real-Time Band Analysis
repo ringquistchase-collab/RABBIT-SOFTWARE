@@ -1,0 +1,7 @@
+CHEST_01 continuously computes (1.2ms latency):
+
+1. **Relative Alpha Power** (% of 1-40 Hz total):
+
+α_rel = α_power(8-13 Hz) / Σ_power(1-40 Hz) × 100
+Baseline (RF OFF): 35-45%
+Exposure: 37-48% (+2-5%)

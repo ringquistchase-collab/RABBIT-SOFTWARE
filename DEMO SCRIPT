@@ -1,0 +1,19 @@
+# examples/demo.py
+
+from rabbitos.core.queue import LocalQueue
+from rabbitos.core.events import EventBus
+from rabbitos.core.router import TaskRouter
+from rabbitos.workers.pool import WorkerPool
+from rabbitos.agents.logger_agent import LoggerAgent
+
+queue = LocalQueue()
+bus = EventBus()
+router = TaskRouter(queue, bus)
+
+agents = [LoggerAgent()]
+workers = WorkerPool(queue, agents)
+
+workers.start()
+
+router.submit({"message": "hello rabbitos"})
+router.submit({"message": "second task"})

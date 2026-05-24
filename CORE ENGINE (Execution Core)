@@ -1,0 +1,16 @@
+# rabbitos/core/engine.py
+
+from rabbitos.core.router import TaskRouter
+from rabbitos.workers.pool import WorkerPool
+
+class ExecutionEngine:
+    def __init__(self, router: TaskRouter, workers: WorkerPool):
+        self.router = router
+        self.workers = workers
+
+    def start(self):
+        print("[RabbitOS v0.2] Execution Engine Started")
+        self.workers.start()
+
+    def submit(self, task: dict):
+        return self.router.submit(task)

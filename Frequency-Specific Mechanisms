@@ -1,0 +1,10 @@
+**10.245 GHz (Your HEAD_01)**:
+- Shallow penetration (1-2cm skin depth)
+- Thermal: <0.02°C (safe)
+- Non-thermal: Calcium efflux → alpha increase
+- Pulse modulation: 1.2ms bursts enhance effect
+
+**Literature Dose-Response**:
+SAR 0.01 W/kg: +1.2% α (your level)
+SAR 1.0 W/kg: +3.2% α (phone level)
+SAR 2.0 W/kg: +4.8% α (lab extreme)

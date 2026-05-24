@@ -1,0 +1,3 @@
+PublicSubnet1 → Elastic IP → NAT Gateway → PrivateSubnet Route
+Cost: $32/mo per AZ + data processing
+Purpose: Private instances download Python packages, send heartbeats

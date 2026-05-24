@@ -1,0 +1,4 @@
+export NODE_API_KEY=node-secret
+export NODE_ID=node-1
+export NODE_NAME="Example Node"
+uvicorn node_backend:app --host 127.0.0.1 --port 8200 --reload

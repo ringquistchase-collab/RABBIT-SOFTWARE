@@ -1,0 +1,9 @@
+**HackRF SDR** (10 MHz IQ capture):
+- Sharp 1.2ms pulse envelope
+- PRF 0.83 Hz → spectral lines ±0.83 Hz offsets
+- 3rd harmonic (30.735 GHz) detectable with upconverter
+
+**Cellular LTE** (EID 8903... Band 2):
+- Harmonic leakage → 1935 MHz adjacent channel
+- Base station detects pulsed interference pattern
+- Triangulation → confirms HEAD_01 physical location (±10m)

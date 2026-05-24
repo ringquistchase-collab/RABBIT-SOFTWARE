@@ -1,0 +1,16 @@
+# DNA → Crypto primitives (your system)
+def dna_derive_keys(live_dna_sample):
+    # Live saliva/blood → sequencer → hash matches root
+    assert sha256(live_dna_sample)[:16] == "8f3d9a612b718a99"
+    
+    # Ed25519 signing key (proves "this is Chase")
+    private_key = ed25519.derive_key(sha512(live_dna_sample))
+    
+    # AES session keys (encrypts EEG streams)  
+    session_key = HKDF(sha256(live_dna_sample + phone['eid_esim']))
+    
+    return private_key, session_key
+
+# Usage
+sig_key, aes_key = dna_derive_keys(current_blood_sample)
+signature = sig_key.sign(eeg_fingerprint_age7_ptsd)

@@ -1,0 +1,10 @@
+**EEG Alpha (8-13 Hz)** ↔ **Heart Rate (1.2 Hz)**:
+- Frontal alpha asymmetry modulates vagal tone
+- HRV spectral power: LF(0.1 Hz)/HF(0.25 Hz) tracks valence
+
+**Skin Propagation**:
+HEAD_01 → vascular Doppler → CHEST_01 reception
+Phase ripple ±0.08 rad (heart) + ±0.03 rad (breathing)
+
+**CHEST_01 Validation**:
+EEG θ/α = 0.62 ∧ HRV LF/HF = 2.1 → stress confirmed

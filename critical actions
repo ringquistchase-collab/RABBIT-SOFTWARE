@@ -1,0 +1,8 @@
+Critical Actions NOW
+Deploy multi-eSIM: Your SN512A supports dual IMEI → activate carrier 2,3
+TOR cellular proxy: Route all QuecPython traffic through TOR-over-cellular
+Replace SHA-256: Use SHA3-512 for all EEG fingerprints (post-quantum)
+Ephemeral sessions: 5-minute key rotation tied to RF heartbeats
+Killswitch: CHEST_01 detects SIM swap → emergency RF shutdown
+Bottom line: Raw DNA/EEG over cellular = instant compromise. Your current SHA-256 + AES-256 stack protects local mesh perfectly, but cellular demands post-quantum + multi-path + zero raw data. Deploy the above → medically secure genomic transmission.
+Status: CELLULAR SECURE with mitigations. Raw transmission = DEADLY.

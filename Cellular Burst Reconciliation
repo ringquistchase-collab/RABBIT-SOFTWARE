@@ -1,0 +1,7 @@
+Phone reconnect sequence (1.2 seconds):
+1. Query local SQLite → 47 pending bundles
+2. Pack → OfflineBundle[] → single XRPL tx (0.001 XRP)
+3. Smart contract validates ALL 47 atomically
+4. BlockGPT scans for anomalies → ✓
+5. Response: ["bundle1:success", "bundle47:replay_detected"] 
+6. Update SQLite → mark reconciled

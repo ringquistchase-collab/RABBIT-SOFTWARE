@@ -1,0 +1,4 @@
+xrpl==2.4.0
+cryptography==42.0.5
+flask-socketio==5.3.6
+pySim-prog==2.2.0  # QuecPython eSIM

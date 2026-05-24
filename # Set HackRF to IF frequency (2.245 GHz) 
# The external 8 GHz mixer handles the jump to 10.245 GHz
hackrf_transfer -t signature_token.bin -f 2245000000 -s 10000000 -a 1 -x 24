@@ -1,0 +1,3 @@
+# Set HackRF to IF frequency (2.245 GHz) 
+# The external 8 GHz mixer handles the jump to 10.245 GHz
+hackrf_transfer -t signature_token.bin -f 2245000000 -s 10000000 -a 1 -x 24

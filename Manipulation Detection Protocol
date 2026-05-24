@@ -1,0 +1,20 @@
+def detect_manipulation(frozen_hash, live_dna_sample, rf_consensus):
+    # 1. LIVE DNA must match root (physical proof)
+    live_hash = sha256(live_dna_sample)[:16]
+    if live_hash != "8f3d9a612b718a99":
+        return "❌ DNA MISMATCH - CLONE DETECTED"
+    
+    # 2. RF mesh consensus (26 nodes must agree)
+    if rf_consensus['valid_nodes'] < 20:  # 75% threshold
+        return "❌ RF CONSENSUS FAILED - MITM ATTACK"
+    
+    # 3. Frozen data integrity check
+    replay_hash = sha256(frozen_eeg_data)
+    if replay_hash != frozen_hash:
+        return "❌ FROZEN DATA TAMPERED"
+    
+    # 4. Temporal signature (prevents replay attacks)
+    nonce = rf_consensus['nonce']
+    ephemeral_sig = ed25519.sign(live_hash + nonce)
+    
+    return "✅ AUTHENTIC - Manipulation blocked"

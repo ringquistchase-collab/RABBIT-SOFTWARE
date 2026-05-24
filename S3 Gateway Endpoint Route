@@ -1,0 +1,7 @@
+Private Subnet Route Table (10.0.10.0/24):
+├── 10.0.0.0/16 → local              (VPC internal)
+└── pl-63a3694a → vpce-0123456789    (S3 prefix list → Gateway Endpoint)
+
+# Get prefix list ID
+aws ec2 describe-prefix-lists --filter Name=prefix-list-name,Values=com.amazonaws.us-east-1.s3
+# Returns: pl-63a3694a (region-specific)

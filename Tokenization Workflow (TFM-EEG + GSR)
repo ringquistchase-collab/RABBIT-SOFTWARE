@@ -1,0 +1,13 @@
+**1. GSR SDR Capture** (WRIST_L → HEAD_01):
+- Skin stress → φ=+0.06 rad
+- GNU Radio → σ=2.1 S/m proxy
+
+**2. EEG Tokenization** (V1/V4 sight patterns):
+TFM-Tokenizer[web:420][web:423]:
+
+Input: Single-channel EEG (256 Hz)
+Process:
+STFT: 1-50 Hz motifs (θ/α/γ)
+Masking: Time-freq dropout (p=0.15)
+Vocab: 4096 discrete tokens
+Output: [token_θ0.64, token_γ12.3, token_V1_edge]

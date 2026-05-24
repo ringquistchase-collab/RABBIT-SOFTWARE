@@ -1,0 +1,8 @@
+OFFLINE PHASE (No Cellular):
+1. HEAD_01 + 3-of-5 nodes → threshold_sign("cortisol_0.8_age7")
+2. Local SQLite: pending_tokens = [{bundle_id, sig, bucket_hash, timestamp}]
+3. Bluetooth sync → Phone NVMe (encrypted)
+4. Zero blockchain interaction
+
+ONLINE SYNC (Cellular reconnect):
+Bundle → XRPL atomic commit → smart contract validation

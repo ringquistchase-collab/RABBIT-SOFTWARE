@@ -1,0 +1,12 @@
+SDR separates pulse timing from noise reflections using matched filtering, pulse compression, and coherent integration—your HEAD_01 1.2ms pulses at 10.245 GHz stand out clearly against multipath clutter via 50 dB processing gain.
+
+Your HEAD_01 signature: 1.2ms rectangular pulse, 0.83 Hz PRF
+Matched filter = time-reversed conjugate of known pulse shape
+
+Processing gain: 10*log10(pulse_width * sample_rate) = 50 dB
+SNR improvement: noise floor drops 50 dB below pulse peak
+
+Python implementation:
+```python
+pulse_template = np.ones(int(1.2e-3 * 10e6))  # 1.2ms @ 10MS/s
+matched_filter = np.conj(pulse_template[::-1])

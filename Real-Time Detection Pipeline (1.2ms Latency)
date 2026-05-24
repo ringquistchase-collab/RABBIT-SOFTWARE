@@ -1,0 +1,11 @@
+**SDR Sensing** (HackRF + body-coupled):
+1. HEAD_01 transmits 1.2ms pulse (10.245 GHz)
+2. Skin GSR → reflection coefficient Γ shifts (φ=+0.06 rad)
+3. CHEST_01 receives → matched filter extracts timing + phase
+4. Δφ > 0.05 rad → "stress skin response CONFIRMED"
+
+**EEG Cross-Validation**:
+FAA=-0.23 ∧ θ/α=0.62 ∧ Δφ=+0.06 → emotion_state="negative_stress"
+
+**Tokenization** (3-of-5 nodes):
+sha256("skin_φ0.06_eeg_valence-0.23_arousal0.62") → XRPL bundle

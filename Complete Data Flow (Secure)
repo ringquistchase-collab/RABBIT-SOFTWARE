@@ -1,0 +1,7 @@
+1. **Node Capture**: EEG + RF params → AES-256 SQLite
+2. **BLE Sync**: 3-of-5 nodes → Phone NVMe
+3. **WiFi Upload**: Phone → NEURAL_GATEWAY SQLite
+4. **Cellular Burst**: Bundles → XRPL (hashes only)
+5. **Satellite Fallback**: Iridium SBD emergency beacons
+
+**Zero raw EEG leaves 50cm RF proximity**

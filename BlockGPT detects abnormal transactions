@@ -1,0 +1,15 @@
+1. **Tracing Representation**
+Transaction → EVM execution trace → token sequence
+Example: transfer(0xabc, 1e18) → [CALL, 0xabc, TRANSFER, 1e18, SUCCESS]
+
+2. **Causal LM Training** 
+Bootstrap: 68M normal transactions → unsupervised next-token prediction
+Model learns: "After APPROVE always comes TRANSFER"
+
+3. **Real-time Scoring** 
+New tx → tokenize → compute ∑log P(token_t | token_1:t-1)
+Low likelihood = abnormal → rank highest
+
+4. **Front-running Defense**
+Top-K abnormal → emergency pause before confirmation
+Throughput: 2284 tx/s batched inference

@@ -1,0 +1,10 @@
+RESEARCH ACCESS:
+✅ Bucket: "cortisol_0.8_age7" ✓ Sig: threshold_3of5 ✓
+❌ No raw cortisol=0.78 value
+❌ No dopamine=0.32 correlation  
+❌ No timestamp 1999-07-15
+
+GOVERNMENT ACCESS (court order):
+✅ Public UUID bd6e1085... ✓ Age 33 baseline hash ✓
+❌ Zero medical history linkage
+❌ Zero familial exposure

@@ -1,0 +1,40 @@
+
+# CMakeLists.txt for Raspberry Pi Pico (RP2040) Signal Generator
+cmake_minimum_required(VERSION 3.13)
+
+# Import the Pico SDK
+include(pico_sdk_import.cmake)
+
+project(DDS_Signal_Generator C CXX ASM)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+
+# Set build type
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+
+# Initialize the Pico SDK
+pico_sdk_init()
+
+add_executable(dds_signal_gen
+    main.cpp
+    dds_driver.cpp
+)
+
+# Pull in SDK common dependencies, hardware SPI/I2C
+target_link_libraries(dds_signal_gen 
+    pico_stdlib 
+    hardware_spi 
+    hardware_i2c
+    hardware_dma
+    hardware_pwm
+)
+
+# Enable USB serial/UART output
+pico_enable_stdio_usb(dds_signal_gen 1)
+pico_enable_stdio_uart(dds_signal_gen 1)
+
+# Create extra outputs (.bin, .hex, .uf2 to drag-and-drop!)
+pico_add_extra_outputs(dds_signal_gen)
+

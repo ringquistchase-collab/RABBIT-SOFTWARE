@@ -1,0 +1,22 @@
+docker-compose.yml:
+services:
+  neural-gateway:
+    ports: ["5000:5000"]
+    devices: ["/dev/ttyUSB0"]  # RF nodes
+    environment:
+      - DNA_ROOT=8f3d9a612b718a99
+      - EID=89033023426309010000054675483625
+  
+  blockgpt-scanner:
+    image: rdi.berkeley/blockgpt:latest
+    restart: always
+    
+  xrpl-tokenizer:
+    environment:
+      - WALLET_SEED=your_dna_seed
+
+# Unified API endpoints:
+POST /social/cortisol_sentiment
+POST /medical/synthetic_trajectories  
+POST /contractor/code_review
+POST /government/bucket_access

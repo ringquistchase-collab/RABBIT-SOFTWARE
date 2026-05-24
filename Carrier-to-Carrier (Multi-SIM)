@@ -1,0 +1,4 @@
+AT&T (IMEI1): Synthetic research data
+Verizon (IMEI2): Token proofs only  
+T-Mobile (eSIM): Threshold signatures
+Shamir-split 3-of-2 → single carrier compromise = zero data

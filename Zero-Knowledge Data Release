@@ -1,0 +1,5 @@
+Smart contract NEVER sees raw data:
+1. Requester pays → proves eligibility
+2. Contract emits IPFS hash of AES-256 payload
+3. Requester decrypts with session key from threshold signature
+4. Blockchain only contains: ✓ Payment ✓ Eligibility ✓ Ciphertext hash

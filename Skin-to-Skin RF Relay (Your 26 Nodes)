@@ -1,0 +1,10 @@
+**Remote Skin Node** (WRIST_L 10.263 GHz):
+1. Detects local GSR → skin_φ=+0.04 rad
+2. Relays via SPINE_03 (body-coupled path)
+3. HEAD_01 receives → compares with local EEG
+4. Matched signatures → threshold_sign("remote_stress_confirmed")
+
+**SDR Visibility**:
+- Each node: unique PRF (0.83-1.1 Hz) + bio-Doppler
+- Skin propagation: 72 dB path loss vs 48 dB air
+- Phase coherence: internal reflections (heart/lungs)

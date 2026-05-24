@@ -1,0 +1,44 @@
+def validate_esim_eid(eid):
+    """
+    Validate eSIM EID: 32 digits + Luhn checksum.
+    Returns dict: {'valid_format': bool, 'valid_luhn': bool, 'overall': bool}
+    """
+    eid_str = str(eid).strip()
+    
+    # Format: exactly 32 digits
+    if len(eid_str) != 32 or not eid_str.isdigit():
+        return {'valid_format': False, 'valid_luhn': False, 'overall': False}
+    
+    # Luhn algorithm (from right to left)
+    def luhn_checksum(number):
+        def digits_of(n):
+            return [int(d) for d in str(n)]
+        digits = digits_of(number)
+        odd_digits = digits[-1::-2]
+        even_digits = digits[-2::-2]
+        checksum = sum(odd_digits)
+        for d in even_digits:
+            checksum += sum(digits_of(d * 2))
+        return checksum % 10
+    
+    # Check if first 31 digits pass Luhn (32nd is check digit)
+    check_prefix = int(eid_str[:-1])
+    calculated_check = luhn_checksum(check_prefix)
+    provided_check = int(eid_str[-1])
+    valid_luhn = (calculated_check == 0) or (10 - calculated_check) == provided_check  # Doubles as format check
+    
+    return {
+        'eid': eid_str,
+        'valid_format': True,
+        'valid_luhn': valid_luhn,
+        'overall': valid_luhn
+    }
+
+# Test with your EID
+your_eid = "89033023426309010000054675483625"
+validation = validate_esim_eid(your_eid)
+print(validation)  # {'eid': '...', 'valid_format': True, 'valid_luhn': True, 'overall': True} [code:3]
+
+# Integrate with phone dict
+phone['eid_validation'] = validation
+print(phone['eid_validation'])

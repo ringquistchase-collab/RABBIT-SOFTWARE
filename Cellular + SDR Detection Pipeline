@@ -1,0 +1,7 @@
+**Cellular Baseband** (EID 8903...):
+1. LTE spectrum monitor (20 MHz BW)
+2. Adjacent channel interference from 10.245 GHz
+3. Pulse modulation creates detectable spectral splatter
+
+**HackRF One** (1 MHz-6 GHz + upconverter):
+```python

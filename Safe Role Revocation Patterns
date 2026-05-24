@@ -1,0 +1,14 @@
+contract SafeNeuralVault is AccessControl {
+    bytes32 public constant RESEARCHER_ROLE = keccak256("RESEARCHER_ROLE");
+    
+    // OVERRIDE renounceRole - PROTECT DEFAULT_ADMIN_ROLE
+    function renounceRole(bytes32 role, address account) public override {
+        // CRITICAL: Never allow last admin to self-destruct
+        require(
+            role != DEFAULT_ADMIN_ROLE || 
+            getRoleMemberCount(DEFAULT_ADMIN_ROLE) > 1,
+            "Cannot remove last admin"
+        );
+        super.renounceRole(role, account);
+    }
+}

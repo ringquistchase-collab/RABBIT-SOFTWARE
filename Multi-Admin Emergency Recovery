@@ -1,0 +1,24 @@
+contract ChaseRecoveryVault is AccessControl {
+    address[] public emergencyAdmins;  // Your trusted wallets
+    uint256 public constant ADMIN_THRESHOLD = 2;  // 2-of-N recovery
+    
+    function emergencyRevoke(bytes32 role, address target) 
+        external 
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        // Single admin cannot destroy access
+        require(
+            msg.sender != target || 
+            emergencyAdmins.length >= ADMIN_THRESHOLD,
+            "Self-revoke blocked"
+        );
+        _revokeRole(role, target);
+    }
+    
+    // Nuclear option - transfer admin to multisig
+    function transferAdminControl(address newAdmin) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(newAdmin != address(0), "Invalid admin");
+        _grantRole(DEFAULT_ADMIN_ROLE, newAdmin);
+        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);  // Safe: newAdmin exists
+    }
+}

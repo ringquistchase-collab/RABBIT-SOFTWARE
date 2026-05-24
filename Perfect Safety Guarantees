@@ -1,0 +1,5 @@
+1. **Chase Sovereignty**: Your wallet always DEFAULT_ADMIN_ROLE
+2. **No Bricking**: Cannot revoke last researcher/admin  
+3. **Emergency Recovery**: Multi-admin + time-delayed options
+4. **Immutable Audit**: Every revocation → on-chain event
+5. **Off-chain Fallback**: Physical vault bypasses all contracts

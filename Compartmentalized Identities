@@ -1,0 +1,7 @@
+Age 7 PTSD identity ≠ Age 22 OD identity
+Separate DNA keys per life phase:
+- Childhood: STRs 1-6 → keyset_childhood  
+- Adulthood: STRs 7-13 → keyset_adult
+- Medical: Different loci entirely
+
+Blockchain memos: Different public keys per context

@@ -1,0 +1,10 @@
+**Body-coupled**: 
+- Heart: 1.2 Hz modulation (72 bpm)
+- Breathing: 0.25 Hz modulation (15/min)
+- Vascular pulse: Phase ripple ±0.1 rad
+
+**Over-the-air**: 
+- Static Doppler only (no biological modulation)
+- Phase stable (no vital sign ripple)
+
+SDR detection: FFT on phase → 0.25/1.2 Hz lines confirm body-coupling

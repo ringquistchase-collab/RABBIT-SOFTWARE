@@ -1,0 +1,82 @@
+import json
+import time
+import base64
+import hashlib
+import hmac
+from dataclasses import dataclass
+
+def canonical_json(obj):
+    return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode()
+
+def sha256_hex(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+def sign_hmac(payload: bytes, secret: bytes) -> str:
+    return hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+def encode_dna_stub(data: bytes) -> str:
+    # Safe placeholder: a toy base4 mapping for archival testing only
+    mapping = {"00": "A", "01": "C", "10": "G", "11": "T"}
+    bits = "".join(f"{b:08b}" for b in data)
+    return "".join(mapping[bits[i:i+2]] for i in range(0, len(bits), 2))
+
+def make_record(message: dict, secret_key: str):
+    payload = canonical_json(message)
+    record = {
+        "version": "1.0",
+        "timestamp": int(time.time()),
+        "payload_sha256": sha256_hex(payload),
+        "signature_hmac": sign_hmac(payload, secret_key.encode()),
+        "payload_b64": base64.b64encode(payload).decode(),
+    }
+    return record
+
+def blockchain_commit_stub(record: dict):
+    commit = {
+        "chain": "testnet",
+        "tx_type": "data_commit",
+        "hash": record["payload_sha256"],
+        "timestamp": record["timestamp"],
+        "signature": record["signature_hmac"],
+    }
+    return commit
+
+def cellular_send_stub(record: dict):
+    return {
+        "endpoint": "https://your-cellular-api.example/v1/ingest",
+        "status": "prepared",
+        "bytes": len(canonical_json(record)),
+    }
+
+def dna_archive_stub(record: dict):
+    archive_bytes = canonical_json(record)
+    return {
+        "dna_sequence": encode_dna_stub(archive_bytes),
+        "archived_bytes": len(archive_bytes),
+    }
+
+if __name__ == "__main__":
+    message = {
+        "user": "consented_local_user",
+        "type": "biosignal_summary",
+        "content": {
+            "signal": "GSR",
+            "summary": "stress_level_high",
+            "source": "local_sensor"
+        }
+    }
+
+    secret = "change-me-to-a-real-secret"
+    record = make_record(message, secret)
+    commit = blockchain_commit_stub(record)
+    cellular = cellular_send_stub(record)
+    dna = dna_archive_stub(record)
+
+    output = {
+        "record": record,
+        "blockchain_commit": commit,
+        "cellular": cellular,
+        "dna_archive": dna,
+    }
+
+    print(json.dumps(output, indent=2))

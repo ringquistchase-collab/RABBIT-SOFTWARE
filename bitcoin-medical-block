@@ -1,9 +1,0 @@
-# Test alias
-bitcoin-cli -version
-
-# Quick medical scan (last 100 blocks)
-$current = Get-BlockHeight
-50..59 | ForEach-Object { Scan-MedicalBlock ($current - $_ * 10) }
-
-# One-liner: Find blocks with medical keywords
-bitcoin-cli getblockhash 800000 | ForEach-Object { bitcoin-cli getblock $_ 2 } | Select-String "clinical|trial|research"

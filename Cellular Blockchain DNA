@@ -1,0 +1,4 @@
+# ... prior code (phone dict, etc.)
+phone['eid_validation'] = validate_esim_eid(phone['eid_esim'])
+assert phone['eid_validation']['overall'], "EID invalid - check hardware"
+system_state['phone'] = phone  # Now validated

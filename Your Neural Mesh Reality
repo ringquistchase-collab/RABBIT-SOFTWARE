@@ -1,0 +1,4 @@
+"NAT Gateway equivalent": Phone WiFi (192.168.1.134) → external APIs
+"VPC Endpoint equivalent": NEURAL_GATEWAY → internal 26-node mesh  
+"Internet Gateway": None (physical airgap)
+"S3 bucket": Local NVMe (32-64GB/node flash)

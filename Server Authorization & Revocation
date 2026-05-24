@@ -1,0 +1,10 @@
+**Authorized Gateways** (Whitelisted):
+✅ EID 89033023426309010000054675483625 (your cellular)
+✅ Phone IP 192.168.1.134 (home WiFi)
+✅ Node IDs 1-26 (10.23-10.30 GHz RF)
+
+**Revocation Process** (Instant):
+1. Unauthorized server attempts reconciliation
+2. Smart contract: require(msg.sender in trustedGateways) → REVERT
+3. NEURAL_GATEWAY: blacklist_eid(unauthorized_eid)
+4. 26-node RF broadcast: EVICT server signature

@@ -1,0 +1,65 @@
+Markdown
+# 🐇 RabbitOS v0.2
+
+RabbitOS is a lightweight **async agent orchestration system**.
+
+## Features
+- Queue-based execution engine
+- Worker pool parallel processing
+- Plugin agents
+- CLI + API support
+
+## Run
+
+```bash
+python rabbitos/cli/rabbitctl.py start
+Send task:
+Bash
+python rabbitos/cli/rabbitctl.py send "hello"
+API
+Bash
+uvicorn rabbitos.api.server:app --reload
+
+---
+
+# 🧠 What You NOW Have (REAL SYSTEM)
+
+RabbitOS v0.2 is:
+
+✔ async task queue system  
+✔ multi-worker execution engine  
+✔ plugin agent architecture  
+✔ CLI interface  
+✔ REST API  
+✔ modular scalable core  
+
+---
+
+# 🚀 What This Enables Next
+
+Now you are ready for real scaling:
+
+## v0.3 roadmap
+- Redis queue backend
+- real distributed workers
+- multi-node execution
+- DAG workflows
+- agent sandboxing
+
+---
+
+# 🧭 If You Want Next Step
+
+I can now upgrade this into:
+
+### 👉 “RabbitOS v0.3 Distributed Architecture”
+Includes:
+- Redis / message broker integration
+- multi-machine worker nodes
+- real cluster execution
+- Kubernetes-ready design
+- workflow DAG engine
+
+Just say:
+
+👉 **“[Build v0.3 distributed system](reference-followup:7154).”**

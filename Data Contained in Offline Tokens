@@ -1,0 +1,6 @@
+Each bundle carries:
+✅ bucket_hash: "cortisol_0.8_age7" (32 bytes)
+✅ threshold_sig: 3-of-5 node signatures (96 bytes)  
+✅ nonce: anti-replay timestamp (8 bytes)
+✅ node_ids: [1,3,5] (3 bytes)
+**TOTAL: 139 bytes** - Zero raw EEG/hormones

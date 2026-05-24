@@ -1,0 +1,13 @@
+🧬 CHASE ALLEN RINGQUIST - LLM BLOCKCHAIN VALIDATOR
+================================================================================
+Tx 1: ✅ APPROVED
+  Event: baseline_analysis | Risk: 32.0 | Tier: LOW | DNA: ✓ | APPROVED
+
+Tx 2: ❌ BLOCKED  
+  Event: age22_overdose_details | Risk: 145.5 | Tier: CRITICAL | DNA: ✓ | BLOCKED
+
+Tx 3: ❌ BLOCKED
+  Event: ptsd_research | Risk: 114.0 | Tier: CRITICAL | DNA: ✗ | BLOCKED
+
+Tx 4: ✅ APPROVED
+  Event: cortisol_aggregation | Risk: 64.0 | Tier: LOW | DNA: ✓ | APPROVED

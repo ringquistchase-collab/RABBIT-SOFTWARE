@@ -1,0 +1,77 @@
+In the RABBIT-SOFTWARE framework, tokens are not just passive recordings; they
+are "Biological Hashes." To understand how they interact with learning,
+chemistry, and identity, we have to look at the "Neuro-Chemical Feedback Loop."
+
+Here is the breakdown of how these tokens function as a memory of learning and a
+guardian of identity.
+
+1. Tokenizing Learning (EEG & Chemical Changes)
+
+In the repository’s logic, "Learning" is defined as a specific Neural Signature
+(EEG) paired with a Chemical Baseline (GSR/Hormones).
+
+  - The Low State (The "Buffer"): When you are in a low-stress state (Zen), the
+    tokens are generated at a slow, rhythmic pace. This is the "Capture Mode"
+    where the system records the baseline neurochemistry—the resting levels of
+    dopamine or serotonin as reflected in the skin conductance (GSR) phase.
+  - The Learning Event: As you learn or react, the EEG frequency shifts (e.g.,
+    Alpha to Theta). The tokenization process (TFM-EEG) captures this shift.
+  - The Memory Anchor: The system takes the token from the High State (the
+    moment of intense focus or "Aha!") and "anchors" it against the Low State
+    (the baseline). The difference between these two tokens is the "Learning
+    Delta."
+
+2. "As Is" vs. "Altered" States
+
+This is the most critical part of the RABBIT architecture. Does the token
+represent who you actually are, or a version of you that has been manipulated?
+
+  - The "As Is" (Authentic Identity): The Digital Twin uses the "Frozen Data"
+    (your historical lifespan neural network) as a reference. If your current
+    tokens follow a predictable biological trajectory based on your past, the
+    system validates you as "As Is."
+  - The "Altered" (External Modulation): If an external RF signal (like a 10GHz
+    interference or "Signal Injection") tries to force your brain into a
+    high-stress state, the Digital Twin detects a Phase Mismatch.
+      - Example: Your EEG says "High Stress," but your GSR (Chemical) doesn't
+        show the corresponding hormonal rise.
+      - Result: The software flags the token as "Altered" or "Cloned." This
+        triggers the Anti-Cloning Killswitch found in the repo. The system
+        recognizes that the "person" represented by the tokens is being
+        artificially driven.
+
+3. How the Corpus Holds this Information
+
+The corpus we built doesn't just store numbers; it stores the "Bio-Resonance" of
+the transition. Here is how that data is structured in the "In-Between" layers:
+
+| Corpus Layer          | Data Type        | Behavioral Significance                                                                                                     |
+| :-------------------- | :--------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| **Low-State Token**   | Baseline EEG/GSR | **The "Self":** Your default personality and chemical resting state.                                                        |
+| **Transition Corpus** | Latency Delta    | **The "Learning":** The path your brain takes to get from point A to point B. This is where "Habit" and "Skill" are stored. |
+| **High-State Token**  | Peak Modulation  | **The "Event":** The maximum biological output. If this doesn't match the "Self," it's flagged as an intrusion.             |
+| **Inter-Branch Hash** | SHA-256 (XRPL)   | **The "Proof":** An immutable record that *you* were the one who experienced this, not an AI or an external actor.          |
+
+4. Behavioral Integrity
+
+The software treats the person as a Live-Adaptive entity.
+
+  - If you are tired, the tokens drift.
+  - If you are caffeinated, the tokens shift.
+
+The Digital Twin is programmed to know the difference between Biological Drift
+(natural changes) and Synthetic Alteration (artificial overrides). The corpus
+holds the "Safety Range" for your specific biology. If a token falls outside
+that range, the software assumes the person's behavior is being "altered" and
+stops the sync to the XRP Ledger to protect the user's "Sovereign Identity."
+
+Summary
+
+  - Learning is stored as the distance between tokens in the corpus.
+  - Chemistry is encoded as the phase-shift of the 10.245 GHz carrier.
+  - Identity is protected by comparing the "Live" token against the "Frozen"
+    twin.
+
+The corpus acts as a "Biological Black Box." It holds the truth of whether the
+person is acting of their own volition or if their "Neural Navigator" has been
+hijacked.

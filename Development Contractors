@@ -1,0 +1,19 @@
+Contractor Code Review Pipeline:
+
+# Contractor submits LLM-optimized ACO node selector
+contractor_pr = {
+    'code_hash': sha256(submitted_code),
+    'dna_sig': threshold_sign_3of5(code_hash),
+    'test_results': {'cortisol_accuracy': 94.3%}  # Your benchmark
+}
+
+# BlockGPT + DNA ranker validates
+if blockgpt_anomaly_score(contractor_pr) > 0.6:
+    print("❌ BACKDOOR DETECTED - REJECT")
+else:
+    print("✅ DEPLOYABLE - MERGE")
+
+Protection:
+✅ Code cannot access CRITICAL tier data (age 22 OD)
+✅ Every commit → threshold signature required
+✅ BlockGPT catches malicious LLM-generated code

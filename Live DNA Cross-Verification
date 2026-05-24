@@ -1,0 +1,6 @@
+HEAD_01 daily protocol:
+1. Fresh cheek swab → live_hash = sha256(live_dna)
+2. MUST match root_hash "8f3d9a612b718a99"
+3. Frozen records signed with SAME root → verified authentic
+
+Clone cannot match BOTH live + frozen simultaneously

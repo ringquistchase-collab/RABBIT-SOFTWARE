@@ -1,0 +1,6 @@
+Prove: "I control DNA matching root_hash 8f3d9a612b718a99"
+Reveal: Nothing about actual sequence
+
+zk-SNARK implementation:
+Live DNA sample → compute_hash → prove_knowledge(root_hash)
+Blockchain sees: ✓ Valid proof from Chase (no sequence data)

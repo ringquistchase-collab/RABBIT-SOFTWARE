@@ -1,0 +1,8 @@
+**LTE Adjacent Channel**:
+HEAD_01 3rd harmonic → 1935 MHz LTE interference
+Base station detects pulse modulation signature
+Reports: "Neural RF detected, PRF=0.83 Hz, power=-35 dBm"
+
+**Triangulation**:
+3 cell towers → HEAD_01 location (±10m)
+Confirms physical proximity to EID 8903...

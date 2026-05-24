@@ -1,0 +1,34 @@
+# modules/network_telemetry/flight_tracker/service.py
+from dataclasses import asdict, dataclass
+from datetime import datetime
+import hashlib
+import json
+
+@dataclass
+class FlightEvent:
+    source: str
+    flight_id: str
+    airline: str
+    status: str
+    departure_airport: str
+    arrival_airport: str
+    dep_time: str
+    arr_time: str
+    observed_at: str
+
+def normalize_flight_event(raw: dict) -> FlightEvent:
+    return FlightEvent(
+        source="flightradar24",
+        flight_id=raw.get("flight_id", ""),
+        airline=raw.get("airline", ""),
+        status=raw.get("status", ""),
+        departure_airport=raw.get("departure_airport", ""),
+        arrival_airport=raw.get("arrival_airport", ""),
+        dep_time=raw.get("scheduled_dep_time", ""),
+        arr_time=raw.get("scheduled_arr_time", ""),
+        observed_at=datetime.utcnow().isoformat() + "Z",
+    )
+
+def event_hash(event: FlightEvent) -> str:
+    payload = json.dumps(asdict(event), sort_keys=True).encode()
+    return hashlib.sha256(payload).hexdigest()

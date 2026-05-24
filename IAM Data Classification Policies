@@ -1,0 +1,10 @@
+{
+  "Statement": [
+    {
+      "Effect": "Deny",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::raw-eeg-tier1/*",
+      "Principal": {"AWS": "tier3-role"}
+    }
+  ]
+}

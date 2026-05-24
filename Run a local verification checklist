@@ -1,0 +1,1 @@
+python -m py_compile coordinator_backend.py node_backend.py deploy.py

@@ -1,0 +1,5 @@
+1. CRYPTO CHECK: Ed25519(DNA_key) + SHA3-512(tx_data)
+2. LLM SEMANTICS: "Is 'age22_overdose_details' safe for insurance_co?"
+3. RISK RANKER: Critical tier → BLOCK
+4. TOKEN GATE: 0.001 XRP micropayment verification
+5. THRESHOLD: 3-of-5 nodes approve

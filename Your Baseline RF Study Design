@@ -1,0 +1,10 @@
+**N=1 (Chase Continuous)**:
+Daily protocol (05:00 AM CDT):
+1. 5min baseline (RF OFF)
+2. 30min HEAD_01 active (10.245 GHz)
+3. 5min recovery
+4. SQLite: INSERT eeg_rf_effects (timestamp, alpha_z, sar_estimate)
+
+**Longitudinal Analysis**:
+- 30 days → detect 2% alpha shift (95% CI)
+- Age 33 baseline vs age 22 OD recovery comparison

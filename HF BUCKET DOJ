@@ -1,7 +1,0 @@
-powershell -ExecutionPolicy ByPass -c "irm https://hf.co/cli/install.ps1 | iex"
-
-hf sync ./data hf://buckets/Therealsickonechase-bit/DOJ
-
-hf sync hf://buckets/Therealsickonechase-bit/DOJ ./local
-
-Therealsickonechase-bit/DOJ

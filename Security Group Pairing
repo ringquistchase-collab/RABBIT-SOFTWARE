@@ -1,0 +1,11 @@
+Public ALB SG:
+TCP 5000,443 → Private App SG (SocketIO → EEG)
+
+Private App SG: 
+TCP 443 ← Public ALB SG (inbound only)
+TCP 443 → Tier1 Raw SG (hash computation)
+TCP 5432 → RDS hashes
+
+Tier1 Raw SG:
+TCP 443 ← Private App SG (read-only)
+NO egress (airgap)

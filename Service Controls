@@ -1,0 +1,8 @@
+VPC Service Controls Perimeter:
+- Allowed Services: EC2, RDS, S3, Lambda, KMS
+- Blocked Services: CloudWatch Logs, Inspector, Systems Manager
+- Data Flow: S3 → Compute → S3 (circular)
+
+IAM Boundary Policy:
+- Deny: s3:GetObject (raw EEG)
+- Allow: s3:GetObject (SHA-256 hashes only)

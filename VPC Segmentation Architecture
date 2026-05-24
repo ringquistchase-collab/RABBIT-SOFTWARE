@@ -1,0 +1,16 @@
+VPC: 10.100.0.0/16 (Genomic Isolation VPC)
+
+Tier 1 Subnet (Raw): 10.100.1.0/27  → 32 IPs
+├── EC2 Nitro Enclaves (confidential EEG processing)
+├── EBS Encrypted (AES-256-GCM + KMS)
+└── NO OUTBOUND INTERNET/EGRESS
+
+Tier 2 Subnet (Fingerprints): 10.100.2.0/26 → 64 IPs  
+├── Lambda@Edge (ephemeral hash analysis)
+├── RDS Aurora (hash-validated timelines)
+└── VPC Endpoint → S3 hashes ONLY
+
+Tier 3 Subnet (Metadata): 10.100.3.0/24 → 256 IPs
+├── EMR (aggregate analytics)
+├── Athena (queryable metadata)
+└── NAT Gateway → controlled internet

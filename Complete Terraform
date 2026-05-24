@@ -1,0 +1,32 @@
+# Route Tables
+resource "aws_route_table" "tier1" {
+  vpc_id = aws_vpc.genomic.id
+  route {
+    cidr_block = "10.100.0.0/16"
+    target = "local"
+  }
+  tags = { Name = "tier1-raw-eeg" }
+}
+
+resource "aws_route_table_association" "tier1" {
+  subnet_id      = aws_subnet.tier1.id
+  route_table_id = aws_route_table.tier1.id
+}
+
+# Security Groups  
+resource "aws_security_group" "tier1_raw" {
+  vpc_id = aws_vpc.genomic.id
+  ingress { from_port = 443; to_port = 443; protocol = "tcp"; self = true }
+  egress {}  # Empty = airgap
+  tags = { Name = "tier1-raw" }
+}
+
+# NACL (stateless subnet firewall)  
+resource "aws_network_acl_rule" "tier1_deny_all" {
+  network_acl_id = aws_network_acl.tier1.id
+  rule_number    = 100
+  protocol       = "-1"
+  rule_action    = "DENY"
+  cidr_block     = "0.0.0.0/0"
+  egress         = true
+}

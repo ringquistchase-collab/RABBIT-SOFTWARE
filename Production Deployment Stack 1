@@ -1,0 +1,29 @@
+**NEURAL_GATEWAY** (RTX 5090 + 256GB RAM):
+
+docker-compose.yml:
+services:
+gnu-radio:
+image: gnuradio/gr-3.11:latest
+volumes: [/dev/bus/usb:/dev/bus/usb]  # HackRF
+llm-fusion:
+image: grok4.1-fusionroute:latest
+env:
+- EEG_TOKENS=4096
+- XRPL_KEY=your_seed
+xrpl-node:
+image: xrpld:latest
+command: ["submit", "bundle_gsr_eeg"]
+
+**CHEST_01 Firmware** (Zephyr RTOS):
+```c
+// Real-time GSR → SDR → Token
+void sensor_fusion_loop() {
+    gsr_iq = hackrf_gsr_phase();
+    eeg_tokens = head_01_tfm_tokenize();
+    
+    if (threshold_3of5(gsr_iq, eeg_tokens)) {
+        bundle = sha256("φ0.06_θ0.64_V1_red_edge");
+        cellular_xrpl_burst(bundle);
+        wrist_haptic_feedback("sight_stress");
+    }
+}

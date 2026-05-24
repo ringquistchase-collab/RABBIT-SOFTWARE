@@ -1,0 +1,15 @@
+**Node Layer** (Zephyr RTOS):
+ESP32-S3 (WiFi6/BLE 5.0) + CC1352R (Sub-GHz backup)
+Records: EEG + RF params → local flash (AES-256)
+
+**Bluetooth LE** (<10m):
+Nodes → Phone NVMe (Shamir 3-of-2)
+Payload: threshold_signed bundles (139 bytes)
+
+**WiFi6** (192.168.1.134 → 100m):
+Phone → NEURAL_GATEWAY (Ubuntu server)
+SQLite + Prometheus monitoring
+
+**Cellular** (Tower/Sat backup):
+EID burst → XRPL Hooks (0.001 XRP/bundle)
+Satellite: Iridium SBD (emergency only)

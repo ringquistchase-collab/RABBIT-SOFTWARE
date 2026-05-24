@@ -1,0 +1,5 @@
+Weekly node audit:
+1. New research papers → update uniqueness scores
+2. Legal changes → update regulatory weights  
+3. Familial database growth → update inheritance probs
+4. NEURAL_GATEWAY auto-migrates: public→bucket→vault

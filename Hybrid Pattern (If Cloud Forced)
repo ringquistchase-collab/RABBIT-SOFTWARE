@@ -1,0 +1,5 @@
+Tier 1 Subnet (Raw EEG): NO routes (airgap)
+Tier 2 Subnet (Hashes): pl-63a3694a → S3 endpoint ONLY  
+Tier 3 Subnet (Metadata): 0.0.0.0/0 → NAT Gateway (SocketIO broadcasts)
+
+# Your phone = perfect Tier 3 NAT Gateway proxy

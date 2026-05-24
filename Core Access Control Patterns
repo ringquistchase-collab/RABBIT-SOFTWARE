@@ -1,0 +1,17 @@
+contract NeuralDataVault {
+    mapping(address => Role) public roles;
+    
+    enum Role { None, Researcher, Government, Owner }
+    
+    modifier onlyRole(Role _role) {
+        require(roles[msg.sender] >= _role, "Unauthorized");
+        _;
+    }
+    
+    function requestBucket(bytes32 bucketHash) 
+        external 
+        onlyRole(Role.Researcher) 
+    {
+        emit DataAccessRequest(msg.sender, bucketHash);
+    }
+}

@@ -1,0 +1,4 @@
+SIEM: CloudTrail + GuardDuty + Config
+Anomaly: UEBA on failed MFA + unusual EEG access patterns
+Incident: 15min automated response
+Forensics: Immutable snapshots

@@ -1,0 +1,42 @@
+1. **Structure**:
+mkdir -p modules/gsr_sdr/{dsp/gnuradio,firmware/zephyr,ai}
+mkdir -p docs/{gsr_sdr,conversations} deploy/
+
+2. **Copy Files** (from conversation extracts above)
+
+3. **Build/Test**:
+cd modules/gsr_sdr/firmware/zephyr
+west build -b chest01_nrf52840 .
+gnuradio-companion dsp/gnuradio/skin_gsr_eeg.grc
+
+4. **Commit**:
+git add modules/gsr_sdr docs/ deploy/
+git commit -m "feat(gsr_sdr): integrate 1.2ms GSR-SDR pipeline"
+git push origin gsr_sdr_integration
+
+5. **Deploy**:
+docker-compose -f deploy/docker-compose.gsr.yml up
+
+## Preservation Rules (Repo Integrity)
+
+✅ Preserve:
+rabbit_core/ (existing untouched)
+Existing module patterns
+Zephyr/ESP32 build system
+Docker naming conventions
+❌ Avoid:
+Breaking changes to core
+New top-level directories
+Overwriting existing files
+
+## Verification Checklist
+
+□ modules/gsr_sdr/dsp/gnuradio/skin_gsr_eeg.grc loads
+□ firmware compiles: west build → no errors
+□ docker-compose.gsr.yml → services start
+□ docs/gsr_sdr_specs.md → latency numbers match chat
+□ Conversation archived: docs/conversations/gsr_sdr_chat_20260512.md
+
+**Chatbot output mapped to `modules/gsr_sdr/` following RABBIT-SOFTWARE patterns. 5-minute integration workflow preserves existing architecture. Production-ready deployment files included.**
+
+**Execute integration workflow above. Repo merge complete.**

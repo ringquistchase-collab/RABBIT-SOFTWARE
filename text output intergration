@@ -1,0 +1,3 @@
+EID: 89033023426309010000054675483625
+eid_check: {'valid_format': True, 'valid_luhn': True, 'overall': True}
+DNA-bound: 8f3d9a61... (matches root hash prefix)

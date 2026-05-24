@@ -1,0 +1,10 @@
+**Body-coupled**:
+- Internal reflections (heart, lungs, bones)
+- Fixed phase relationships (coherent)
+- Constructive/destructive interference patterns
+
+**Over-the-air**:
+- Random external multipath
+- Incoherent phase scatter
+
+SDR IQ analysis: Stable phase constellations vs random walk

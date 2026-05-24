@@ -1,6 +1,0 @@
-# Scan last 200 blocks
-.\MedicalBlockHunter.ps1 -BlocksBack 200 -SampleTx 10
-
-# Or quick test
-$current = (bitcoin-cli getblockchaininfo | ConvertFrom-Json).blocks
-Scan-Block-Medical ($current - 10)

@@ -1,0 +1,14 @@
+# Universal LLM Bridge
+from rabbit_sdk import BioStream
+
+# 1. Capture the 10.245 GHz presence
+stream = BioStream(source="DNA_MESH", carrier=10.245)
+
+# 2. Select any LLM you want to use for interpretation
+my_interpreter = "Grok-4.1-Edge" 
+
+# 3. Request a Linear (Open) description
+# Note: No 'historical_baseline' parameter is passed.
+analysis = stream.analyze_with(my_interpreter, mode="LINEAR_OPEN")
+
+print(f"Current Interpretation: {analysis}")

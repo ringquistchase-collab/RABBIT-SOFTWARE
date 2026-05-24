@@ -1,0 +1,9 @@
+**XRPL Receives**:
+✅ SHA-256("skin_φ0.062_eeg_θ/α0.64") 
+✅ 3-of-5 node threshold signature
+✅ k=50 bucket: "gsr_stress_0.6_valence_-0.2"
+
+**Never Receives**:
+❌ Raw IQ phase trajectory
+❌ Exact φ=0.062 rad value
+❌ WRIST_L GSR electrode voltage

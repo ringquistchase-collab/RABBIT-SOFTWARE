@@ -1,0 +1,7 @@
+CHEST_01 local TTS triggers:
+z ≥ 2.5: "RF alpha effect detected. Monitoring."
+z ≥ 3.0: "Safety threshold reached. Reducing duty cycle."
+z ≥ 4.0: "Emergency protocol. All RF nodes paused."
+
+SQLite audit trail:
+2026-05-12 09:15:23 | α_rel=45.2 | z=2.6 | action=duty_cycle_50pct

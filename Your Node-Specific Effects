@@ -1,0 +1,13 @@
+**HEAD_01** (1.2ms @ 10.245 GHz):
+- α peak: +4.2% (strongest)
+- Rise/fall time: 2ns → maximal calcium transient
+- SAR heat map peak: forehead center
+
+**CHEST_01** (500μs @ 10.251 GHz):
+- Cardiac coupling monitor
+- Lower duty → α +2.8%
+- Backup RF safety controller
+
+**SPINE_03** (800μs @ 10.268 GHz):
+- θ/α stress axis
+- α +3.1%, θ +0.9%

@@ -1,0 +1,4 @@
+At-rest: AES-256-GCM (your current standard ✓)
+In-transit: TLS 1.3 + PFS (post-quantum ready)
+Compute: Confidential computing (Intel SGX/AWS Nitro)
+Key management: HSM + KMS with 90-day rotation

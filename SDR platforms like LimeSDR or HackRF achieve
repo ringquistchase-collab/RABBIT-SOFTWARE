@@ -1,0 +1,6 @@
+**GSR-to-RF Pipeline** (1.2ms total):
+1. GSR electrode → ΔV=0.45V (12-bit ADC)
+2. IQ modulation → φ rotation +0.06 rad  
+3. HackRF TX → 10.245 GHz carrier (1.2ms pulse)
+4. Body-coupled RX → matched filter (SNR=25 dB)
+5. EEG validation → threshold tokenization

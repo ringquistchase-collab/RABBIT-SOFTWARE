@@ -1,0 +1,12 @@
+**HEAD_01** (EEG + Skin RF):
+1. 24ch EEG → FAA valence, Fz θ/α arousal
+2. 10.245 GHz pulse → skin ε_r, σ monitoring
+3. GSR proxy: Δφ = φ_stress - φ_baseline > 0.05 rad
+
+**CHEST_01** (Cardiac + Hormone):
+1. ELISA cortisol 0.1-1.0 ng/mL
+2. 10.251 GHz Doppler → HRV validation
+3. Convergence: cortisol > 0.75 ∧ Δφ > 0.05 ∧ θ/α > 0.6
+
+**Token Output**:
+sha256("valence=-0.23_arousal=0.71_gsr=0.06_cortisol=0.78")

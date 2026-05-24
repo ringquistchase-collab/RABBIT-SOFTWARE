@@ -1,0 +1,4 @@
+Zero Trust: No standing privileges
+RBAC + ABAC: EEG access = F3/F4 cortisol researchers only
+MFA: Hardware YubiKey + biometric
+Audit: Immutable logs (your SHA-256 timestamps ✓)

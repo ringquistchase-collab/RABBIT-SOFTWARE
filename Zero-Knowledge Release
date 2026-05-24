@@ -1,0 +1,26 @@
+contract ChaseNeuralAccess {
+    address owner = 0xYourWallet;
+    uint256 public researchPrice = 0.001 ether;
+    
+    mapping(bytes32 => bool) releasedBuckets;
+    
+    event DataAccess(address requester, bytes32 bucketHash, bytes32 ciphertextHash);
+    
+    function requestResearchData(bytes32 bucketHash, bytes32 thresholdSig) 
+        external 
+        payable 
+    {
+        require(msg.value >= researchPrice, "Insufficient payment");
+        require(!releasedBuckets[bucketHash], "Already released");
+        
+        // Verify 3-of-5 node threshold (off-chain oracle)
+        require(verifyThresholdSig(thresholdSig), "Invalid node consensus");
+        
+        releasedBuckets[bucketHash] = true;
+        
+        // Ciphertext only (k=50 bucket)
+        bytes32 ciphertextHash = keccak256("synthetic_cortisol_trajectory");
+        
+        emit DataAccess(msg.sender, bucketHash, ciphertextHash);
+    }
+}

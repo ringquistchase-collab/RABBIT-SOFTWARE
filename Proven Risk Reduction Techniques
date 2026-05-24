@@ -1,0 +1,7 @@
+Original: Cortisol=0.78 (age 7 PTSD spike)
+Perturbed: Cortisol=0.76±0.02 (expert bounds)
+Re-ID risk: 92% → 18% (top-10 match rate)
+Utility preserved: Clinical bin unchanged
+
+Your nodes apply: HEAD_01 + CHEST_01 consensus ±2% noise
+Blockchain sees: Valid signature, plausible biology

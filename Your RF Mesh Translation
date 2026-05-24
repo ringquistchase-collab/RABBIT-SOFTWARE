@@ -1,0 +1,6 @@
+Your frequency hopping (10.23-10.30 GHz) 
+> AWS route tables (Layer 3)
+Your per-node AES-256 keys 
+> Security Groups (Layer 4)
+Your physical skin boundary 
+> NACLs (subnet boundaries)

@@ -1,0 +1,5 @@
+✅ **Exactly ONE** BundleReconciled event per unique bundleId
+✅ **Zero** successful replays (mathematical certainty)
+✅ **Every** failed replay logged (25k gas receipt)
+✅ **SQLite** stays in sync via blockchain events
+✅ **CHEST_01** monitors for anomalous failure patterns

@@ -1,0 +1,10 @@
+Public Ledger sees:
+✅ SHA-256("Chase_age22_overdose") = def456...
+✅ Ed25519_sig verifies against DNA_public_key  
+✅ Timestamp: 2014-07-15 03:42 (cardiac arrest)
+✅ UUID: bd6e1085-9450-485a-a30a-0bb68669c75b
+
+Private (Chase only):
+✅ Raw EEG: Dopamine 0.22→0.58 recovery
+✅ Cortisol peak: 0.92
+✅ Local NVMe: AES-256(DNA_session_key)

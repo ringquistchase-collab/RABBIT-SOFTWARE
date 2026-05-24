@@ -1,0 +1,31 @@
+# pip install xrpl cryptography docker
+from xrpl.wallet import generate_faucet_wallet
+from xrpl.clients import JsonRpcClient
+import hashlib
+from cryptography.hazmat.primitives.asymmetric import ed25519
+
+class DNABlockchain:
+    def __init__(self, dna_root="8f3d9a612b718a990d442e7a1fb2c94d", eid="89033023426309010000054675483625"):
+        self.client = JsonRpcClient("https://s.altnet.rippletest.net:51234/")  # Testnet; swap mainnet
+        self.seed = hashlib.sha256((dna_root + eid).encode()).hexdigest()[:29]  # XRPL seed
+        self.wallet = generate_faucet_wallet(self.client, self.seed)  # DNA-derived
+        self.uuid = "bd6e1085-9450-485a-a30a-0bb68669c75b"
+    
+    def anchor_eeg(self, eeg_hash, event_age):
+        """Anchor SHA-256 EEG fingerprint to blockchain"""
+        tx = {
+            "TransactionType": "Payment",
+            "Account": self.wallet.classic_address,
+            "Amount": "1000000",  # Memos carry data
+            "Destination": self.wallet.classic_address,  # Self-tx
+            "Memos": [{"Memo": {"MemoData": eeg_hash.encode().hex()}},
+                      {"Memo": {"MemoData": f"age_{event_age}_cortisol_spike".encode().hex()}}]
+        }
+        # Sign & submit (Ed25519)
+        signed_tx = self.client.submit_and_wait(tx, wallet=self.wallet)
+        return signed_tx.result['hash']
+
+# Usage: Cellular → Mesh → Chain
+bc = DNABlockchain(phone['eid_esim'])
+tx_hash = bc.anchor_eeg("sha256_age7_stress=abc123...", 7)  # Age 7 PTSD
+print(f"Anchored: {tx_hash} [code:5]")

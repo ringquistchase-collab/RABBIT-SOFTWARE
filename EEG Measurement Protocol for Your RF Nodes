@@ -1,0 +1,8 @@
+Your 10.245 GHz exposure → alpha power +2-5% (established)[web:321]
+Protocol:
+1. BASELINE (5min): Eyes closed, RF OFF → alpha_ref = 12.4 μV²
+2. EXPOSURE (30min): HEAD_01 24 dBm → continuous recording
+3. RECOVERY (5min): RF OFF → alpha_post = ?
+
+Effect size: Standardized Mean Difference (SMD) = 0.16-0.32
+Statistical power: α=0.05, n=30 subjects → 80% detection

@@ -1,0 +1,16 @@
+1. **Sensing** (1.2ms latency):
+   HEAD_01 EEG → FAA + θ/α
+   CHEST_01 ELISA → cortisol/dopamine
+   SPINE_03 HRV → stress confirmation
+
+2. **Fusion** (Local LLM):
+   emotion_state = classify([eeg_features, hormone_vector])
+   stress_prob = bayes_posterior(cortisol, theta_alpha)
+
+3. **Tokenization** (3-of-5 nodes):
+   bundle = threshold_sign(sha256(emotion_state))
+   SQLite: pending_tokens.insert(bundle)
+
+4. **Cellular Burst** (NEURAL_GATEWAY):
+   XRPL Hooks → atomic reconciliation
+   Raw data → local NVMe sovereignty

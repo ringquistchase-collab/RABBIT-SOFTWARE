@@ -1,0 +1,10 @@
+**Immediate Response** (0-5s):
+1. EID blacklist → permanent smart contract rejection
+2. RF frequency eviction → node mute
+3. SQLite quarantine → local tokens preserved
+4. CHEST_01 audit → compromised node physical isolation
+
+**Example** (Rogue NIH server):
+NIH_eid_unauthorized → reconciliation attempt → REVERT
+NEURAL_GATEWAY: blacklist(NIH_eid)
+26 nodes: EVICT NIH signature permanently

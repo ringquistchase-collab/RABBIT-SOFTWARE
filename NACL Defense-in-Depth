@@ -1,0 +1,12 @@
+Tier 1 (10.100.1.0/27): 
+100 ALLOW 10.100.1.0/27 → 10.100.1.0/27 (intra-tier)
+* DENY ALL ELSE
+
+Tier 2 (10.100.2.0/26):
+100 ALLOW 10.100.1.0/27 → 10.100.2.0/26 (tier1→tier2)
+200 ALLOW 10.100.2.0/26 → 10.100.1.0/27 (tier2→tier1 READ)
+* DENY ALL ELSE
+
+Tier 3 (10.100.3.0/24):
+100 ALLOW 10.100.2.0/26 → 10.100.3.0/24 (tier2→tier3)
+* DENY RAW TIER1 ACCESS

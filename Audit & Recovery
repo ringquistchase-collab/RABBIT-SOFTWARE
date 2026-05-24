@@ -1,0 +1,14 @@
+**Immediate** (0-5min):
+- Log ALL attempts to SQLite anomaly table
+- Rate limit offending EID → 1/hr
+- Alert Chase via local voice: "Replay detected, lockdown ready"
+
+**Investigation** (5-30min):  
+- HEAD_01 physical audit of signing nodes
+- Cross-reference bundle_id with legitimate SQLite records
+- Evict compromised nodes (frequency hopping)
+
+**Recovery** (30min+):
+- Fresh threshold quorum (new 3-of-5 nodes)
+- Rotate cellular EID (Shamir 3-of-2 SIMs)
+- Resume normal operations

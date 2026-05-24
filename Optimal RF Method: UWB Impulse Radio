@@ -1,0 +1,5 @@
+**Why UWB beats alternatives**:
+- Bandwidth: 500 MHz → 100x time resolution vs narrowband
+- Pulse: 2ns → resolves skin GSR transients (10-100ms)
+- Power: -14 dBm/MHz → SAR 0.001 W/kg (100x safer)
+- Penetration: Skin/muscle δ=5mm at 5 GHz

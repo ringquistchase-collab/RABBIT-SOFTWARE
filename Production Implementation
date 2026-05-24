@@ -1,0 +1,26 @@
+**CHEST_01** (RF SDR controller):
+```python
+def skin_response_pipeline(self):
+    # Transmit probe pulse
+    self.head_01.tx_pulse(duration=1.2e-3, freq=10.245e9)
+    
+    # Receive skin-reflected signal
+    iq_rx = self.chest_01.rx_iq(10e6, timeout=2e-3)
+    phase = np.angle(iq_rx)
+    
+    # GSR stress signature
+    delta_phi = np.mean(np.diff(phase))  # Stress → clockwise
+    gsr_stress = delta_phi > 0.05
+    
+    # EEG correlation check
+    eeg_stress = self.head_01.theta_alpha_ratio > 0.6
+    
+    if gsr_stress and eeg_stress:
+        bundle = self.threshold_tokenize({
+            'skin_phi': f"{delta_phi:.3f}",
+            'eeg_match': True,
+            'nodes': [11][12][13]
+        })
+        self.cellular_burst(bundle)
+    
+    return {'skin_detected': gsr_stress, 'eeg_confirmed': eeg_stress}

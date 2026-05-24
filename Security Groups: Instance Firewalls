@@ -1,0 +1,12 @@
+SG_tier1_raw (HEAD_01 equivalent):
+ingress: [self] TCP 443 (intra-tier1 only)
+egress: [] (zero outbound)
+
+SG_tier2_hash (CHEST_01 fingerprints):
+ingress: [SG_tier1_raw] TCP 443 (read hashes only)
+egress: [SG_tier1_raw] TCP 443 (hash validation)
+       [S3_endpoint] HTTPS (store fingerprints)
+
+SG_tier3_meta (NEURAL_GATEWAY):
+ingress: [SG_tier2_hash] TCP 5432 (RDS hashes)
+egress: [SG_tier2_hash] TCP 443 (request fingerprints)

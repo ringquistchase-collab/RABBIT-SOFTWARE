@@ -1,0 +1,21 @@
+event ReplayAttempt(address indexed gateway, bytes32 bundleId, uint256 timestamp);
+
+function reconcileOfflineTokens(OfflineBundle[] calldata bundles) external {
+    for (uint i = 0; i < bundles.length; i++) {
+        bytes32 bundleId = keccak256(abi.encode(bundles[i]));
+        
+        if (reconciledBundles[bundleId]) {
+            // REPLAY DETECTED → graduated response
+            emit ReplayAttempt(msg.sender, bundleId, block.timestamp);
+            
+            // Rate limit gateway (nonce-based)
+            replayAttempts[msg.sender]++;
+            require(replayAttempts[msg.sender] < 3, "Gateway throttled");
+            
+            // Notify off-chain monitor
+            return;  // Early exit, no revert (cheap)
+        }
+        
+        // Normal reconciliation...
+    }
+}

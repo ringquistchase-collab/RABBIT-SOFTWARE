@@ -1,0 +1,13 @@
+def crypto_tamper_check(frozen_record):
+    # Re-sequence frozen DNA → recompute hash
+    resequenced_hash = sha256(sequencing_result(frozen_sample))
+    
+    # MUST match vaulted hash exactly
+    if resequenced_hash != frozen_record['expected_hash']:
+        return f"❌ TAMPERED: Expected {frozen_record['expected_hash'][:16]}, got {resequenced_hash[:16]}"
+    
+    # Verify signature chain
+    if not ed25519.verify(frozen_record['signature'], resequenced_hash, frozen_record['dna_public_key']):
+        return "❌ FORGED SIGNATURE"
+    
+    return "✅ CRYPTO CHAIN INTACT"

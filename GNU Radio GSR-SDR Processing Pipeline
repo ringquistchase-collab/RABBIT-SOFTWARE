@@ -1,0 +1,15 @@
+**NEURAL_GATEWAY** (Ubuntu 24.04 + GNU Radio 3.11):
+
+grc skin_gsr_eeg.grc:
+├── HackRF Source (10.245 GHz, 20 MSPS)
+│   ├── GSR Demod: Phase unwrap → σ=2.1 S/m
+│   └── UWB Filter: 500 MHz impulse → timing
+├── EEG Source: HEAD_01 (256 Hz, 32ch)
+│   └── TFM-Tokenizer: θ/α motifs → discrete tokens
+├── Fusion: GSR_φ + EEG_tokens + HRV
+└── XRPL Burst: SHA-256("φ0.06_θ0.64_k50")
+
+
+**Real-time Latency**: 1.2ms (SDR IQ → token)
+**Throughput**: 9.6 kbps GSR + 256 Hz EEG[web:407][web:420]
+

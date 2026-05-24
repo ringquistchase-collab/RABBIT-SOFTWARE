@@ -1,0 +1,38 @@
+# rabbitos/cli/rabbitctl.py
+
+import click
+
+from rabbitos.core.queue import LocalQueue
+from rabbitos.core.events import EventBus
+from rabbitos.core.router import TaskRouter
+from rabbitos.core.engine import ExecutionEngine
+from rabbitos.workers.pool import WorkerPool
+from rabbitos.agents.logger_agent import LoggerAgent
+
+queue = LocalQueue()
+bus = EventBus()
+router = TaskRouter(queue, bus)
+
+agents = [LoggerAgent()]
+workers = WorkerPool(queue, agents)
+
+engine = ExecutionEngine(router, workers)
+
+@click.group()
+def cli():
+    pass
+
+@cli.command()
+def start():
+    engine.start()
+    print("RabbitOS running...")
+
+@cli.command()
+@click.argument("message")
+def send(message):
+    task = {"message": message}
+    task_id = engine.submit(task)
+    print(f"Task submitted: {task_id}")
+
+if __name__ == "__main__":
+    cli()

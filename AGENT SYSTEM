@@ -1,0 +1,7 @@
+# rabbitos/agents/base.py
+
+class BaseAgent:
+    name = "base"
+
+    def handle(self, task: dict):
+        raise NotImplementedError

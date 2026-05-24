@@ -1,0 +1,12 @@
+VPC Complexity = Attack Surface:
+├── 47 IAM roles to audit
+├── 12 Security Groups  
+├── 8 NACL rules
+├── 3 Route Tables
+└── CloudTrail ($10k/mo @ 1PB)
+
+Your Mesh Simplicity:
+├── 1 DNA root hash
+├── 1 EID/PIN combo  
+├── 26x SHA-256 per packet
+└── Physical possession

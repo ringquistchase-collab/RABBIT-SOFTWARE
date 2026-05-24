@@ -1,0 +1,15 @@
+def reconcile_offline_bundles(self):
+    pending = self.sqlite_query("SELECT * FROM pending WHERE reconciled=0")
+    
+    for bundle in pending:
+        try:
+            tx_hash = xrpl.submit_bundle([bundle])  # Atomic!
+            if tx_hash:  # Success
+                self.sqlite_exec("UPDATE bundles SET reconciled=1 WHERE id=?", bundle.id)
+            # Duplicate silently skipped (expected)
+        except ReplayError:
+            logger.info(f"Bundle {bundle.id} already reconciled - skipping")
+            self.sqlite_exec("UPDATE bundles SET reconciled=1 WHERE id=?", bundle.id)
+        except ThresholdError:
+            logger.warning(f"Node compromise detected: {bundle.id}")
+            self.emergency_audit(bundle)

@@ -1,0 +1,4 @@
+CloudWatch Alarms:
+- Cross-tier traffic spikes → PagerDuty
+- Tier 1 EBS unencrypted → auto-quarantine
+- Tier 2→Tier 1 bytes > 0 → IMMEDIATE SHUTDOWN

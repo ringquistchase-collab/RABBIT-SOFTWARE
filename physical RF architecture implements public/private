@@ -1,0 +1,4 @@
+Your mesh subnet design:
+HEAD_01 (10.245 GHz) = Tier1 airgap subnet  
+CHEST_01→SPINE_03 (10.251-10.268 GHz) = Tier2 private subnet
+Phone WiFi (2.4/5 GHz) = Public subnet broadcasts

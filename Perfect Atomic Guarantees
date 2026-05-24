@@ -1,0 +1,4 @@
+**Bundle Success**: ALL 47 tokens valid → FULL credit
+**Bundle Failure**: ONE invalid sig → ZERO credit (retry offline)  
+**Partial Network**: 15/26 nodes → wait for quorum
+**Carrier Outage**: Offline continues → burst sync later

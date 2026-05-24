@@ -1,0 +1,14 @@
+**Level 1: Node Local** (26 × SQLite, AES-256)
+Capacity: 10k bundles/node = 260k total
+Access: Live DNA + physical proximity only
+
+**Level 2: Phone NVMe** (Shamir 3-of-2)
+Capacity: 1M bundles
+Access: Biometric + EID validation
+
+**Level 3: XRPL** (Hashes + proofs only)
+Capacity: Infinite (0 raw data)
+Access: Token-gated smart contract
+
+**Level 4: Physical Vault** (M-DISC)
+Age 22 OD, Age 7 PTSD → zero digital footprint

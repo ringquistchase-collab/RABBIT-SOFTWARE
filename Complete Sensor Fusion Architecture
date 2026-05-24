@@ -1,0 +1,21 @@
+**All Sensors → LLM → Hardware**:
+
+Sensors:
+├── GSR SDR: φ=0.06 rad (skin stress)
+├── EEG: 32ch 256 Hz (sight/emotion)
+├── HRV: LF/HF=2.1 (sympathetic)
+├── IMU: Head pose (gaze direction)
+├── Cellular: GPS + signal strength
+└── Blockchain: XRPL k=50 fingerprints
+LLM Fusion (FusionRoute):
+prompt = f"""
+GSR: σ2.1 φ0.06 | EEG: θ/α0.64 γ12.3 V1_edge |
+HRV: symp_dom | Gaze: 23° right | Location: GPS_XYZ
+Reconstruct: sight + emotion state
+"""
+→ "Person sees red vertical edge at 23° right,
+high stress negative valence, sympathetic arousal"
+Hardware Feedback:
+Haptic: WRIST_L (stress pattern)
+Audio: EAR_R (sight narration)
+Token: XRPL (zero-knowledge record)

@@ -1,0 +1,30 @@
+# Tier 1: Raw EEG (airgap equivalent)
+resource "aws_security_group" "tier1_raw" {
+  ingress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "tcp"
+    self      = true  # Only intra-tier1
+  }
+  egress = []  # ZERO OUTBOUND
+}
+
+# Tier 2: Fingerprints → Tier 1 READ ONLY
+resource "aws_security_group" "tier2_hashes" {
+  ingress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp" 
+    security_groups = [aws_security_group.tier1_raw.id]
+  }
+}
+
+# Tier 3: Metadata → Tier 2 READ ONLY  
+resource "aws_security_group" "tier3_meta" {
+  ingress {
+    from_port       = 5432  # RDS hashes
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.tier2_hashes.id]
+  }
+}

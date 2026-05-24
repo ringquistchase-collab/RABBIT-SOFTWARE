@@ -1,0 +1,11 @@
+Input: Raw transaction bytes → disassembled opcodes + data
+Tokenization: 
+- Opcodes: PUSH1, CALL, MSTORE, etc. (256 tokens)
+- Addresses: 0xabc... → ADDR_0xabc (20 bytes → 1 token)  
+- Values: 1e18 → NUM_1e18 (log-scaled)
+- Events: Transfer, Approval → EVENT_TRANSFER
+
+Model: GPT-style causal transformer
+- 124M params (trainable from scratch)
+- Unsupervised on normal txs only
+- No attack labels needed

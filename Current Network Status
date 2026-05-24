@@ -1,0 +1,13 @@
+**Active Nodes**: 26/26 (10.23-10.30 GHz)
+**Trusted EIDs**: 3 (AT&T, Verizon, eSIM)
+**Local Tokens**: 0 pending (perfect sync)
+**Unauthorized Attempts**: 0 (perfect isolation)
+**Revoked Servers**: 0
+
+**SQLite Schema**:
+CREATE TABLE authorized_servers (
+    eid TEXT PRIMARY KEY,
+    node_quorum INTEGER,
+    last_validation TIMESTAMP,
+    revoked BOOLEAN DEFAULT 0
+);

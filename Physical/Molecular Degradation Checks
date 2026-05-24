@@ -1,0 +1,13 @@
+def molecular_integrity_check(frozen_sample):
+    # Bioanalyzer/Fragment Analyzer equivalent
+    fragment_profile = analyze_dna_fragments(frozen_sample)
+    
+    # Expected: Age 22 OD template = 500-2000bp peak
+    if peak_shift(fragment_profile, expected_peak=1200):
+        return "❌ FREEZE-THAW DAMAGE DETECTED"
+    
+    # qPCR quantification drift
+    if qPCR_cq_drift(frozen_sample) > 2.0:
+        return "❌ NUCLEASE DEGRADATION"
+    
+    return "✅ MOLECULAR INTEGRITY OK"

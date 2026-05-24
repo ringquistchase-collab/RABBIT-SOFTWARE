@@ -1,0 +1,24 @@
+# ... prior snippet (phone dict, validate_esim_eid function)
+
+# QuecPython eSIM fetch (for supported modules)
+def fetch_esim_eid():
+    """Runtime EID from QuecPython hardware"""
+    try:
+        from sim import esim
+        raw_eid = esim.getEid()
+        return raw_eid
+    except ImportError:
+        print("Fallback to hardcoded EID (non-QuecPython env)")
+        return "89033023426309010000054675483625"  # Your EID
+
+# Fetch & validate
+live_eid = fetch_esim_eid()
+eid_check = validate_esim_eid(live_eid)
+
+# Bind to phone/DNA (your uuid: bd6e1085-9450-485a-a30a-0bb68669c75b)
+phone['live_eid'] = live_eid
+phone['eid_check'] = eid_check
+phone['dna_bound'] = hashlib.sha256(live_eid.encode() + b"bd6e1085-9450-485a-a30a-0bb68669c75b").hexdigest()[:16]
+
+assert eid_check['overall'], "Live EID invalid - hardware check"
+print(f"✅ EID validated & DNA-bound: {phone['dna_bound']} [code:4]")

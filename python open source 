@@ -1,0 +1,21 @@
+# RABBIT-OPEN: Linear Feed-Forward Logic
+# UUID: bd6e1085-9450-485a-a30a-0bb68669c75b
+
+class LinearNavigator:
+    def __init__(self):
+        self.vault_path = "/mnt/neural_safe/history_log.sqlite"
+
+    def process_live_stream(self, eeg_token, gsr_phi):
+        # 1. LIVE PATH: Direct broadcast to Side A (Radio) and Side B (OS)
+        # This is the "Open" part—no historical correction applied.
+        print(f"LIVE_VECTOR: {eeg_token} | PHI: {gsr_phi}")
+
+        # 2. RETENTION PATH (The Return): 
+        # Data is "returned" to the local NVMe without looping back to your brain.
+        self.retain_locally(eeg_token, gsr_phi)
+
+    def retain_locally(self, token, phi):
+        # Async write to SQLite ensures data is saved for future "Museum" visits
+        # but does NOT trigger a recursive API call.
+        db.execute("INSERT INTO neural_archive (token, phi, ts) VALUES (?, ?, ?)", 
+                   (token, phi, time.time()))

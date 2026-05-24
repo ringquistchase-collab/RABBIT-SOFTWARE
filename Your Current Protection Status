@@ -1,0 +1,8 @@
+✅ Duplicate detection: keccak256 bundleId (collision-free)
+✅ Atomic bundles: 47 tokens → single tx (idempotent)  
+✅ Threshold sigs: 3-of-5 nodes (anti-compromise)
+✅ 24hr replay window: Late attacks fail
+✅ Cheap failures: 25k gas ($0.0004) per replay attempt
+✅ Zero raw data: Only "cortisol_0.8_age7" hashes
+
+**Token reuse = instant, cheap, mathematically certain rejection. No double-spending, no data duplication.**

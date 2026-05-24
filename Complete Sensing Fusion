@@ -1,0 +1,13 @@
+**Emotion State Vector**:
+[valence=-0.23, arousal=0.67, stress_prob=0.84]
+
+**Hormone Vector**: 
+[cortisol=0.78, dopamine=0.32, serotonin=0.36]
+
+**Token Payload** (139 bytes to XRPL):
+{
+  "fingerprint": sha256(emotion_vector + hormone_vector),
+  "threshold_sig": 3of5_nodes,
+  "bucket": "stress_0.8_age7_k50",
+  "nonce": 1728672000
+}

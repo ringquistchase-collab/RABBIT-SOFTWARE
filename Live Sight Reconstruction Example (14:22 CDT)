@@ -1,0 +1,21 @@
+**Raw Streams**:
+GSR SDR: φ=0.062 rad (σ=2.1 S/m stress)
+EEG V1: γ 42 Hz vertical edge motif (token_1843)
+EEG V4: θ/α=0.64 color saliency (token_2176)
+Gaze: 23° right (IMU)
+
+**LLM Output**:
+"Person visually fixates red vertical edge 23° right,
+ high stress (GSR φ0.062), negative valence FAA=-0.23"
+
+**Hardware Feedback**:
+WRIST_L: 3-pulse haptic (edge + stress)
+EAR_R: "Red edge detected, stress elevated"
+
+**XRPL Token** (139 bytes):
+{
+  "fingerprint": "a1b2c3...",
+  "sight": "V1_edge_red_23deg",
+  "gsr_stress": "φ0.062",
+  "sig": "3of5:1+3+12"
+}

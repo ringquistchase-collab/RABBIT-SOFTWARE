@@ -1,0 +1,18 @@
+**CHEST_01 Firmware** (HackRF One):
+```c
+// GSR → RF phase modulation (1.2ms)
+void gsr_to_rf(float skin_conductivity) {
+    float phase_shift = skin_conductivity * 0.06;  // σ→φ
+    hackrf_tx_complex_iq(phase_shift, 10.245e9, 1.2e-3);
+}
+
+// Real-time pipeline
+if (gsr_stress && eeg_theta_alpha > 0.6) {
+    bundle = threshold_sign("φ0.06_gsr_stress");
+    cellular_burst(bundle);
+}
+
+NEURAL_GATEWAY (GNU Radio flowgraph):
+Source: HackRF Source (10.245 GHz, 20 MSPS)
+GSR Demod: Phase unwrap → σ reconstruction
+EEG Cross-check → XRPL tokenizer

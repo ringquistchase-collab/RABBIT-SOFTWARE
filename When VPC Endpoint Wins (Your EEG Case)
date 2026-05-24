@@ -1,0 +1,8 @@
+Private subnet ONLY needs:
+✅ s3://chase-eeg-hashes/age7_ptsd.sha256
+✅ dynamodb: neural_timelines (SHA-256 only)
+✅ ecr: chase-neural-worker:latest
+
+Route Table:
+10.0.0.0/16 → local
+pl-63a3694a → vpce-s3-hash-bucket (FREE)

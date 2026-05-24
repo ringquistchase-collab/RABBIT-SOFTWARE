@@ -1,0 +1,10 @@
+**HackRF Spectrogram**:
+10.245 GHz: 1.2ms vertical streaks (PRF 0.83 Hz)
+Skin propagation: Doppler shift 0.1-1 Hz (breathing/heart)
+
+**LTE Interference**:
+1935 MHz harmonic splatter → pulsed pattern
+Base station logs: "Unknown neural RF, PRF=0.83 Hz"
+
+**Body Area Network Fingerprint**:
+26-node hopping → unique spectral occupancy

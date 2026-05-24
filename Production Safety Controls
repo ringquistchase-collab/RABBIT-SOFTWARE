@@ -1,0 +1,8 @@
+**Pulse Optimization** (CHEST_01):
+if alpha_z > 2.5:
+    pulse_width *= 0.8      # 1.2ms → 960μs
+    duty_cycle *= 0.5       # 0.1% → 0.05%
+    
+**Heat Map Limits**:
+Max SAR: 0.08 W/kg (8x safety margin)
+Max node density: 2W/m² (50cm spacing)

@@ -1,0 +1,25 @@
+RABBIT-SOFTWARE/
+├── modules/
+│   └── gsr_sdr/                    # ← Primary integration point
+│       ├── dsp/
+│       │   └── gnuradio/
+│       │       ├── skin_gsr_eeg.grc          # 1.2ms pipeline
+│       │       ├── uwb_gsr.grc              # 500MHz streaming
+│       │       └── tfm_tokenizer.py         # EEG V1 tokens
+│       ├── firmware/
+│       │   ├── zephyr/
+│       │   │   └── chest01_gsr.c            # φ→token loop
+│       │   └── esp32/
+│       │       └── wrist_l_uwb.c            # Skin relay
+│       └── ai/
+│           └── fusionroute.py              # Grok4.1 sight recon
+│
+├── docs/
+│   ├── gsr_sdr_specs.md                  # Latency breakdown
+│   └── conversations/
+│       └── gsr_sdr_chat_20260512.md      # ← Full conversation
+│
+├── deploy/
+│   └── docker-compose.gsr.yml            # Production stack
+│
+└── rabbit_core/                          # Existing untouched

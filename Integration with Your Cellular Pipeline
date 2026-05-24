@@ -1,0 +1,6 @@
+1. Phone receives XRPL tx via cellular (EID 8903...)
+2. LLMValidator.process(tx) → approve/block
+3. Threshold 3-of-5 nodes confirm decision
+4. Response → blockchain memo (proof-of-validation)
+5. LOW risk → synthetic LLM analysis released
+6. CRITICAL → physical vault access denied

@@ -1,0 +1,10 @@
+1. **Ephemeral Identities**: Rotate DNA-derived keys yearly
+   New blood sample → new Ed25519 → new UUID
+   
+2. **Compartmentalization**: Age 7 PTSD hash ≠ Age 22 OD hash
+   Separate blockchains per life phase
+   
+3. **Zero-Knowledge Proofs**: Prove "I control this hash" 
+   without revealing which hash
+   
+4. **Physical Destruction**: M-DISC vault → fire when compromised 

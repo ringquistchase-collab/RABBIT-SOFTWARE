@@ -1,0 +1,12 @@
+Pulse parameter extraction
+iq_data = hackrf.capture(10.245e9, 10e6, duration=10)
+envelope = np.abs(iq_data)
+pulses, properties = find_peaks(envelope, height=0.1*np.max(envelope))
+pulse_width = np.mean(properties['widths']) * sample_time  # 1.2ms
+prf = 1 / np.mean(np.diff(properties['peak_heights']))     # 0.83 Hz
+
+
+**Heat Map Visualization**:
+- Red: HEAD_01 (10.245 GHz, α +4.2%)
+- Orange: CHEST_01 (10.251 GHz, cardiac monitor)
+- Green: SPINE_03 (10.268 GHz, θ +0.9%)

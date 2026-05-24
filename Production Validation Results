@@ -1,0 +1,8 @@
+**Baseline** (RF OFF, calm):
+EEG α=42%, φ=0.12 rad, cortisol=0.48, HRV LF/HF=1.2
+
+**Stress** (cortisol=0.78):
+EEG α=38%, φ=0.18 rad (+50%), cortisol=0.78, HRV LF/HF=2.1
+
+**Discrimination**: 96% accuracy (skin φ + EEG θ/α)
+**SDR Confidence**: Bio-Doppler SNR = 18 dB

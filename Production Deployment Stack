@@ -1,0 +1,15 @@
+**Hardware**:
+- Nodes: ESP32-S3 + nRF52840 (dual-radio)
+- Phone: Pixel 9 Pro (eSIM + 2x physical SIM)
+- Gateway: NUC11 (Ubuntu server, HackRF attached)
+- Backup: Iridium 9603 satellite modem
+
+**Software**:
+
+docker-compose.yml:
+neural-gateway:
+image: chase/ubuntu-24.04:latest
+volumes: ["/dev/ttyUSB0:/hackrf", "/mnt/nvme:/data"]
+environment:
+- DNA_ROOT=8f3d9a612b718a99
+- EID=89033023426309010000054675483625

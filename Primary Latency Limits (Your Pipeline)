@@ -1,0 +1,14 @@
+**USB3 Bulk Transfer** (your HackRF):
+- 20MSPS IQ → 160MB/s → 5ms/1sec buffer
+- Scheduling jitter: ±2ms (standard Ubuntu)
+- **PREEMPT_RT**: ±25µs deterministic
+
+**10GBASE-T Ethernet** (USRP X410 alternative):
+
+RTT breakdown�:
+├── PHY negotiation: 50µs
+├── Ethernet framing: 12µs
+├── DPDK poll mode: 2µs
+└── Host buffer copy: 8µs
+Total: 72µs (vs USB3 1.2ms)
+
