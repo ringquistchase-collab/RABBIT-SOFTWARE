@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: rabbitos-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-rabbitos}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # Supabase Postgres connection (filled from .env)
+      SUPABASE_DB_HOST: ${SUPABASE_DB_HOST}
+      SUPABASE_DB_USER: ${SUPABASE_DB_USER:-postgres}
+      SUPABASE_DB_PASSWORD: ${SUPABASE_DB_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
+    restart: unless-stopped
+
+volumes:
+  grafana_data:
