@@ -1,0 +1,13 @@
+[project]
+id = "rabbitos"
+
+[functions.ingest-sensor-data]
+enabled = true
+
+[functions.ai-router]
+enabled = true
+
+# NOAA poller runs every 15 minutes
+[functions.noaa-poller]
+enabled = true
+schedule = "*/15 * * * *"
