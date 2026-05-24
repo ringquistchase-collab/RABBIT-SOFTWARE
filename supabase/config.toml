@@ -27,3 +27,9 @@ schedule = "0 2 * * *"
 
 [functions.bio-fusion]
 enabled = true
+
+[functions.embed-telemetry]
+enabled = true
+
+[functions.semantic-search]
+enabled = true
