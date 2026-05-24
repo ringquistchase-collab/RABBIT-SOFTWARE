@@ -590,6 +590,358 @@ export interface NeuralConductionResult {
   node_b_code:          string
 }
 
+// ── Bio/RNA/DNA types (20260535_bio_rna_integration) ──────────
+
+// ── Bio operations types (20260536_bio_operations) ────────────
+
+export type BioEffectDuration =
+  | 'hours'           // RNA interference, acute mRNA pulse
+  | 'hours_days'      // protein expression, transient translation
+  | 'weeks_months'    // epigenetic modulation (methylation)
+  | 'permanent'       // genetic injection, CRISPR edit, DNA data storage
+
+export type BioOperationType =
+  | 'genetic_injection'
+  | 'protein_expression'
+  | 'crispr_programming'
+  | 'rna_interference'
+  | 'epigenetic_modulation'
+  | 'dna_data_storage'
+
+export type NodeEffectType =
+  | 'permanent_programming'  // genetic injection, CRISPR knockin
+  | 'temporary_modulation'   // mRNA protein expression
+  | 'node_rewiring'          // CRISPR guide RNA + Cas9
+  | 'node_silencing'         // siRNA interference
+  | 'sensitivity_change'     // epigenetic methylation
+  | 'memory_storage'         // DNA data encoding
+
+export interface GeneticInjectionRecord {
+  id:                       number
+  twin_id:                  string
+  molecule_id:              number
+  delivery_method:          string    // 'viral_vector' | 'nanoparticle' | 'electroporation' | 'liposome'
+  vector_type:              string | null  // 'AAV' | 'lentiviral' | 'adenoviral' | 'retroviral' | 'LNP'
+  target_node_id:           NodeId | null
+  target_tissue:            string | null
+  target_gene:              string | null
+  integration_site:         string | null
+  node_effect:              NodeEffectType
+  effect_duration:          BioEffectDuration
+  expression_confirmed:     boolean
+  expression_confirmed_at:  string | null
+  expression_level:         number | null
+  approved_by_sig:          string | null
+  approved_at:              string | null
+  administered_at:          string
+}
+
+export interface BioOperationLogEntry {
+  id:                 number
+  twin_id:            string
+  operation_type:     BioOperationType
+  operation_ref_id:   number
+  molecule_id:        number | null
+  target_node_id:     NodeId | null
+  node_effect:        NodeEffectType
+  effect_duration:    BioEffectDuration
+  freq_before_ghz:    number | null
+  freq_after_ghz:     number | null
+  freq_delta_ghz:     number | null    // generated: freq_after - freq_before
+  notes:              string | null
+  performed_at:       string
+}
+
+export interface BioOperationsSummaryRow {
+  twin_id:              string
+  operation_type:       BioOperationType
+  total_operations:     number
+  permanent_ops:        number
+  weeks_months_ops:     number
+  hours_days_ops:       number
+  hours_ops:            number
+  avg_freq_delta_ghz:   number | null
+  last_performed_at:    string | null
+}
+
+// ── Bio/RNA/DNA types (20260535_bio_rna_integration) ──────────
+
+export type BioMoleculeType =
+  | 'DNA'
+  | 'mRNA'
+  | 'tRNA'
+  | 'guide_rna'
+  | 'siRNA'
+
+export type CrisprEditType =
+  | 'knockout'
+  | 'knockin'
+  | 'base_edit'
+  | 'activation'
+  | 'silencing'
+
+export type EpigeneticMarkType =
+  | 'methylation'
+  | 'acetylation'
+  | 'phosphorylation'
+  | 'deacetylation'
+
+export interface CodonRfOffset {
+  codon:          string          // e.g. 'ATG', 'AUG'
+  amino_acid:     string | null
+  is_start_codon: boolean
+  is_stop_codon:  boolean
+  rf_offset_ghz:  number
+}
+
+export interface BioMoleculeRecord {
+  id:                   number
+  twin_id:              string
+  linked_node_id:       NodeId | null
+  molecule_type:        BioMoleculeType
+  nucleotide_sequence:  string
+  sequence_length_bp:   number          // generated
+  computed_freq_ghz:    number | null   // set by trigger: formula f_RF
+  source_region:        string | null
+  gene_symbol:          string | null
+  chromosome:           string | null
+  dna_root_sig:         string | null
+  is_locked:            boolean
+  locked_at:            string | null
+  registered_at:        string
+}
+
+export interface RnaTranslationEvent {
+  id:                     number
+  twin_id:                string
+  template_molecule_id:   number
+  trna_carrier_ids:       number[] | null
+  product_name:           string
+  product_function:       string | null
+  codon_sequence:         string[] | null
+  translation_efficiency: number          // 0.0–1.0
+  ribosomal_site:         string | null
+  target_node_id:         NodeId | null
+  expression_delta:       number | null
+  effect_duration:        BioEffectDuration
+  node_effect:            NodeEffectType
+  detected_at:            string
+}
+
+export interface RnaInterferenceLog {
+  id:                     number
+  twin_id:                string
+  sirna_molecule_id:      number
+  target_molecule_id:     number
+  silencing_efficiency:   number   // 0.0–1.0
+  off_target_score:       number
+  target_node_id:         NodeId | null
+  node_signal_suppression: number | null
+  estimated_duration_h:   number | null
+  effect_duration:        BioEffectDuration
+  node_effect:            NodeEffectType
+  applied_at:             string
+  expires_at:             string | null
+}
+
+export interface CrisprGuideRecord {
+  id:                 number
+  twin_id:            string
+  guide_molecule_id:  number
+  cas9_molecule_id:   number | null   // bio_molecule_registry ID for Cas9-like nuclease
+  nuclease_type:      string          // 'Cas9-like' | 'dCas9' | 'Cas12a' | 'Cas13'
+  edit_type:          CrisprEditType
+  target_sequence:    string
+  pam_site:           string
+  target_gene:        string | null
+  target_chromosome:  string | null
+  on_target_score:    number
+  off_target_score:   number
+  effect_duration:    BioEffectDuration
+  node_effect:        NodeEffectType
+  approved_by_sig:    string | null
+  approved_at:        string | null
+  executed_at:        string | null
+  execution_outcome:  string | null
+  designed_at:        string
+}
+
+export interface EpigeneticNodeState {
+  id:                   number
+  twin_id:              string
+  node_id:              NodeId
+  mark_type:            EpigeneticMarkType
+  mark_level:           number          // 0.0–1.0
+  expression_modifier:  number          // -1.0 (silenced) → +1.0 (fully activated)
+  source_molecule_id:   number | null
+  life_event_id:        number | null
+  dev_phase:            string | null
+  is_reversible:        boolean
+  is_heritable:         boolean
+  recorded_at:          string
+  expires_at:           string | null
+}
+
+export interface DnaStorageRecord {
+  id:                   number
+  twin_id:              string
+  storage_molecule_id:  number | null
+  data_label:           string
+  data_hash:            string
+  encoded_sequence:     string
+  data_size_bp:         number          // generated
+  data_payload_jsonb:   Record<string, unknown> | null
+  error_correction:     string
+  retrieval_count:      number
+  last_retrieved_at:    string | null
+  stored_at:            string
+}
+
+export interface MolecularRfSpectrumRow {
+  molecule_id:         number
+  molecule_type:       BioMoleculeType
+  gene_symbol:         string | null
+  linked_node_id:      NodeId | null
+  nucleotide_sequence: string
+  sequence_length_bp:  number
+  computed_freq_ghz:   number
+  is_locked:           boolean
+}
+
+export interface BioNodeState {
+  node_id:           NodeId
+  molecules:         Pick<BioMoleculeRecord, 'id' | 'molecule_type' | 'gene_symbol' | 'computed_freq_ghz' | 'is_locked'>[] | null
+  active_silencing:  Pick<RnaInterferenceLog, 'id' | 'silencing_efficiency' | 'node_signal_suppression' | 'expires_at'>[] | null
+  epigenetic_marks:  Pick<EpigeneticNodeState, 'mark_type' | 'mark_level' | 'expression_modifier' | 'is_reversible' | 'is_heritable'>[] | null
+  crispr_guides:     { guide_id: number; edit_type: CrisprEditType; target_gene: string | null; on_target: number; approved: boolean; executed: boolean }[] | null
+}
+
+export interface MolecularNodeMapRow {
+  twin_id:                string
+  node_id:                NodeId
+  node_code:              string
+  modality:               NodeModality
+  molecule_id:            number
+  molecule_type:          BioMoleculeType
+  gene_symbol:            string | null
+  source_region:          string | null
+  chromosome:             string | null
+  computed_freq_ghz:      number
+  sequence_length_bp:     number
+  is_locked:              boolean
+  sdr_carrier_ghz:        number | null
+  freq_alignment_delta:   number | null   // |molecular_freq - sdr_carrier_ghz|
+}
+
+// ── P2P interaction types (20260534_p2p_interactions) ─────────
+
+export type P2pConnectionState = 'pending' | 'active' | 'revoked'
+export type P2pInteractionRole = 'sent' | 'received'
+export type P2pGroupRole       = 'initiator' | 'participant'
+
+export interface P2pConnection {
+  id:                 number
+  twin_id_a:          string
+  twin_id_b:          string
+  state:              P2pConnectionState
+  freq_a_ghz:         number | null
+  freq_b_ghz:         number | null
+  freq_delta_ghz:     number | null     // generated; < 0.05 required
+  consent_a_at:       string | null
+  consent_b_at:       string | null
+  revoked_by:         string | null
+  revoked_at:         string | null
+  revocation_reason:  string | null
+  initiated_at:       string
+  activated_at:       string | null
+}
+
+export interface P2pHandshake {
+  id:                   number
+  handshake_id:         string
+  connection_id:        number
+  initiator_twin_id:    string
+  responder_twin_id:    string
+  signal_strength:      number | null   // 0.0–1.0
+  initiator_signature:  string | null
+  responder_signature:  string | null
+  duration_sec:         number
+  successful:           boolean
+  handshake_at:         string
+}
+
+export interface P2pInteraction {
+  id:               number
+  share_id:         string             // links the two copies (sent + received)
+  twin_id:          string             // owner of this copy
+  peer_twin_id:     string
+  handshake_id:     string
+  role:             P2pInteractionRole
+  data_type:        string
+  data_hash:        string
+  payload:          Record<string, unknown> | null
+  group_session_id: number | null
+  recorded_at:      string
+}
+
+export interface P2pSharedMemory {
+  id:               number
+  memory_id:        string
+  owner_twin_id:    string
+  source_twin_id:   string
+  interaction_id:   number | null
+  memory_type:      string
+  memory_data:      Record<string, unknown> | null
+  access_count:     number
+  last_accessed_at: string | null
+  shared_at:        string
+}
+
+export interface P2pGroupSession {
+  id:                 number
+  group_session_id:   string
+  topic:              string
+  duration_s:         number | null
+  interaction_count:  number
+  handshake_count:    number
+  started_at:         string
+  ended_at:           string | null
+}
+
+export interface P2pGroupParticipant {
+  id:         number
+  session_id: number
+  twin_id:    string
+  role:       P2pGroupRole
+  joined_at:  string
+}
+
+export interface P2pSummary {
+  twin_id:              string
+  active_connections:   number
+  total_connections:    number
+  unique_peers:         number
+  total_interactions:   number
+  sent_count:           number
+  received_count:       number
+  handshakes_completed: number
+  group_sessions:       number
+}
+
+export interface P2pConnectionMatrixRow {
+  twin_id_a:           string
+  twin_id_b:           string
+  state:               P2pConnectionState
+  freq_a_ghz:          number | null
+  freq_b_ghz:          number | null
+  freq_delta_ghz:      number | null
+  activated_at:        string | null
+  revoked_at:          string | null
+  interactions_a:      number
+  interactions_b:      number
+  last_interaction_at: string | null
+}
+
 // ── Composite: full mesh state for UI ────────────────────────
 
 export interface LiveMeshState {
@@ -605,4 +957,8 @@ export interface LiveMeshState {
   spinalRelay:         SpinalRelayEvent[]         // latest Cz→sacrum conduction measurements
   intentActionEvents:  IntentActionEvent[]        // latest Fp1→plantar integrity checks
   calibrationSummary:  CalibrationSummaryRow[]    // per-phase baseline overview
+  p2pConnections:      P2pConnectionMatrixRow[]   // peer-to-peer interaction matrix
+  p2pSummary:          P2pSummary | null          // this twin's interaction stats
+  molecularSpectrum:   MolecularRfSpectrumRow[]   // DNA/RNA → GHz spectrum
+  bioNodeStates:       BioNodeState[]             // per-node biological state
 }
