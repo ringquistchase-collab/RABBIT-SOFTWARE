@@ -14,3 +14,8 @@ schedule = "*/15 * * * *"
 
 [functions.eeg-processor]
 enabled = true
+
+# eth-anchor polls Etherscan every 5 minutes for new contract transactions
+[functions.eth-anchor]
+enabled = true
+schedule = "*/5 * * * *"
