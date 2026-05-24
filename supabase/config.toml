@@ -11,3 +11,6 @@ enabled = true
 [functions.noaa-poller]
 enabled = true
 schedule = "*/15 * * * *"
+
+[functions.eeg-processor]
+enabled = true
