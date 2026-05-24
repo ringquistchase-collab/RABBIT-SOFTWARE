@@ -1,7 +1,8 @@
-// 26-node biometric mesh + Digital Twin types
+// 26+6-node biometric mesh + Digital Twin types
 // mirrors: supabase/migrations/20260525_mesh_digital_twin.sql
+//          supabase/migrations/20260526_vascular_nodes.sql
 
-export type NodeModality = 'eeg' | 'biometric'
+export type NodeModality = 'eeg' | 'biometric' | 'vascular'
 export type EegBand      = 'delta' | 'theta' | 'alpha' | 'beta' | 'gamma'
 export type LifeEventType =
   | 'BIRTH'
@@ -18,12 +19,27 @@ export type AnomalyType  =
   | 'PATTERN_INJECTION'
   | 'COHERENCE_BREAK'
 
-// ── Node IDs 1-26 as branded type ───────────────────────────
+export type VascState =
+  | 'BASELINE'
+  | 'VASODILATION'
+  | 'VASOCONSTRICTION'
+  | 'TACHYCARDIA'
+  | 'BRADYCARDIA'
+  | 'ARRHYTHMIA'
+
+// ── Node IDs as branded type ─────────────────────────────────
 export type NodeId = number & { __brand: 'NodeId' }
 
-export const EEG_NODE_IDS: NodeId[]        = Array.from({ length: 19 }, (_, i) => (i + 1) as NodeId)
-export const BIOMETRIC_NODE_IDS: NodeId[]  = Array.from({ length: 7 },  (_, i) => (i + 20) as NodeId)
-export const ALL_NODE_IDS: NodeId[]        = [...EEG_NODE_IDS, ...BIOMETRIC_NODE_IDS]
+export const EEG_NODE_IDS:       NodeId[] = Array.from({ length: 19 }, (_, i) => (i + 1)  as NodeId)
+export const BIOMETRIC_NODE_IDS: NodeId[] = Array.from({ length: 7 },  (_, i) => (i + 20) as NodeId)
+export const VASCULAR_NODE_IDS:  NodeId[] = Array.from({ length: 6 },  (_, i) => (i + 27) as NodeId)
+export const ALL_NODE_IDS:       NodeId[] = [...EEG_NODE_IDS, ...BIOMETRIC_NODE_IDS, ...VASCULAR_NODE_IDS]
+
+export const VASCULAR_NODE_CODES: Record<number, string> = {
+  27: 'CAROT_L', 28: 'CAROT_R',
+  29: 'RADIAL_L', 30: 'RADIAL_R',
+  31: 'FEMORAL_L', 32: 'FEMORAL_R',
+}
 
 // ── DB row types ─────────────────────────────────────────────
 
@@ -54,6 +70,7 @@ export interface MeshTopologyEdge {
   node_b:       NodeId
   edge_type:    'cortical_adjacent' | 'cortical_long_range' | 'cross_modal'
   base_weight:  number
+  distance_cm:  number | null    // anatomical path length; set on vascular edges
 }
 
 export interface LifeAgeEvent {
@@ -101,8 +118,13 @@ export interface FrozenNodeState {
   // Biometric
   biometric_value:  number | null
   biometric_unit:   string | null
+  // Vascular
+  phase_shift_rad:  number | null
+  pulse_amplitude:  number | null
+  beat_interval_ms: number | null
+  vasc_state:       VascState | null
   // Adjacency coherence at snapshot time
-  coherence_map:    Record<string, number> | null   // { "3": 0.82, "7": 0.71, … }
+  coherence_map:    Record<string, number> | null
 }
 
 export interface MeshNodeReading {
@@ -118,6 +140,12 @@ export interface MeshNodeReading {
   band_powers:           Partial<Record<EegBand, number>> | null
   // Biometric
   raw_value:             number | null
+  // Vascular
+  phase_shift_rad:       number | null   // RF phase shift from vessel wall displacement (rad)
+  pulse_amplitude:       number | null   // pulsatile envelope amplitude (normalised 0-1)
+  carrier_freq_ghz:      number | null   // RF carrier used (e.g. 10.245)
+  beat_interval_ms:      number | null   // R-R interval at this node (ms)
+  vasc_state:            VascState | null
   // Deviation
   baseline_snapshot_id:  number | null
   deviation_z:           number | null
@@ -147,6 +175,31 @@ export interface MeshAnomaly {
   metadata:              Record<string, unknown> | null
 }
 
+export interface VascularPulseEvent {
+  id:                number
+  twin_id:           string
+  node_id:           NodeId
+  sensor_id:         string
+  detected_at:       string
+  phase_shift_rad:   number
+  pulse_amplitude:   number
+  carrier_freq_ghz:  number
+  ref_node_id:       NodeId | null   // null = this node is the proximal reference
+  pwv_transit_ms:    number | null
+  pwv_m_per_s:       number | null
+  beat_seq:          number | null
+  metadata:          Record<string, unknown> | null
+}
+
+export interface PwvResult {
+  beat_count:       number
+  mean_transit_ms:  number | null
+  mean_pwv_m_per_s: number | null   // healthy resting range: 6–12 m/s
+  distance_cm:      number | null
+  node_a_code:      string
+  node_b_code:      string
+}
+
 // ── RPC return type ──────────────────────────────────────────
 
 export interface MeshDeviationRow {
@@ -162,11 +215,12 @@ export interface MeshDeviationRow {
 // ── Composite: full mesh state for UI ────────────────────────
 
 export interface LiveMeshState {
-  twin:        TwinIdentity
-  nodes:       MeshNode[]
-  edges:       MeshTopologyEdge[]
-  readings:    MeshNodeReading[]       // latest per node
-  edgeWeights: MeshEdgeWeight[]        // latest per edge
-  deviation:   MeshDeviationRow[]      // vs. active frozen snapshot
-  anomalies:   MeshAnomaly[]           // unresolved
+  twin:           TwinIdentity
+  nodes:          MeshNode[]
+  edges:          MeshTopologyEdge[]
+  readings:       MeshNodeReading[]       // latest per node
+  edgeWeights:    MeshEdgeWeight[]        // latest per edge
+  deviation:      MeshDeviationRow[]      // vs. active frozen snapshot
+  anomalies:      MeshAnomaly[]           // unresolved
+  vascularEvents: VascularPulseEvent[]    // latest cardiac cycle across vascular nodes
 }
