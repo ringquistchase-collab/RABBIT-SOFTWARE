@@ -19,3 +19,8 @@ enabled = true
 [functions.eth-anchor]
 enabled = true
 schedule = "*/5 * * * *"
+
+# data-lifecycle runs daily at 02:00 UTC — archives rows older than HOT_TIER_DAYS to GCS
+[functions.data-lifecycle]
+enabled = true
+schedule = "0 2 * * *"
