@@ -300,13 +300,13 @@ ALTER TABLE crispr_guide_registry
 
 CREATE TABLE genetic_injection_records (
     id                      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id                 UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
+    twin_id                 UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
     molecule_id             BIGINT NOT NULL REFERENCES bio_molecule_registry(id),
     -- Delivery
     delivery_method         TEXT NOT NULL,  -- 'viral_vector' | 'nanoparticle' | 'electroporation' | 'liposome'
     vector_type             TEXT,           -- 'AAV' | 'lentiviral' | 'adenoviral' | 'retroviral' | 'LNP'
     -- Target
-    target_node_id          INTEGER REFERENCES mesh_nodes(node_id),
+    target_node_id          SMALLINT REFERENCES mesh_nodes(id),
     target_tissue           TEXT,           -- 'neural' | 'cardiac' | 'skeletal' | 'vascular'
     target_gene             TEXT,
     integration_site        TEXT,           -- genomic locus; NULL for episomal vectors
@@ -366,11 +366,11 @@ CREATE TRIGGER genetic_injection_approval_check
 
 CREATE TABLE bio_operation_log (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id             UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
+    twin_id             UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
     operation_type      bio_operation_type NOT NULL,
     operation_ref_id    BIGINT NOT NULL,            -- points into type-specific table
     molecule_id         BIGINT REFERENCES bio_molecule_registry(id),
-    target_node_id      INTEGER REFERENCES mesh_nodes(node_id),
+    target_node_id      SMALLINT REFERENCES mesh_nodes(id),
     node_effect         node_effect_type NOT NULL,
     effect_duration     bio_effect_duration NOT NULL,
     -- RF frequency impact

@@ -26,8 +26,8 @@ CREATE TYPE p2p_group_role        AS ENUM ('initiator', 'participant');
 
 CREATE TABLE p2p_connections (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id_a           UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
-    twin_id_b           UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
+    twin_id_a           UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
+    twin_id_b           UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
     state               p2p_connection_state NOT NULL DEFAULT 'pending',
     -- RF carrier frequencies captured at handshake time (from sdr_node_profiles)
     freq_a_ghz          REAL,
@@ -37,7 +37,7 @@ CREATE TABLE p2p_connections (
     consent_a_at        TIMESTAMPTZ,
     consent_b_at        TIMESTAMPTZ,
     -- Revocation
-    revoked_by          UUID REFERENCES digital_twins(id),
+    revoked_by          UUID REFERENCES twin_identity(id),
     revoked_at          TIMESTAMPTZ,
     revocation_reason   TEXT,
     -- Lifecycle
@@ -67,8 +67,8 @@ CREATE TABLE p2p_handshakes (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     handshake_id        TEXT NOT NULL UNIQUE,
     connection_id       BIGINT NOT NULL REFERENCES p2p_connections(id) ON DELETE CASCADE,
-    initiator_twin_id   UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
-    responder_twin_id   UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
+    initiator_twin_id   UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
+    responder_twin_id   UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
     signal_strength     REAL CHECK (signal_strength BETWEEN 0.0 AND 1.0),
     initiator_signature TEXT,   -- MD5(handshake_id || initiator_id)[:16]
     responder_signature TEXT,
@@ -92,8 +92,8 @@ CREATE INDEX p2p_hs_initiator_idx  ON p2p_handshakes (initiator_twin_id);
 CREATE TABLE p2p_interactions (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     share_id            TEXT NOT NULL,
-    twin_id             UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
-    peer_twin_id        UUID NOT NULL REFERENCES digital_twins(id),
+    twin_id             UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
+    peer_twin_id        UUID NOT NULL REFERENCES twin_identity(id),
     handshake_id        TEXT NOT NULL REFERENCES p2p_handshakes(handshake_id),
     role                p2p_interaction_role NOT NULL,
     data_type           TEXT NOT NULL,
@@ -118,8 +118,8 @@ CREATE INDEX p2p_int_type_idx  ON p2p_interactions (twin_id,     data_type);
 CREATE TABLE p2p_shared_memories (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     memory_id           TEXT NOT NULL UNIQUE,
-    owner_twin_id       UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
-    source_twin_id      UUID NOT NULL REFERENCES digital_twins(id),
+    owner_twin_id       UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
+    source_twin_id      UUID NOT NULL REFERENCES twin_identity(id),
     interaction_id      BIGINT REFERENCES p2p_interactions(id),
     memory_type         TEXT NOT NULL,           -- 'experience', 'knowledge', 'emotion', etc.
     memory_data         JSONB,
@@ -152,7 +152,7 @@ CREATE TABLE p2p_group_sessions (
 CREATE TABLE p2p_group_participants (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     session_id  BIGINT NOT NULL REFERENCES p2p_group_sessions(id) ON DELETE CASCADE,
-    twin_id     UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
+    twin_id     UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
     role        p2p_group_role NOT NULL DEFAULT 'participant',
     joined_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (session_id, twin_id)
@@ -233,12 +233,12 @@ BEGIN
     END IF;
 
     -- Carrier frequency: use lowest node_id profile for each twin as anchor
-    SELECT node_carrier_ghz INTO v_freq_a
+    SELECT carrier_freq_ghz INTO v_freq_a
     FROM sdr_node_profiles
     WHERE twin_id = p_twin_id_a
     ORDER BY node_id ASC LIMIT 1;
 
-    SELECT node_carrier_ghz INTO v_freq_b
+    SELECT carrier_freq_ghz INTO v_freq_b
     FROM sdr_node_profiles
     WHERE twin_id = p_twin_id_b
     ORDER BY node_id ASC LIMIT 1;

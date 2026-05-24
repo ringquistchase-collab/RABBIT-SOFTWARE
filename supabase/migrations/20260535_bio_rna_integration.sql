@@ -185,8 +185,8 @@ $$;
 
 CREATE TABLE bio_molecule_registry (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id             UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
-    linked_node_id      INTEGER REFERENCES mesh_nodes(node_id),    -- may be NULL for whole-twin molecules
+    twin_id             UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
+    linked_node_id      SMALLINT REFERENCES mesh_nodes(id),   -- may be NULL for whole-twin molecules
     molecule_type       bio_molecule_type NOT NULL,
     nucleotide_sequence TEXT NOT NULL,
     sequence_length_bp  INTEGER GENERATED ALWAYS AS (LENGTH(nucleotide_sequence)) STORED,
@@ -248,7 +248,7 @@ CREATE TRIGGER bio_molecule_registry_trigger
 
 CREATE TABLE rna_translation_events (
     id                      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id                 UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
+    twin_id                 UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
     template_molecule_id    BIGINT NOT NULL REFERENCES bio_molecule_registry(id),
     -- tRNA molecules involved (array of bio_molecule_registry IDs)
     trna_carrier_ids        BIGINT[],
@@ -258,7 +258,7 @@ CREATE TABLE rna_translation_events (
     translation_efficiency  REAL NOT NULL CHECK (translation_efficiency BETWEEN 0.0 AND 1.0),
     ribosomal_site          TEXT,              -- '5-UTR', 'AUG+12', etc.
     -- Node effect: which mesh node does the expressed protein affect
-    target_node_id          INTEGER REFERENCES mesh_nodes(node_id),
+    target_node_id          SMALLINT REFERENCES mesh_nodes(id),
     expression_delta        REAL,              -- +/- effect on node signal amplitude
     detected_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -276,7 +276,7 @@ CREATE INDEX rna_trans_node_idx     ON rna_translation_events (target_node_id);
 
 CREATE TABLE rna_interference_log (
     id                      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id                 UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
+    twin_id                 UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
     sirna_molecule_id       BIGINT NOT NULL REFERENCES bio_molecule_registry(id),
     target_molecule_id      BIGINT NOT NULL REFERENCES bio_molecule_registry(id),
     silencing_efficiency    REAL NOT NULL CHECK (silencing_efficiency BETWEEN 0.0 AND 1.0),
@@ -284,7 +284,7 @@ CREATE TABLE rna_interference_log (
     off_target_score        REAL NOT NULL DEFAULT 0.0
                             CHECK (off_target_score BETWEEN 0.0 AND 1.0),
     -- Affected mesh node
-    target_node_id          INTEGER REFERENCES mesh_nodes(node_id),
+    target_node_id          SMALLINT REFERENCES mesh_nodes(id),
     node_signal_suppression REAL,   -- fraction by which node amplitude is dampened
     -- Duration estimate (e.g. siRNA half-life ~2-3 days in vivo)
     estimated_duration_h    REAL,
@@ -305,7 +305,7 @@ CREATE INDEX rna_intf_node_idx   ON rna_interference_log (target_node_id);
 
 CREATE TABLE crispr_guide_registry (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id             UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
+    twin_id             UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
     guide_molecule_id   BIGINT NOT NULL REFERENCES bio_molecule_registry(id),
     edit_type           crispr_edit_type NOT NULL,
     -- Target locus
@@ -372,8 +372,8 @@ CREATE TRIGGER crispr_approval_check
 
 CREATE TABLE epigenetic_node_states (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id             UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
-    node_id             INTEGER NOT NULL REFERENCES mesh_nodes(node_id),
+    twin_id             UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
+    node_id             SMALLINT NOT NULL REFERENCES mesh_nodes(id),
     mark_type           epigenetic_mark_type NOT NULL,
     -- Quantitative levels (0.0 – 1.0)
     mark_level          REAL NOT NULL CHECK (mark_level BETWEEN 0.0 AND 1.0),
@@ -404,7 +404,7 @@ CREATE INDEX epig_life_evt_idx  ON epigenetic_node_states (life_event_id);
 
 CREATE TABLE dna_storage_records (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id             UUID NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
+    twin_id             UUID NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
     storage_molecule_id BIGINT REFERENCES bio_molecule_registry(id),
     data_label          TEXT NOT NULL,
     data_hash           TEXT NOT NULL,          -- SHA-256 of original payload
@@ -683,7 +683,7 @@ SELECT
     n.node_carrier_ghz                      AS sdr_carrier_ghz,
     ABS(m.computed_freq_ghz - n.node_carrier_ghz) AS freq_alignment_delta
 FROM bio_molecule_registry m
-JOIN mesh_nodes n ON n.node_id = m.linked_node_id
+JOIN mesh_nodes n ON n.id = m.linked_node_id
 ORDER BY m.twin_id, m.computed_freq_ghz;
 
 COMMIT;

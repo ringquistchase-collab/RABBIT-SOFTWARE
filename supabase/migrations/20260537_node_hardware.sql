@@ -46,8 +46,8 @@ CREATE TYPE node_encryption_type AS ENUM (
 
 CREATE TABLE node_hardware_profiles (
     id                      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id                 UUID    NOT NULL REFERENCES digital_twins(id) ON DELETE CASCADE,
-    node_id                 INTEGER NOT NULL REFERENCES mesh_nodes(node_id),
+    twin_id                 UUID    NOT NULL REFERENCES twin_identity(id) ON DELETE CASCADE,
+    node_id                 SMALLINT NOT NULL REFERENCES mesh_nodes(id),
     -- Sampling
     sampling_hz             REAL    NOT NULL DEFAULT 256,
     -- RF transmission
@@ -85,7 +85,7 @@ CREATE INDEX nhp_node_idx ON node_hardware_profiles (node_id);
 
 CREATE TABLE node_tuning_events (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    twin_id             UUID    REFERENCES digital_twins(id) ON DELETE SET NULL,
+    twin_id             UUID    REFERENCES twin_identity(id) ON DELETE SET NULL,
     -- Temporal context
     age_years           INTEGER NOT NULL CHECK (age_years >= 0),
     calendar_year       INTEGER NOT NULL CHECK (calendar_year >= 1900),
@@ -271,10 +271,10 @@ BEGIN
         RAISE EXCEPTION 'Tuning event % not found', p_tuning_event_id;
     END IF;
 
-    -- Resolve affected nodes: NULL means all nodes for this twin
+    -- Resolve affected nodes: NULL means all nodes registered to this twin
     IF v_event.affected_node_ids IS NULL THEN
-        SELECT ARRAY_AGG(node_id) INTO v_node_ids
-        FROM mesh_nodes WHERE twin_id = p_twin_id;
+        SELECT ARRAY_AGG(DISTINCT node_id) INTO v_node_ids
+        FROM sdr_node_profiles WHERE twin_id = p_twin_id;
     ELSE
         v_node_ids := v_event.affected_node_ids;
     END IF;
@@ -415,7 +415,7 @@ FROM node_tuning_events nte
 LEFT JOIN node_hardware_profiles nhp
     ON (nhp.node_id = ANY(nte.affected_node_ids) OR nte.affected_node_ids IS NULL)
 LEFT JOIN mesh_nodes n
-    ON n.node_id = nhp.node_id AND n.twin_id = nhp.twin_id
+    ON n.id = nhp.node_id
 ORDER BY nte.age_years ASC, nhp.node_id ASC;
 
 COMMIT;
