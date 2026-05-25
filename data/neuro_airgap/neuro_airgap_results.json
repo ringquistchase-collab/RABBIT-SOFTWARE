@@ -1,0 +1,14 @@
+{
+  "trial_id": "NEURO_AIRGAP_2024",
+  "dna_sequence": "ATGCCCGT",
+  "dna_resonance_ghz": 10194901315.789474,
+  "resonance_hex": "580b9d67116a3a2f",
+  "master_key_fp": "50a2a858fe3d238c",
+  "public_key_fp": "09ca4b71ec099553",
+  "chain_blocks": 6,
+  "chain_valid": false,
+  "nft_token": "BD6E1085",
+  "enc_throughput_mbs": 16.5,
+  "sign_ops_per_sec": 5177,
+  "timestamp": "2026-05-25T05:37:16.202815Z"
+}
