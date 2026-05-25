@@ -53,10 +53,10 @@ CREATE TABLE cross_modal_states (
             END
         ) STORED,
 
-    -- Source reading references
-    eeg_reading_id      UUID REFERENCES mesh_node_readings(id),
-    hrv_reading_id      UUID REFERENCES mesh_node_readings(id),
-    relay_path_id       UUID REFERENCES relay_path_events(id)
+    -- Source reading references (mesh_node_readings.id and relay_path_events.id are BIGINT)
+    eeg_reading_id      BIGINT REFERENCES mesh_node_readings(id),
+    hrv_reading_id      BIGINT REFERENCES mesh_node_readings(id),
+    relay_path_id       BIGINT REFERENCES relay_path_events(id)
 );
 
 CREATE INDEX cross_modal_states_twin_idx ON cross_modal_states (twin_id, evaluated_at DESC);
