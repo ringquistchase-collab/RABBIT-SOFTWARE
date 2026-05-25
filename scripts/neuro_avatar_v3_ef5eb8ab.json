@@ -1,0 +1,38 @@
+{
+  "platform": "NeuroAvatar NFT Platform v3.0",
+  "timestamp": "2026-05-25T06:03:11.584152Z",
+  "clinics": 3,
+  "patients": 6,
+  "nfts_minted": 6,
+  "marketplace": {
+    "success": true,
+    "count": 2,
+    "listings": [
+      {
+        "token_id": "044F8FA7",
+        "tier": "LEGENDARY",
+        "price_sol": 0.08,
+        "genome_sig": "ce07e846190279af",
+        "listed_at": "2026-05-25T06:03:11.599309Z"
+      },
+      {
+        "token_id": "E8534B4B",
+        "tier": "LEGENDARY",
+        "price_sol": 0.12,
+        "genome_sig": "cd5737e1531595ef",
+        "listed_at": "2026-05-25T06:03:11.599309Z"
+      }
+    ]
+  },
+  "projection": {
+    "active_clinics": 50,
+    "patients_per_month": 10,
+    "annual_nfts_minted": 6000,
+    "avg_nft_price_usd": 150.0,
+    "primary_revenue_usd": 225000.0,
+    "secondary_royalty_usd": 3375.0,
+    "total_annual_revenue_usd": 228375.0,
+    "mrr_usd": 19031.25,
+    "arr_usd": 228375.0
+  }
+}
