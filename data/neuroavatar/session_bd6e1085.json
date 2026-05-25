@@ -1,0 +1,14 @@
+{
+  "session_uuid": "bd6e1085-9450-485a-a30a-0bb68669c75b",
+  "created_at": "2026-05-25T05:28:27.898132Z",
+  "status": "initialized",
+  "pipeline_version": "3.0",
+  "components": [
+    "EEG Acquisition",
+    "Signal Processing",
+    "Binary Tokenization",
+    "LLM Analysis",
+    "Blockchain Provenance"
+  ],
+  "session_hash": "c1ac20ea5922d51964dfedaf4dcfbd2147682d6e88e5865d73159130210dcdec"
+}

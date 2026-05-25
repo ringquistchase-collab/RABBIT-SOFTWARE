@@ -1,0 +1,67 @@
+{
+  "name": "NeuroAvatar #BD6E1085",
+  "description": "Medical outcome NFT for patient treatment session",
+  "image": "ipfs://neuroavatar/BD6E1085/image.png",
+  "external_url": "https://neurocorp.io/nft/BD6E1085",
+  "attributes": [
+    {
+      "trait_type": "Token UUID",
+      "value": "bd6e1085-9450-485a-a30a-0bb68669c75b"
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2026-05-25T05:28:27.898132Z"
+    },
+    {
+      "trait_type": "Patient ID Hash",
+      "value": "487f3950b0e9f534"
+    },
+    {
+      "trait_type": "UPDRS Improvement",
+      "value": -7.2
+    },
+    {
+      "trait_type": "Treatment Response",
+      "value": "EXCELLENT"
+    },
+    {
+      "trait_type": "NFT Tier",
+      "value": "EPIC"
+    },
+    {
+      "trait_type": "Provenance Hash",
+      "value": "26e11fd42286053e"
+    }
+  ],
+  "properties": {
+    "files": [
+      {
+        "uri": "ipfs://neuroavatar/BD6E1085/metadata.json",
+        "type": "application/json"
+      }
+    ],
+    "category": "image",
+    "creators": [
+      {
+        "address": "0xbd6e10859450485aa30a0bb68669c75b",
+        "share": 50
+      },
+      {
+        "address": "0xClinicMayo001",
+        "share": 25
+      },
+      {
+        "address": "0xNeuroCorpPlatform",
+        "share": 25
+      }
+    ]
+  },
+  "royalty_info": {
+    "royalty_basis_points": 500,
+    "recipients": {
+      "patient": "0xbd6e10859450485aa30a0bb68669c75b",
+      "clinic": "0xClinicMayo001",
+      "platform": "NeuroCorpPlatform"
+    }
+  }
+}
