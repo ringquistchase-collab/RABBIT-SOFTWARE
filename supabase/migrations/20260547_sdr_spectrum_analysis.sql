@@ -180,6 +180,16 @@ END;
 $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- FUNCTION: atomic increment of session recording_count
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION increment_session_count(p_session_id UUID)
+RETURNS VOID LANGUAGE sql SECURITY DEFINER AS $$
+    UPDATE spectrum_sessions
+    SET recording_count = recording_count + 1
+    WHERE id = p_session_id;
+$$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- Seed: one demo session + recording for HEAD_01 at 10.245 GHz
 -- ─────────────────────────────────────────────────────────────────────────────
 DO $$
