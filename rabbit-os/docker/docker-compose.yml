@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  rabbit-os:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+      - LLM_PROVIDER=mock
+      - DB_PATH=/data/rabbit_os.db
+      - OLLAMA_URL=http://ollama:11434
+    volumes:
+      - rabbit_data:/data
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  rabbit_data:
+  ollama_models:
