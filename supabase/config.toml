@@ -1,0 +1,38 @@
+[functions.ingest-sensor-data]
+enabled = true
+
+[functions.ai-router]
+enabled = true
+
+[functions.noaa-poller]
+enabled = true
+
+[functions.eeg-processor]
+enabled = true
+
+[functions.eth-anchor]
+enabled = true
+
+[functions.data-lifecycle]
+enabled = true
+
+[functions.bio-fusion]
+enabled = true
+
+[functions.embed-telemetry]
+enabled = true
+
+[functions.semantic-search]
+enabled = true
+
+[functions.xrpl-anchor]
+enabled = true
+
+[functions.mesh-ingest]
+enabled = true
+
+[functions.snapshot-access]
+enabled = true
+
+[functions.corpus-builder]
+enabled = true
