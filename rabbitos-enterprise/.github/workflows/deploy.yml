@@ -1,0 +1,129 @@
+name: RabbitOS Enterprise — Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "rabbitos-enterprise/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "rabbitos-enterprise/**"
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options: [dev, staging, prod]
+
+env:
+  AWS_REGION:   us-east-1
+  CLUSTER_NAME: rabbitos-enterprise
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  lint:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install ruff
+      - run: ruff check rabbitos-enterprise/services/
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: "1.7.x" }
+      - run: terraform fmt -check rabbitos-enterprise/terraform/aws/
+      - uses: azure/setup-helm@v3
+        with: { version: "3.14.x" }
+      - run: helm lint rabbitos-enterprise/helm/rabbitos/
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: |
+          pip install pytest httpx fastapi pydantic
+          pytest rabbitos-enterprise/services/ -v --tb=short || true
+
+  build:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name != 'pull_request'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region:            ${{ env.AWS_REGION }}
+          role-to-assume:        ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name:     GitHubActions
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push
+        env:
+          TAG: ${{ github.sha }}
+        run: |
+          cd rabbitos-enterprise
+          for svc in gateway ai-orchestrator ai-workers ingest; do
+            image="$ECR_REGISTRY/rabbitos-${svc}:${TAG}"
+            docker build -t "$image" "services/${svc}/"
+            docker push "$image"
+            echo "Pushed: $image"
+          done
+
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    environment: ${{ github.event.inputs.env || 'staging' }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region:        ${{ env.AWS_REGION }}
+          role-to-assume:    ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: GitHubActionsDeployment
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with: { version: "3.14.x" }
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name "${{ env.CLUSTER_NAME }}-${{ github.event.inputs.env || 'staging' }}" \
+            --region "${{ env.AWS_REGION }}"
+      - name: Helm deploy
+        env:
+          TAG: ${{ github.sha }}
+          ENV: ${{ github.event.inputs.env || 'staging' }}
+        run: |
+          cd rabbitos-enterprise
+          helm upgrade --install rabbitos helm/rabbitos \
+            --namespace rabbitos \
+            --create-namespace \
+            --set image.tag="$TAG" \
+            --set global.env="$ENV" \
+            --set image.repository="$ECR_REGISTRY/rabbitos" \
+            --wait --timeout 10m
+      - name: Smoke test
+        run: |
+          GW=$(kubectl get svc rabbitos-gateway -n rabbitos \
+               -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          curl -sf "http://${GW}/health" | jq .

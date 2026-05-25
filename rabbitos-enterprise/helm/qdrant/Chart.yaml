@@ -1,0 +1,9 @@
+apiVersion: v2
+name: qdrant
+description: Qdrant vector DB for RabbitOS memory
+type: application
+version: 1.0.0
+dependencies:
+  - name: qdrant
+    version: "0.x.x"
+    repository: https://qdrant.github.io/qdrant-helm

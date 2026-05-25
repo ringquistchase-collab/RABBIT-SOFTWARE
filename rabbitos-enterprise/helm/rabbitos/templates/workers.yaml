@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitos-worker
+  labels: { app: rabbitos-worker }
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels: { app: rabbitos-worker }
+  template:
+    metadata:
+      labels: { app: rabbitos-worker, role: gpu }
+    spec:
+      serviceAccountName: rabbitos-worker
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: worker
+          image: "{{ .Values.image.repository }}-worker:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - secretRef: { name: rabbitos-secrets }
+          env:
+            - name: KAFKA_BROKERS
+              value: {{ .Values.kafka.brokers | quote }}
+            - name: KAFKA_TOPIC_TASKS
+              value: {{ .Values.kafka.topicTasks | quote }}
+            - name: KAFKA_TOPIC_RESULTS
+              value: {{ .Values.kafka.topicResults | quote }}
+            - name: WORKER_CONCURRENCY
+              value: {{ .Values.env.WORKER_CONCURRENCY | quote }}
+            - name: LLM_PROVIDER
+              value: {{ .Values.env.LLM_PROVIDER | quote }}
+          resources: {{ toYaml .Values.worker.resources | nindent 12 }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+      volumes:
+        - name: model-cache
+          emptyDir: {}

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: neo4j
+description: Neo4j graph DB for RabbitOS knowledge graph
+type: application
+version: 1.0.0
+dependencies:
+  - name: neo4j
+    version: "5.x.x"
+    repository: https://helm.neo4j.com/neo4j

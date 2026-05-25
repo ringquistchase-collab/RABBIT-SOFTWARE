@@ -1,0 +1,9 @@
+apiVersion: v2
+name: grafana
+description: Grafana dashboards for RabbitOS observability
+type: application
+version: 1.0.0
+dependencies:
+  - name: grafana
+    version: "7.x.x"
+    repository: https://grafana.github.io/helm-charts

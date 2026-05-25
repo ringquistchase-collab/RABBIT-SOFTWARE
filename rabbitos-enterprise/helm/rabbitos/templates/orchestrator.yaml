@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitos-orchestrator
+  labels: { app: rabbitos-orchestrator }
+spec:
+  replicas: {{ .Values.orchestrator.replicaCount }}
+  selector:
+    matchLabels: { app: rabbitos-orchestrator }
+  template:
+    metadata:
+      labels: { app: rabbitos-orchestrator }
+    spec:
+      containers:
+        - name: orchestrator
+          image: "{{ .Values.image.repository }}-orchestrator:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.orchestrator.port }}
+          envFrom:
+            - secretRef: { name: rabbitos-secrets }
+          env:
+            - name: KAFKA_BROKERS
+              value: {{ .Values.kafka.brokers | quote }}
+            - name: QDRANT_URL
+              value: {{ .Values.qdrant.url | quote }}
+            - name: NEO4J_URI
+              value: {{ .Values.neo4j.uri | quote }}
+          resources: {{ toYaml .Values.orchestrator.resources | nindent 12 }}
+          livenessProbe:
+            httpGet: { path: /health, port: {{ .Values.orchestrator.port }} }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitos-orchestrator
+spec:
+  selector: { app: rabbitos-orchestrator }
+  ports:
+    - port: 80
+      targetPort: {{ .Values.orchestrator.port }}
+  type: ClusterIP

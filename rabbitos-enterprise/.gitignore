@@ -1,0 +1,36 @@
+# Secrets
+.env
+*.pem
+*.key
+*_credentials*
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+tfplan
+override.tf
+override.tf.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Docker
+.dockerignore
+
+# Helm
+charts/*.tgz
+
+# IDE
+.idea/
+.vscode/
+*.swp
