@@ -70,3 +70,21 @@ CREATE TABLE IF NOT EXISTS tree_nodes (
 ALTER TABLE tree_nodes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "service_role_only_tree"
     ON tree_nodes USING (auth.role() = 'service_role');
+
+-- ── morse_log — morse messages sent / received ─────────────────────────────
+CREATE TABLE IF NOT EXISTS morse_log (
+    id           BIGSERIAL PRIMARY KEY,
+    twin_id      UUID    NOT NULL DEFAULT 'ef5eb8ab-c6d9-40a8-a8f7-5cd510decaba',
+    direction    TEXT    NOT NULL,   -- 'tx' | 'rx'
+    text_plain   TEXT    NOT NULL,
+    morse_str    TEXT    NOT NULL,
+    channel      TEXT    NOT NULL,   -- acoustic|udp|http|dns|icmp|supabase
+    callsign     TEXT    DEFAULT '',
+    reply_to     TEXT    DEFAULT '',
+    created_at   TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_morse_log_twin
+    ON morse_log (twin_id, created_at DESC);
+ALTER TABLE morse_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "service_role_only_morse"
+    ON morse_log USING (auth.role() = 'service_role');

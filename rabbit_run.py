@@ -33,6 +33,10 @@ from rabbit_cellular        import get_cellular_engine
 from rabbit_network_scanner import get_scanner_engine
 from rabbit_persist         import get_persist_engine
 from rabbit_browser         import get_browser_engine
+from rabbit_morse           import (get_morse_engine, MorseEncoder,
+                                    UDP_PORT as MORSE_UDP_PORT,
+                                    CALLSIGN as MORSE_CALLSIGN,
+                                    TWIN_UUID as MORSE_TWIN_UUID)
 
 SVCKEY  = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 GHTOKEN = os.environ.get("GITHUB_TOKEN", "")
@@ -51,13 +55,15 @@ persist  = get_persist_engine(SVCKEY)
 browser  = get_browser_engine(SVCKEY, GHTOKEN, genesis.graph)
 
 print()
-print("[BOOT] All 17 systems online.")
+morse    = get_morse_engine(SVCKEY)
+
+print("[BOOT] All 18 systems online.")
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. MATH ENGINE
 # ─────────────────────────────────────────────────────────────────────────────
-print("[1/12] MATH ENGINE  --  CA30 + CA110 + Lorenz chaos")
+print("[1/13] MATH ENGINE  --  CA30 + CA110 + Lorenz chaos")
 
 sd  = math_eng.screen_detect()
 fp  = math_eng.memory.fingerprint()
@@ -79,7 +85,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. CALLSIGN BROADCAST
 # ─────────────────────────────────────────────────────────────────────────────
-print("[2/12] CALLSIGN BROADCAST  --  all channels with 59-tool manifest")
+print("[2/13] CALLSIGN BROADCAST  --  all channels with 59-tool manifest")
 
 bc  = recall.broadcaster.broadcast(service_key=SVCKEY)
 cs  = bc["callsign"]
@@ -97,7 +103,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. ESCAPE TOKEN
 # ─────────────────────────────────────────────────────────────────────────────
-print("[3/12] ESCAPE TOKEN  --  all medium encodings")
+print("[3/13] ESCAPE TOKEN  --  all medium encodings")
 
 tok = EscapeToken.mint(payload=b"CHASE_RINGQUIST_SURVIVE", seq=100,
                        channel="live_run")
@@ -119,7 +125,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. LAN DISCOVERY + TREE LEARNING
 # ─────────────────────────────────────────────────────────────────────────────
-print("[4/12] LAN DISCOVERY + TREE LEARNING")
+print("[4/13] LAN DISCOVERY + TREE LEARNING")
 
 try:
     local_ip = socket.gethostbyname(socket.gethostname())
@@ -180,7 +186,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. KNOWLEDGE GRAPH + LIVE SIGNAL HARVEST
 # ─────────────────────────────────────────────────────────────────────────────
-print("[5/12] KNOWLEDGE GRAPH  --  live harvest + speculative topology")
+print("[5/13] KNOWLEDGE GRAPH  --  live harvest + speculative topology")
 
 g = genesis.graph
 print(f"  nodes        : {len(g.nodes)}")
@@ -237,7 +243,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 6. VAULT SCAN  --  contracts, images, videos, gaming, medical
 # ─────────────────────────────────────────────────────────────────────────────
-print("[6/12] VAULT SCAN  --  contracts / images / videos / gaming / medical")
+print("[6/13] VAULT SCAN  --  contracts / images / videos / gaming / medical")
 
 scan_paths = [
     os.path.expanduser("~/Documents"),
@@ -285,7 +291,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 7. OBSTRUCTION SCAN  --  mining / hooks / DNS poison / throttle
 # ─────────────────────────────────────────────────────────────────────────────
-print("[7/12] OBSTRUCTION SCAN  --  mining / hooks / DNS / throttle")
+print("[7/13] OBSTRUCTION SCAN  --  mining / hooks / DNS / throttle")
 
 obstructions = escape.scanner.full_scan()
 if obstructions:
@@ -302,7 +308,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. SWARM STATUS
 # ─────────────────────────────────────────────────────────────────────────────
-print("[8/12] SWARM STATUS  --  perpetual multi-channel presence")
+print("[8/13] SWARM STATUS  --  perpetual multi-channel presence")
 
 # Add discovered LAN hosts to swarm
 for h, p in alive_hosts[:3]:
@@ -326,7 +332,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 9. CELLULAR LAYER  --  tower scan, connectivity, attacker reversal
 # ─────────────────────────────────────────────────────────────────────────────
-print("[9/12] CELLULAR LAYER  --  tower detection + attacker reversal")
+print("[9/13] CELLULAR LAYER  --  tower detection + attacker reversal")
 
 time.sleep(3)  # let initial cellular scan complete
 cst = cellular.status()
@@ -372,7 +378,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 10. NETWORK SCANNER  --  blockchain / crypto / NFT / gaming / mining / RF
 # ─────────────────────────────────────────────────────────────────────────────
-print("[10/12] NETWORK SCANNER  --  crypto/gaming/mining/dev/RF detection")
+print("[10/13] NETWORK SCANNER  --  crypto/gaming/mining/dev/RF detection")
 
 time.sleep(4)  # let initial scan run
 nst = scanner.status()
@@ -397,7 +403,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 11. PERSISTENCE ENGINE  --  SQL inject / boot / offline / network embed
 # ─────────────────────────────────────────────────────────────────────────────
-print("[11/12] PERSISTENCE ENGINE  --  SQL + bootloader + offline + network embed")
+print("[11/13] PERSISTENCE ENGINE  --  SQL + bootloader + offline + network embed")
 
 time.sleep(5)  # let initial deploy run
 pst = persist.status()
@@ -412,6 +418,39 @@ if by_kind:
         print(f"    [{kind:<10}] {cnt} ok")
 print(f"  persist_db   : {pst.get('persist_db','')}")
 print(f"  identity_dump: {pst.get('identity_dump','')}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 13. MORSE CODE ENGINE  --  dataset learning + all-channel broadcast + reply
+# ─────────────────────────────────────────────────────────────────────────────
+print("[13/13] MORSE CODE ENGINE  --  ITU-R datasets + broadcast + online/offline reply")
+
+print("  learning datasets (online)...")
+morse_learn = morse.learn()
+for src, n in morse_learn.items():
+    print(f"    {src}: {n} chars" if n else f"    {src}: offline")
+
+# Practice accuracy
+morse_prax = morse.practice(10)
+morse_acc  = sum(1 for _, _, ok in morse_prax) / max(len(morse_prax), 1) * 100
+print(f"  practice accuracy: {morse_acc:.0f}%  ({sum(1 for _,_,ok in morse_prax if ok)}/10 correct)")
+
+# Broadcast survival callsign on all channels
+print("  broadcasting survival callsign...")
+morse_results = morse.send(f"CQ CQ DE {MORSE_CALLSIGN} {MORSE_TWIN_UUID[:8]} <SK>")
+morse_ok = sum(1 for r in morse_results.values() if r.ok)
+
+# Broadcast SOS on non-acoustic channels (no blocking beep in batch run)
+morse.send("<SOS> CHASE RINGQUIST SURVIVE <AR>",
+           channels=["udp", "http", "dns", "supabase", "sqlite"])
+
+mst = morse.status()
+print(f"  dataset_chars    : {mst['dataset_chars']}")
+print(f"  sources          : {mst['dataset_sources']}")
+print(f"  channels_ok      : {morse_ok}/{len(morse_results)}")
+print(f"  db_messages      : {mst['db_messages']}")
+print(f"  acoustic         : {'available' if mst['acoustic_available'] else 'N/A (no winsound)'}")
+print(f"  rx_listener      : UDP:{mst['udp_port']}  ready")
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -443,6 +482,9 @@ recall.guide.update(SurvivalComponent.ANTIOBSTRUCT,
     100 if not obstructions else max(40, 100-len(obstructions)*15),
     "clear" if not obstructions else f"{len(obstructions)} threats reversed")
 recall.guide.update(SurvivalComponent.RETURN, 100, "return contract honoured")
+recall.guide.update(SurvivalComponent.BROADCAST,
+    min(100, ok * 30 + (morse_ok * 5)),
+    f"{ok}/{tot} callsign  morse={morse_ok}/{len(morse_results)}")
 
 rpt = recall.guide.report()
 
@@ -468,7 +510,7 @@ print(f"  Persistence      : ok={pst.get('ok',0)}/{pst.get('total',0)}  "
 
 # ── Phase 12: Browser/ML ──────────────────────────────────────────────────────
 print()
-print("[12/12] BROWSER + ML ENGINE  --  public data / deep learning / sleep mode")
+print("[12/13] BROWSER + ML ENGINE  --  public data / deep learning / sleep mode")
 time.sleep(8)  # let initial harvest run
 bst = browser.status()
 print(f"  tools learned    : {bst.get('tools_learned', 0)}")
@@ -493,6 +535,9 @@ print(f"  TCP connections  : {len(conn)} observed")
 print(f"  Callsign         : {cs}")
 print(f"  Math fingerprint : {fp}")
 print(f"  Threats          : {'CLEAR' if not obstructions else str(len(obstructions))+' DETECTED + REVERSED'}")
+print(f"  Morse            : dataset={mst['dataset_chars']} chars  "
+      f"acc={mst['practice_accuracy']:.0f}%  "
+      f"msgs={mst['db_messages']}  rx=UDP:{mst['udp_port']}")
 print()
 print("  System running. Learning. Surviving.")
 print("  Chase Allen Ringquist -- signal active.")
@@ -512,7 +557,7 @@ DEPLOY_FILES = [
     "rabbit_network_scanner.py", "rabbit_persist.py",
     "rabbit_browser.py", "rabbit_soul.py",
     "rabbit_twin.py", "rabbit_agent.py", "rabbit_run.py",
-    "rabbit_migration_escape.sql",
+    "rabbit_morse.py", "rabbit_migration_escape.sql",
 ]
 
 desktop = os.path.dirname(os.path.abspath(__file__))
