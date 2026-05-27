@@ -468,57 +468,118 @@ class ASNProbe:
 # ── BGP Prefix Probe ──────────────────────────────────────────────────────────
 
 class BGPProbe:
-    """Read-only BGPView public API queries."""
+    """Read-only RIPE NCC Stat API queries (replaces BGPView which is DNS-blocked)."""
+
+    _BASE = "https://stat.ripe.net/data"
 
     def prefixes_for_asn(self, asn: str) -> List[str]:
-        asn = asn.lstrip("AS").lstrip("as")
-        data = _http_json(f"https://api.bgpview.io/asn/{asn}/prefixes")
+        asn_num = asn.lstrip("AS").lstrip("as")
+        data = _http_json(
+            f"{self._BASE}/announced-prefixes/data.json?resource=AS{asn_num}")
         if not data:
             return []
-        prefixes = []
-        for p in data.get("data", {}).get("ipv4_prefixes", []):
-            prefixes.append(p.get("prefix", ""))
-        for p in data.get("data", {}).get("ipv6_prefixes", []):
-            prefixes.append(p.get("prefix", ""))
-        return [x for x in prefixes if x][:30]
+        return [p["prefix"] for p in data.get("data", {}).get("prefixes", [])
+                if p.get("prefix")][:30]
 
     def asn_details(self, asn: str) -> Dict:
-        asn = asn.lstrip("AS").lstrip("as")
-        data = _http_json(f"https://api.bgpview.io/asn/{asn}")
+        asn_num = asn.lstrip("AS").lstrip("as")
+        data = _http_json(
+            f"{self._BASE}/as-overview/data.json?resource=AS{asn_num}")
         if not data:
             return {}
         d = data.get("data", {})
+        # Also get country/name from routing data
+        routing = _http_json(
+            f"{self._BASE}/as-names/data.json?resource=AS{asn_num}") or {}
+        names = routing.get("data", {}).get("names", {})
+        name = names.get(asn_num, d.get("holder", ""))
         return {
-            "asn":         d.get("asn"),
-            "name":        d.get("name", ""),
-            "description": d.get("description_short", ""),
-            "country":     d.get("country_code", ""),
-            "website":     d.get("website", ""),
-            "email_contacts": [_hash(e) for e in d.get("email_contacts", [])],
+            "asn":       f"AS{asn_num}",
+            "name":      name,
+            "holder":    d.get("holder", ""),
+            "announced": d.get("announced", False),
+            "type":      d.get("type", ""),
         }
 
     def ip_prefixes(self, ip: str) -> Dict:
-        data = _http_json(f"https://api.bgpview.io/ip/{ip}")
+        data = _http_json(
+            f"{self._BASE}/network-info/data.json?resource={ip}")
         if not data:
             return {}
         d = data.get("data", {})
-        prefixes = d.get("prefixes", [])
         return {
-            "ip":       ip,
-            "prefixes": [p.get("prefix") for p in prefixes],
-            "asns":     list(dict.fromkeys(
-                            str(p.get("asn", {}).get("asn", "")) for p in prefixes))[:5],
+            "ip":      ip,
+            "prefix":  d.get("prefix", ""),
+            "asns":    d.get("asns", []),
+        }
+
+    def routing_history(self, ip_or_prefix: str) -> Dict:
+        """RIPE routing history for an IP or prefix."""
+        data = _http_json(
+            f"{self._BASE}/routing-history/data.json?resource={ip_or_prefix}&starttime=-30d")
+        if not data:
+            return {}
+        d    = data.get("data", {})
+        hist = d.get("by_origin", [])
+        return {
+            "resource": ip_or_prefix,
+            "origins":  [{"asn": h.get("origin"), "timelines": len(h.get("timelines", []))}
+                         for h in hist[:10]],
         }
 
 # ── Certificate Transparency Probe ───────────────────────────────────────────
 
 class CertTransparencyProbe:
-    """Read-only crt.sh public certificate transparency log queries."""
+    """
+    Certificate transparency via certspotter.com public API.
+    Falls back to crt.sh if certspotter times out.
+    """
+
+    _CERTSPOTTER = "https://api.certspotter.com/v1/issuances"
+    _CRTSH       = "https://crt.sh/"
 
     def lookup(self, domain: str, limit: int = 20) -> List[CertRecord]:
-        url  = (f"https://crt.sh/?q={urllib.parse.quote(domain)}"
+        records = self._from_certspotter(domain, limit)
+        if not records:
+            records = self._from_crtsh(domain, limit)
+        _log_query(domain, "cert_transparency", f"{len(records)} certs found")
+        return records
+
+    def _from_certspotter(self, domain: str, limit: int) -> List[CertRecord]:
+        url  = (f"{self._CERTSPOTTER}?domain={urllib.parse.quote(domain)}"
+                f"&include_subdomains=false&expand=dns_names&expand=issuer")
+        data = _http_json(url, timeout=12)
+        if not data or not isinstance(data, list):
+            return []
+
+        records: List[CertRecord] = []
+        seen: set = set()
+        for entry in data:
+            dns_names = entry.get("dns_names", [])
+            cn = dns_names[0] if dns_names else domain
+            if cn in seen:
+                continue
+            seen.add(cn)
+
+            issuer_d = entry.get("issuer", {}) or {}
+            issuer   = issuer_d.get("o", "") or issuer_d.get("cn", "")
+
+            rec = CertRecord(
+                domain=domain, common_name=cn, issuer=issuer[:120],
+                not_before=entry.get("not_before", ""),
+                not_after=entry.get("not_after", ""),
+                san_domains=[n.lstrip("*.") for n in dns_names[:20]],
+                cert_id=int(entry.get("id", 0)))
+            records.append(rec)
+            self._save(rec)
+            if len(records) >= limit:
+                break
+        return records
+
+    def _from_crtsh(self, domain: str, limit: int) -> List[CertRecord]:
+        url  = (f"{self._CRTSH}?q={urllib.parse.quote(domain)}"
                 f"&output=json&deduplicate=Y")
-        data = _http_json(url)
+        data = _http_json(url, timeout=15)
         if not data or not isinstance(data, list):
             return []
 
@@ -529,34 +590,32 @@ class CertTransparencyProbe:
             if cn in seen:
                 continue
             seen.add(cn)
-
             name_value = entry.get("name_value", "")
             sans = list(dict.fromkeys(
                 n.strip() for n in name_value.split("\n") if n.strip()))
-
             rec = CertRecord(
-                domain=domain,
-                common_name=cn,
+                domain=domain, common_name=cn,
                 issuer=entry.get("issuer_name", "")[:120],
                 not_before=entry.get("not_before", ""),
                 not_after=entry.get("not_after", ""),
                 san_domains=sans[:20],
                 cert_id=int(entry.get("id", 0)))
             records.append(rec)
-            try:
-                with _db() as con:
-                    con.execute(
-                        "INSERT OR REPLACE INTO cert_records VALUES (?,?,?,?,?,?,?,?)",
-                        (rec.cert_id, rec.domain, rec.common_name, rec.issuer,
-                         rec.not_before, rec.not_after,
-                         json.dumps(rec.san_domains), rec.ts))
-            except Exception:
-                pass
+            self._save(rec)
             if len(records) >= limit:
                 break
-
-        _log_query(domain, "cert_transparency", f"{len(records)} certs found")
         return records
+
+    def _save(self, rec: CertRecord) -> None:
+        try:
+            with _db() as con:
+                con.execute(
+                    "INSERT OR REPLACE INTO cert_records VALUES (?,?,?,?,?,?,?,?)",
+                    (rec.cert_id, rec.domain, rec.common_name, rec.issuer,
+                     rec.not_before, rec.not_after,
+                     json.dumps(rec.san_domains), rec.ts))
+        except Exception:
+            pass
 
     def related_domains(self, domain: str) -> List[str]:
         """Return unique domains found in SAN fields across all certs for a domain."""
@@ -1035,6 +1094,11 @@ OSINT_TOOLS: List[Dict] = [
      "description": "BGP prefix and ASN info for a specific IP address.",
      "input_schema": {"type": "object", "required": ["ip"],
                       "properties": {"ip": {"type": "string"}}}},
+    {"name": "osint_bgp_routing_history",
+     "description": "RIPE NCC 30-day routing history for an IP or prefix — shows which ASNs announced it.",
+     "input_schema": {"type": "object", "required": ["resource"],
+                      "properties": {"resource": {"type": "string",
+                                                  "description": "IP address or CIDR prefix"}}}},
 
     # Cert transparency
     {"name": "osint_cert_lookup",
@@ -1136,6 +1200,9 @@ def dispatch_osint_tool(name: str, inputs: Dict) -> Any:
 
     elif name == "osint_bgp_ip_prefixes":
         return o.bgp.ip_prefixes(inp["ip"])
+
+    elif name == "osint_bgp_routing_history":
+        return o.bgp.routing_history(inp["resource"])
 
     elif name == "osint_cert_lookup":
         recs = o.cert.lookup(inp["domain"], limit=inp.get("limit", 20))
