@@ -665,6 +665,20 @@ try:
 except ImportError:
     pass
 
+# Merge system watchdog / auto-repair / deployment tools
+try:
+    from rabbit_watchdog import WATCHDOG_TOOLS
+    TOOLS = TOOLS + WATCHDOG_TOOLS
+except ImportError:
+    pass
+
+# Merge live network + identity monitor tools
+try:
+    from rabbit_monitor import MONITOR_TOOLS
+    TOOLS = TOOLS + MONITOR_TOOLS
+except ImportError:
+    pass
+
 SYSTEM_PROMPT = f"""You are the RabbitOS Universal Agent for Chase Allen Ringquist.
 
 Twin UUID: {TWIN_UUID}
@@ -1304,6 +1318,27 @@ class RabbitOSAgent:
                 svc_key = SupabaseConfig.get("supabase_service_role_key",
                                              "SUPABASE_SERVICE_ROLE_KEY", "")
                 return json.dumps(dispatch_biostore_tool(name, inputs, svc_key), indent=2)
+
+            # ── System watchdog / auto-repair / deployment tools ──────────────
+            elif name.startswith("watchdog_"):
+                from rabbit_watchdog import dispatch_watchdog_tool
+                tok = SupabaseConfig.get("github_token", "GITHUB_TOKEN", "")
+                url = SupabaseConfig.get("supabase_url", "SUPABASE_URL", "")
+                svc = SupabaseConfig.get("supabase_service_role_key",
+                                         "SUPABASE_SERVICE_ROLE_KEY", "")
+                return json.dumps(
+                    dispatch_watchdog_tool(name, inputs, tok, url, svc),
+                    indent=2, default=str)
+
+            # ── Live network + identity monitor tools ─────────────────────────
+            elif name.startswith("monitor_"):
+                from rabbit_monitor import dispatch_monitor_tool
+                url = SupabaseConfig.get("supabase_url", "SUPABASE_URL", "")
+                svc = SupabaseConfig.get("supabase_service_role_key",
+                                         "SUPABASE_SERVICE_ROLE_KEY", "")
+                return json.dumps(
+                    dispatch_monitor_tool(name, inputs, url, svc),
+                    indent=2, default=str)
 
             else:
                 return f"[ERROR] Unknown tool: {name}"
