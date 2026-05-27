@@ -616,6 +616,27 @@ try:
 except ImportError:
     pass
 
+# Merge medical data + 3D model tools
+try:
+    from rabbit_medical import MEDICAL_TOOLS
+    TOOLS = TOOLS + MEDICAL_TOOLS
+except ImportError:
+    pass
+
+# Merge browser + voice + calling + cloud trail + cold network tools
+try:
+    from rabbit_assistant import ASSISTANT_TOOLS
+    TOOLS = TOOLS + ASSISTANT_TOOLS
+except ImportError:
+    pass
+
+# Merge shell integration tools
+try:
+    from rabbit_shell import SHELL_TOOLS
+    TOOLS = TOOLS + SHELL_TOOLS
+except ImportError:
+    pass
+
 # Merge reward token economy tools
 try:
     from rabbit_reward import REWARD_TOOLS
@@ -1217,6 +1238,33 @@ class RabbitOSAgent:
                 sup_url = SUPABASE_URL
                 return json.dumps(
                     dispatch_defense_tool(name, inputs, api_key, svc_key, gh_tok, sup_url),
+                    indent=2, default=str)
+
+            # ── Medical data + 3D model ──────────────────────────────────────
+            elif name.startswith("medical_"):
+                from rabbit_medical import dispatch_medical_tool
+                api_key = SupabaseConfig.get("anthropic_api_key", "ANTHROPIC_API_KEY", "")
+                svc_key = SupabaseConfig.get("supabase_service_role_key",
+                                             "SUPABASE_SERVICE_ROLE_KEY", "")
+                return json.dumps(
+                    dispatch_medical_tool(name, inputs, api_key, svc_key),
+                    indent=2, default=str)
+
+            # ── Browser + voice + calling + cloud trail + nodes ───────────────
+            elif name.startswith("assistant_"):
+                from rabbit_assistant import dispatch_assistant_tool
+                api_key = SupabaseConfig.get("anthropic_api_key", "ANTHROPIC_API_KEY", "")
+                svc_key = SupabaseConfig.get("supabase_service_role_key",
+                                             "SUPABASE_SERVICE_ROLE_KEY", "")
+                return json.dumps(
+                    dispatch_assistant_tool(name, inputs, api_key, svc_key),
+                    indent=2, default=str)
+
+            # ── Shell integration (CloudShell + PowerShell + cross-platform) ──
+            elif name.startswith("shell_"):
+                from rabbit_shell import dispatch_shell_tool
+                return json.dumps(
+                    dispatch_shell_tool(name, inputs),
                     indent=2, default=str)
 
             # ── Reward token economy tools ────────────────────────────────────
