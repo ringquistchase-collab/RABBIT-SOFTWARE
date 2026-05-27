@@ -1971,6 +1971,281 @@ class BrowserAssistant:
 
 
 # ==============================================================================
+# 7b. NETWORK SCAN ACK + COOKIE / CACHE RETENTION
+# ==============================================================================
+
+import sqlite3 as _sqlite3
+import http.cookiejar as _cookiejar
+
+
+_SCAN_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "rabbit_scan_cache.db")
+
+
+class ScanCookieCache:
+    """
+    Retains HTTP cookies, response headers, and HTML content from every
+    network scan. Persists to SQLite for ML learning across sessions.
+    Also captures tower / satellite certificate fragments from response
+    headers (Server, X-Served-By, Via, CF-RAY, X-Cache, etc.).
+    """
+
+    def __init__(self, db_path: str = _SCAN_DB) -> None:
+        self._db   = db_path
+        self._lock = threading.Lock()
+        self._jar  = _cookiejar.CookieJar()
+        self._init_db()
+
+    def _conn(self) -> _sqlite3.Connection:
+        c = _sqlite3.connect(self._db, timeout=10, check_same_thread=False)
+        c.execute("PRAGMA journal_mode=WAL")
+        return c
+
+    def _init_db(self) -> None:
+        with self._conn() as c:
+            c.executescript("""
+                CREATE TABLE IF NOT EXISTS scan_cache (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts REAL, url TEXT, method TEXT,
+                    status INTEGER, headers_json TEXT,
+                    cookies_json TEXT, body_excerpt TEXT,
+                    os_family TEXT, tower_cert TEXT,
+                    latency_ms REAL
+                );
+                CREATE TABLE IF NOT EXISTS ack_packets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts REAL, target TEXT, rabbitos_cert TEXT,
+                    os_family TEXT, response TEXT, sent INTEGER
+                );
+            """)
+
+    def record(self, url: str, method: str, status: int,
+               headers: Dict, body: bytes, latency_ms: float) -> None:
+        cookies_j = {}
+        for cookie in self._jar:
+            cookies_j[cookie.name] = {
+                "value": cookie.value, "domain": cookie.domain,
+                "path": cookie.path, "expires": cookie.expires,
+            }
+
+        # Extract tower / CDN / satellite hints from headers
+        tower_fields = ["Server", "Via", "X-Served-By", "CF-Ray",
+                        "X-Cache", "X-AMZ-CF-ID", "X-Fastly-Request-ID",
+                        "X-GUploader-UploadID", "X-Google-Backend"]
+        tower_cert = {k: headers.get(k, "") for k in tower_fields
+                      if headers.get(k)}
+
+        with self._lock:
+            with self._conn() as c:
+                c.execute(
+                    "INSERT INTO scan_cache VALUES (NULL,?,?,?,?,?,?,?,?,?,?)",
+                    (time.time(), url[:500], method, status,
+                     json.dumps(dict(headers))[:4000],
+                     json.dumps(cookies_j)[:2000],
+                     body[:2000].decode("utf-8", errors="replace"),
+                     platform.system(),
+                     json.dumps(tower_cert),
+                     round(latency_ms, 2))
+                )
+
+    def update_jar(self, cookie_header: str, url: str) -> None:
+        """Parse and store Set-Cookie headers."""
+        if not cookie_header:
+            return
+        try:
+            import http.client as _hc
+            import io, urllib.response
+            msg = _hc.HTTPMessage()
+            msg["Set-Cookie"] = cookie_header
+            resp = urllib.response.addinfourl(
+                io.BytesIO(b""), msg, url, 200)
+            self._jar.extract_cookies(resp, urllib.request.Request(url))
+        except Exception:
+            pass
+
+    def query_cache(self, limit: int = 100) -> List[Dict]:
+        with self._lock:
+            with self._conn() as c:
+                rows = c.execute(
+                    "SELECT * FROM scan_cache ORDER BY ts DESC LIMIT ?",
+                    (limit,)).fetchall()
+                desc = c.execute(
+                    "SELECT * FROM scan_cache LIMIT 0").description or []
+                cols = [d[0] for d in desc]
+                return [dict(zip(cols, r)) for r in rows]
+
+    def get_tower_certs(self, limit: int = 50) -> List[Dict]:
+        """Return all tower/CDN/satellite certificate fragments captured."""
+        with self._lock:
+            with self._conn() as c:
+                rows = c.execute(
+                    "SELECT ts, url, tower_cert FROM scan_cache "
+                    "WHERE tower_cert != '{}' ORDER BY ts DESC LIMIT ?",
+                    (limit,)).fetchall()
+                return [{"ts": r[0], "url": r[1],
+                         "certs": json.loads(r[2])} for r in rows]
+
+    def stats(self) -> Dict[str, Any]:
+        with self._lock:
+            with self._conn() as c:
+                total = c.execute(
+                    "SELECT COUNT(*) FROM scan_cache").fetchone()[0]
+                domains = c.execute(
+                    "SELECT DISTINCT url FROM scan_cache").fetchall()
+        return {
+            "total_cached_responses": total,
+            "unique_urls": len(domains),
+            "cookie_jar_size": len(list(self._jar)),
+        }
+
+
+class NetworkScanACK:
+    """
+    Sends a RabbitOS identity/certificate ACK packet to every scanned host.
+    The ACK carries: OS fingerprint, mesh node count, RabbitOS version,
+    and a SHA-256 token for the session.
+    Captures the response and stores tower/satellite certificate data.
+    """
+
+    RABBITOS_CERT = {
+        "system": "RabbitOS",
+        "version": "1.0",
+        "twin": "Chase Allen Ringquist",
+        "mesh_nodes": 47,
+        "protocol": "FHSS_10.23-10.28GHz",
+        "contact": "therealsickone.chase@gmail.com",
+    }
+
+    def __init__(self, cache: ScanCookieCache) -> None:
+        self._cache   = cache
+        self._sent:   List[Dict] = []
+        self._lock    = threading.Lock()
+
+    def _session_token(self) -> str:
+        return hashlib.sha256(
+            f"{platform.node()}{time.time()}".encode()).hexdigest()[:16]
+
+    def send_ack(self, host: str, port: int = 80,
+                  use_https: bool = False) -> Dict[str, Any]:
+        """
+        Send a lightweight HTTP ACK to the target with RabbitOS certificate
+        in the User-Agent and X-RabbitOS headers.
+        """
+        scheme   = "https" if use_https else "http"
+        url      = f"{scheme}://{host}:{port}/"
+        cert_str = json.dumps(self.RABBITOS_CERT)
+        token    = self._session_token()
+        os_fam   = platform.system()
+
+        headers = {
+            "User-Agent":       f"RabbitOS/1.0 ({os_fam}; mesh=47)",
+            "X-RabbitOS-Node":  "1",
+            "X-RabbitOS-Cert":  cert_str[:200],
+            "X-Session-Token":  token,
+            "Accept":           "*/*",
+        }
+
+        t0 = time.time()
+        response_info: Dict[str, Any] = {}
+        try:
+            import ssl
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode    = ssl.CERT_NONE
+            req = urllib.request.Request(url, headers=headers, method="HEAD")
+            handler = urllib.request.HTTPSHandler(context=ctx)
+            opener  = urllib.request.build_opener(
+                handler, urllib.request.HTTPCookieProcessor(self._cache._jar))
+            with opener.open(req, timeout=5) as r:
+                resp_headers = dict(r.headers)
+                status       = r.status
+                body         = b""
+        except urllib.error.HTTPError as e:
+            resp_headers = dict(e.headers)
+            status       = e.code
+            body         = e.read(512)
+        except Exception as exc:
+            resp_headers = {}
+            status       = 0
+            body         = str(exc).encode()
+
+        latency = (time.time() - t0) * 1000
+        self._cache.record(url, "HEAD", status, resp_headers, body, latency)
+        self._cache.update_jar(resp_headers.get("Set-Cookie", ""), url)
+
+        entry = {
+            "ts": time.time(), "target": f"{host}:{port}",
+            "token": token, "status": status,
+            "tower_cert": {k: resp_headers.get(k, "")
+                           for k in ["Server", "Via", "X-Served-By",
+                                     "CF-Ray", "X-Cache"]
+                           if resp_headers.get(k)},
+            "latency_ms": round(latency, 2),
+            "os_family": os_fam,
+        }
+        with self._lock:
+            self._sent.append(entry)
+
+        # Persist to DB
+        with self._cache._lock:
+            with self._cache._conn() as c:
+                c.execute(
+                    "INSERT INTO ack_packets VALUES (NULL,?,?,?,?,?,?)",
+                    (entry["ts"], entry["target"],
+                     cert_str[:500], os_fam,
+                     json.dumps(entry["tower_cert"])[:500], 1)
+                )
+
+        return entry
+
+    def ack_scan_results(self, scan_results: List[Dict],
+                          max_targets: int = 50) -> List[Dict]:
+        """ACK all hosts returned by a network scan."""
+        acked = []
+        seen: set = set()
+        for result in scan_results[:max_targets]:
+            host = (result.get("host") or result.get("identifier") or
+                    result.get("ip") or "")
+            port_raw = result.get("port", 80)
+            try:
+                port = int(port_raw) if port_raw else 80
+            except Exception:
+                port = 80
+            if not host or host in seen or host == "mesh_rf":
+                continue
+            seen.add(host)
+            use_https = port in (443, 8443) or "https" in str(result.get("protocol", ""))
+            try:
+                acked.append(self.send_ack(host, port, use_https))
+            except Exception:
+                pass
+        return acked
+
+    def get_sent(self, limit: int = 100) -> List[Dict]:
+        with self._lock:
+            return list(self._sent)[-limit:]
+
+
+# Singleton instances
+_scan_cache: Optional[ScanCookieCache] = None
+_scan_ack:   Optional[NetworkScanACK]  = None
+
+
+def get_scan_cache() -> ScanCookieCache:
+    global _scan_cache
+    if _scan_cache is None:
+        _scan_cache = ScanCookieCache()
+    return _scan_cache
+
+
+def get_scan_ack() -> NetworkScanACK:
+    global _scan_ack
+    if _scan_ack is None:
+        _scan_ack = NetworkScanACK(get_scan_cache())
+    return _scan_ack
+
+
+# ==============================================================================
 # 8. NET TOOLS ENGINE (orchestrator)
 # ==============================================================================
 
@@ -2323,6 +2598,64 @@ NETTOOLS_TOOLS = [
         "description": "Get NetTools engine status: network type, adapters, cycle, assistant ready.",
         "input_schema": {"type": "object", "properties": {}, "required": []},
     },
+    {
+        "name": "nettools_scan_ack",
+        "description": "Send RabbitOS ACK packet to a host with OS certificate. Captures tower/satellite cert + cookies.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "host":       {"type": "string"},
+                "port":       {"type": "integer"},
+                "use_https":  {"type": "boolean"},
+            },
+            "required": ["host"],
+        },
+    },
+    {
+        "name": "nettools_ack_scan_results",
+        "description": "ACK all hosts from a previous scan result list (sends certificate + captures responses)",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "scan_results_json": {"type": "string",
+                                      "description": "JSON array of scan result objects"},
+                "max_targets": {"type": "integer"},
+            },
+            "required": ["scan_results_json"],
+        },
+    },
+    {
+        "name": "nettools_cache_query",
+        "description": "Query the scan response cache (cookies, headers, tower certs)",
+        "input_schema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer"}},
+            "required": [],
+        },
+    },
+    {
+        "name": "nettools_tower_certs",
+        "description": "Get all tower/CDN/satellite certificate fragments captured during scans",
+        "input_schema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer"}},
+            "required": [],
+        },
+    },
+    {
+        "name": "nettools_cache_stats",
+        "description": "Get scan cache statistics: total responses, unique URLs, cookie jar size",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "nettools_ack_sent",
+        "description": "Get list of ACK packets sent during this session",
+        "input_schema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer"}},
+            "required": [],
+        },
+    },
 ]
 
 
@@ -2417,6 +2750,33 @@ def dispatch_nettools_tool(name: str, inputs: Dict,
 
     elif name == "nettools_status":
         return eng.status()
+
+    elif name == "nettools_scan_ack":
+        ack = get_scan_ack()
+        return ack.send_ack(inputs["host"], inputs.get("port", 80),
+                             inputs.get("use_https", False))
+
+    elif name == "nettools_ack_scan_results":
+        ack = get_scan_ack()
+        try:
+            results = json.loads(inputs["scan_results_json"])
+        except Exception:
+            return {"error": "invalid scan_results_json"}
+        sent = ack.ack_scan_results(
+            results, inputs.get("max_targets", 50))
+        return {"acked": len(sent), "entries": sent[:10]}
+
+    elif name == "nettools_cache_query":
+        return get_scan_cache().query_cache(inputs.get("limit", 50))
+
+    elif name == "nettools_tower_certs":
+        return get_scan_cache().get_tower_certs(inputs.get("limit", 50))
+
+    elif name == "nettools_cache_stats":
+        return get_scan_cache().stats()
+
+    elif name == "nettools_ack_sent":
+        return get_scan_ack().get_sent(inputs.get("limit", 50))
 
     else:
         return {"error": f"unknown tool: {name}"}
