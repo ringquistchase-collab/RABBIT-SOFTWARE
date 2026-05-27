@@ -1,0 +1,51 @@
+# rabbit_actions.py
+
+import datetime
+import webbrowser
+import textwrap
+
+
+def show_help():
+    msg = """
+    Available actions:
+      - help: show this message
+      - open_url: open a URL in the default browser
+      - show_time: print the current time
+      - echo: print a message
+    """
+    print(textwrap.dedent(msg).strip())
+
+
+def open_url(url: str):
+    print(f"[agent] Opening URL in browser: {url}")
+    webbrowser.open(url)
+
+
+def show_time():
+    now = datetime.datetime.now()
+    print(f"[agent] Current time: {now.isoformat(sep=' ', timespec='seconds')}")
+
+
+def echo(message: str):
+    print(f"[agent] {message}")
+
+
+# Registry mapping "action name" -> function and expected params
+ACTION_REGISTRY = {
+    "help": {
+        "fn": show_help,
+        "params": []
+    },
+    "open_url": {
+        "fn": open_url,
+        "params": ["url"]
+    },
+    "show_time": {
+        "fn": show_time,
+        "params": []
+    },
+    "echo": {
+        "fn": echo,
+        "params": ["message"]
+    },
+}
