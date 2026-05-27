@@ -65,7 +65,7 @@ class ThreatActor:
     severity:      str   # low / medium / high / critical
     indicators:    List[str] = field(default_factory=list)  # hashed IOCs only
     mitigations:   List[str] = field(default_factory=list)
-    status:        str   # active / mitigated / unknown
+    status:        str   = "active"   # active / mitigated / unknown
     ts:            float = field(default_factory=time.time)
 
 @dataclass
