@@ -1,0 +1,24 @@
+# rabbit_planner.py
+
+import json
+from typing import List, Dict, Any
+
+# Replace this with your actual model call (OpenAI, local LLM, vLLM, etc.)
+def CALL_YOUR_LLM(prompt: str) -> str:
+    """
+    Dummy placeholder. Implement with your real LLM call.
+    It should return a string (the model's response).
+    """
+    raise NotImplementedError("You must implement CALL_YOUR_LLM yourself.")
+
+
+SYSTEM_PROMPT = """
+You are an AI planner for a terminal assistant called rabbit-cli.
+
+Your job:
+- Read the user's request (natural language).
+- Output a JSON array of steps (no prose), where each step is:
+  {
+    "action": "<one_of: help, open_url, show_time, echo>",
+    "params": { ... }
+ 
