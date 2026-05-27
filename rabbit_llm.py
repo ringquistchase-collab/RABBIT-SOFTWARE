@@ -862,7 +862,7 @@ class LLMBridge:
 
         if resp.ok():
             _log(f"{resp.provider} ({resp.model})  "
-                 f"{resp.tokens_in}→{resp.tokens_out} tok  "
+                 f"in={resp.tokens_in} out={resp.tokens_out} tok  "
                  f"{resp.latency_ms}ms  "
                  f"tools={len(resp.tool_calls)}")
         else:
