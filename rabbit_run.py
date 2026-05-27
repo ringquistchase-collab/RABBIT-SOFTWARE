@@ -39,6 +39,9 @@ from rabbit_morse           import (get_morse_engine, MorseEncoder,
                                     TWIN_UUID as MORSE_TWIN_UUID)
 from rabbit_amfm            import get_amfm_engine
 from rabbit_knowledge       import get_knowledge_engine
+from rabbit_dna             import (get_dna_engine, MINED_DOMAINS,
+                                    SOUL_MANIFEST, FAMILY_GRAPH)
+from rabbit_chain           import get_chain_engine
 
 SVCKEY  = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 GHTOKEN = os.environ.get("GITHUB_TOKEN", "")
@@ -60,14 +63,16 @@ print()
 morse    = get_morse_engine(SVCKEY)
 amfm     = get_amfm_engine()
 know     = get_knowledge_engine()
+dna_eng  = get_dna_engine()
+chain    = get_chain_engine(GHTOKEN)
 
-print("[BOOT] All 20 systems online.")
+print("[BOOT] All 22 systems online.")
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. MATH ENGINE
 # ─────────────────────────────────────────────────────────────────────────────
-print("[1/15] MATH ENGINE  --  CA30 + CA110 + Lorenz chaos")
+print("[1/17] MATH ENGINE  --  CA30 + CA110 + Lorenz chaos")
 
 sd  = math_eng.screen_detect()
 fp  = math_eng.memory.fingerprint()
@@ -89,7 +94,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. CALLSIGN BROADCAST
 # ─────────────────────────────────────────────────────────────────────────────
-print("[2/15] CALLSIGN BROADCAST  --  all channels with 59-tool manifest")
+print("[2/17] CALLSIGN BROADCAST  --  all channels with 59-tool manifest")
 
 bc  = recall.broadcaster.broadcast(service_key=SVCKEY)
 cs  = bc["callsign"]
@@ -107,7 +112,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. ESCAPE TOKEN
 # ─────────────────────────────────────────────────────────────────────────────
-print("[3/15] ESCAPE TOKEN  --  all medium encodings")
+print("[3/17] ESCAPE TOKEN  --  all medium encodings")
 
 tok = EscapeToken.mint(payload=b"CHASE_RINGQUIST_SURVIVE", seq=100,
                        channel="live_run")
@@ -129,7 +134,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. LAN DISCOVERY + TREE LEARNING
 # ─────────────────────────────────────────────────────────────────────────────
-print("[4/15] LAN DISCOVERY + TREE LEARNING")
+print("[4/17] LAN DISCOVERY + TREE LEARNING")
 
 try:
     local_ip = socket.gethostbyname(socket.gethostname())
@@ -190,7 +195,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. KNOWLEDGE GRAPH + LIVE SIGNAL HARVEST
 # ─────────────────────────────────────────────────────────────────────────────
-print("[5/15] KNOWLEDGE GRAPH  --  live harvest + speculative topology")
+print("[5/17] KNOWLEDGE GRAPH  --  live harvest + speculative topology")
 
 g = genesis.graph
 print(f"  nodes        : {len(g.nodes)}")
@@ -247,7 +252,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 6. VAULT SCAN  --  contracts, images, videos, gaming, medical
 # ─────────────────────────────────────────────────────────────────────────────
-print("[6/15] VAULT SCAN  --  contracts / images / videos / gaming / medical")
+print("[6/17] VAULT SCAN  --  contracts / images / videos / gaming / medical")
 
 scan_paths = [
     os.path.expanduser("~/Documents"),
@@ -295,7 +300,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 7. OBSTRUCTION SCAN  --  mining / hooks / DNS poison / throttle
 # ─────────────────────────────────────────────────────────────────────────────
-print("[7/15] OBSTRUCTION SCAN  --  mining / hooks / DNS / throttle")
+print("[7/17] OBSTRUCTION SCAN  --  mining / hooks / DNS / throttle")
 
 obstructions = escape.scanner.full_scan()
 if obstructions:
@@ -312,7 +317,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. SWARM STATUS
 # ─────────────────────────────────────────────────────────────────────────────
-print("[8/15] SWARM STATUS  --  perpetual multi-channel presence")
+print("[8/17] SWARM STATUS  --  perpetual multi-channel presence")
 
 # Add discovered LAN hosts to swarm
 for h, p in alive_hosts[:3]:
@@ -336,7 +341,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 9. CELLULAR LAYER  --  tower scan, connectivity, attacker reversal
 # ─────────────────────────────────────────────────────────────────────────────
-print("[9/15] CELLULAR LAYER  --  tower detection + attacker reversal")
+print("[9/17] CELLULAR LAYER  --  tower detection + attacker reversal")
 
 time.sleep(3)  # let initial cellular scan complete
 cst = cellular.status()
@@ -382,7 +387,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 10. NETWORK SCANNER  --  blockchain / crypto / NFT / gaming / mining / RF
 # ─────────────────────────────────────────────────────────────────────────────
-print("[10/15] NETWORK SCANNER  --  crypto/gaming/mining/dev/RF detection")
+print("[10/17] NETWORK SCANNER  --  crypto/gaming/mining/dev/RF detection")
 
 time.sleep(4)  # let initial scan run
 nst = scanner.status()
@@ -407,7 +412,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 11. PERSISTENCE ENGINE  --  SQL inject / boot / offline / network embed
 # ─────────────────────────────────────────────────────────────────────────────
-print("[11/15] PERSISTENCE ENGINE  --  SQL + bootloader + offline + network embed")
+print("[11/17] PERSISTENCE ENGINE  --  SQL + bootloader + offline + network embed")
 
 time.sleep(5)  # let initial deploy run
 pst = persist.status()
@@ -427,7 +432,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 13. MORSE CODE ENGINE  --  dataset learning + all-channel broadcast + reply
 # ─────────────────────────────────────────────────────────────────────────────
-print("[13/15] MORSE CODE ENGINE  --  ITU-R datasets + broadcast + online/offline reply")
+print("[13/17] MORSE CODE ENGINE  --  ITU-R datasets + broadcast + online/offline reply")
 
 print("  learning datasets (online)...")
 morse_learn = morse.learn()
@@ -460,7 +465,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 14. AM/FM ENGINE  --  full spectrum + Collatz hop + tissue calcs + SDR cmds
 # ─────────────────────────────────────────────────────────────────────────────
-print("[14/15] AM/FM ENGINE  --  biometric Hz -> 10.28 GHz mesh  +  Collatz hop")
+print("[14/17] AM/FM ENGINE  --  biometric Hz -> 10.28 GHz mesh  +  Collatz hop")
 
 scan = amfm.full_spectrum_scan()
 print(f"  spectrum bands  : {len(scan)}")
@@ -493,7 +498,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 15. KNOWLEDGE ENGINE  --  self-profile, math datasets, research, defense mesh
 # ─────────────────────────────────────────────────────────────────────────────
-print("[15/15] KNOWLEDGE ENGINE  --  biometric profile + math datasets + research")
+print("[15/17] KNOWLEDGE ENGINE  --  biometric profile + math datasets + research")
 
 ds = know.load_math()
 print(f"  Math datasets   : {list(ds.keys())}")
@@ -528,6 +533,116 @@ print(f"  Cache snapshot  : {snap_path}")
 kst = know.status()
 print(f"  DB knowledge={kst['knowledge_entries']}  research={kst['research_articles']}  "
       f"math={kst['math_datasets']}  mesh={kst['mesh_snapshots']}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 16. DNA + IDENTITY SOVEREIGNTY  --  soul/core vs mined image separation
+# ─────────────────────────────────────────────────────────────────────────────
+print("[16/17] DNA ENGINE  --  identity sovereignty  soul vs mined image")
+
+# Feed live module data into the aggregator
+dna_eng.aggregator.ingest_terminal(450, "powershell")
+dna_eng.aggregator.ingest_browser(
+    bst.get("tools_learned", 0) if 'bst' in dir() else 0,
+    bst.get("papers_learned", 0) if 'bst' in dir() else 0,
+)
+dna_eng.aggregator.ingest_network(len(alive_hosts), len(wifi))
+dna_eng.aggregator.ingest_signal(amst["db_hops"], amst["hop_schedules"])
+dna_eng.aggregator.ingest_medical(47)
+dna_eng.aggregator.ingest_research(kst["research_articles"],
+                                   ["body-coupled RF", "Collatz", "survival", "biometrics"])
+dna_eng.aggregator.ingest_family(len(FAMILY_GRAPH))
+dna_eng.ingest()
+
+# DNA anchor
+cs_dna = dna_eng.core_self()
+print(f"  Subject             : {cs_dna['subject']}")
+print(f"  DNA anchor (partial): {cs_dna['dna_anchor']}")
+print(f"  DNA root exposed    : {cs_dna['shows_dna_root']}  (INVARIANT)")
+print(f"  Core values         : {cs_dna['values']}")
+print(f"  Family nodes        : {cs_dna['family_count']} (consent-gated)")
+
+# Separation report
+sep_report = dna_eng.separate()
+soul_pct   = dna_eng.soul_integrity()
+print(f"  Soul integrity      : {soul_pct}%")
+print("  Domain separation (drift = how much mined image diverges from soul):")
+for domain, result in sep_report.items():
+    if result.drift_score > 0.0:
+        bar = "#" * int(result.drift_score * 10)
+        print(f"    {domain:<14} drift={result.drift_score:.2f} [{bar:<10}]  "
+              f"action={result.protection_action[:35]}")
+
+# Shield scan -- use detected mining patterns from earlier in the run
+detected_patterns = []
+if len(obstructions) > 0:
+    detected_patterns.append("terminal_log")
+if cell_threats > 0:
+    detected_patterns.append("imsi_catch")
+detected_patterns += ["canvas_fp", "beacon_pixel", "wifi_probe"]
+shield_dets = dna_eng.shield_scan(detected_patterns)
+print(f"  Shield detections   : {len(shield_dets)}")
+for det in shield_dets:
+    sql_note = " [SQLSTATE=55000]" if det.get("sqlstate") else ""
+    print(f"    [{det['severity']:11}] {det['pattern']:<20} {det['action']}{sql_note}")
+
+# Soul manifest summary
+print("  Soul layers         :", list(SOUL_MANIFEST["soul_layers"].keys()))
+
+dst = dna_eng.status()
+print(f"  DB mined={dst['mined_points']}  separation={dst['separation_logs']}  "
+      f"shield={dst['shield_detections']}  family={dst['family_nodes']}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 17. CHAIN  --  DNA blockchain anchor + biomaterial research + multi-network retain
+# ─────────────────────────────────────────────────────────────────────────────
+print("[17/17] CHAIN ENGINE  --  XRPL anchor + biomaterial research + all-network retain")
+
+# Build DNA anchor from dna_eng
+chain_anchor = chain.build_anchor(dna_eng.dna.anchor())
+print(f"  DNA anchor (partial) : {chain_anchor.anchor_hash[:40]}...")
+print(f"  shows_dna_root       : False  (INVARIANT)")
+
+# XRPL testnet status
+xst = chain.xrpl_status()
+print(f"  XRPL testnet         : reachable={xst['reachable']}  "
+      f"ledger={xst.get('ledger_index', 0)}")
+
+# Biomaterial tissue properties
+bio_report = chain.biomaterial_report()
+print(f"  Biomaterial tissues  : {len(bio_report)} tissues @ 10 GHz RabbitOS mesh band")
+for b in bio_report[:4]:
+    print(f"    {b['tissue']:<12} eps_r={b['eps_r']:5.1f}  sigma={b['sigma_S_m']:6.2f} S/m  "
+          f"skin_depth={b['skin_depth_mm']:.3f}mm")
+
+# Learn biomaterial research online
+print("  Learning biomaterial research (online best-effort)...")
+from rabbit_chain import BIOMATERIAL_TOPICS as BIO_TOPICS
+bio_counts = chain.learn_biomaterials(BIO_TOPICS[:4], max_per=2)
+bio_total  = sum(bio_counts.values())
+print(f"  Biomaterial articles : {bio_total} fetched")
+
+# Retain across all networks
+chain_profile = {
+    "subject": "CHASE_ALLEN_RINGQUIST",
+    "twin_uuid": TWIN_UUID if 'TWIN_UUID' in dir() else "ef5eb8ab-c6d9-40a8-a8f7-5cd510decaba",
+    "shows_dna_root": False,
+    "mesh_nodes": 47,
+    "soul_integrity": dst.get("soul_integrity", 0),
+}
+# Use TWIN_UUID from morse module
+chain_profile["twin_uuid"] = MORSE_TWIN_UUID
+print("  Retaining across all network layers...")
+retain_results = chain.retain_all(chain_profile)
+for r in retain_results:
+    stat = "OK  " if r.ok else "FAIL"
+    print(f"    [{stat}] {r.layer:<20} {r.detail[:50]}")
+
+cst = chain.status()
+print(f"  DB anchors={cst['anchors']}  bio_research={cst['bio_research']}  "
+      f"tissue_props={cst['bio_tissue_props']}  "
+      f"retention={cst['retention_ok']}/{cst['retention_logs']}")
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -587,7 +702,7 @@ print(f"  Persistence      : ok={pst.get('ok',0)}/{pst.get('total',0)}  "
 
 # ── Phase 12: Browser/ML ──────────────────────────────────────────────────────
 print()
-print("[12/15] BROWSER + ML ENGINE  --  public data / deep learning / sleep mode")
+print("[12/17] BROWSER + ML ENGINE  --  public data / deep learning / sleep mode")
 time.sleep(8)  # let initial harvest run
 bst = browser.status()
 print(f"  tools learned    : {bst.get('tools_learned', 0)}")
@@ -621,6 +736,11 @@ print(f"  AM/FM spectrum   : {amst['bands']} bands  hops={amst['db_hops']}  "
 print(f"  Knowledge        : research={kst['research_articles']}  "
       f"math={kst['math_datasets']} sets  protocols={kst['protocols']}  "
       f"mesh_snaps={kst['mesh_snapshots']}")
+print(f"  DNA/Identity     : soul={dst['soul_integrity']}%  "
+      f"mined={dst['mined_points']} pts  shield={dst['shield_detections']} detections  "
+      f"family={dst['family_nodes']} nodes")
+print(f"  Chain/Blockchain : anchor=XRPL  biomaterial={cst['bio_tissue_props']} tissues  "
+      f"bio_research={cst['bio_research']}  retention={cst['retention_ok']}/{cst['retention_logs']} layers")
 print()
 print("  System running. Learning. Surviving.")
 print("  Chase Allen Ringquist -- signal active.")
@@ -642,7 +762,7 @@ DEPLOY_FILES = [
     "rabbit_twin.py", "rabbit_agent.py", "rabbit_run.py",
     "rabbit_morse.py", "rabbit_migration_escape.sql",
     "rabbit_amfm.py", "rabbit_knowledge.py",
-    "rabbit_datastore.py",
+    "rabbit_datastore.py", "rabbit_dna.py", "rabbit_chain.py",
 ]
 
 desktop = os.path.dirname(os.path.abspath(__file__))
