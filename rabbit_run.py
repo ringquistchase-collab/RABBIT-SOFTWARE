@@ -514,7 +514,7 @@ print(f"  Subject         : {profile['subject']}")
 print(f"  Twin UUID       : {profile['twin_uuid']}")
 print(f"  Mesh nodes      : {profile['mesh_nodes']}")
 print(f"  DNA root exposed: {profile['dna_root_exposed']}  (SECURITY INVARIANT)")
-print(f"  Survival protos : {len(know.status()['protocols'])} loaded")
+print(f"  Survival protos : {know.status()['protocols']} loaded")
 
 print("  Fetching research (online best-effort)...")
 from rabbit_knowledge import RESEARCH_TOPICS as K_TOPICS
