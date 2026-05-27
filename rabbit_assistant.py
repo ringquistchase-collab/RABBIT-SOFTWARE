@@ -1144,6 +1144,262 @@ def get_assistant() -> AssistantOrchestrator:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# AUTOSAVE + FILE SYSTEM AGENT
+# ══════════════════════════════════════════════════════════════════════════════
+
+import os as _os
+import shutil as _shutil
+import glob as _glob
+
+
+class FileSystemAgent:
+    """
+    AI-assisted file system agent: search, index, autosave, link, trail.
+    Watches directories for changes and persists all agent output.
+    Integrates with CloudTrail for a linked audit of every file operation.
+    """
+
+    _AUTOSAVE_DB = _os.path.join(_os.path.dirname(__file__), "rabbit_fs.db")
+
+    def __init__(self, trail: Optional[CloudTrail] = None) -> None:
+        self._trail = trail
+        self._lock  = threading.Lock()
+        self._watch_dirs: List[str] = []
+        self._snapshots: Dict[str, float] = {}   # path -> mtime
+        self._init_db()
+
+    def _conn(self):
+        import sqlite3
+        c = sqlite3.connect(self._AUTOSAVE_DB, timeout=10, check_same_thread=False)
+        c.execute("PRAGMA journal_mode=WAL")
+        return c
+
+    def _init_db(self) -> None:
+        with self._conn() as c:
+            c.executescript("""
+                CREATE TABLE IF NOT EXISTS file_index (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts REAL, path TEXT UNIQUE, size_bytes INTEGER,
+                    mtime REAL, sha256 TEXT, tags TEXT, linked_trail_id TEXT
+                );
+                CREATE TABLE IF NOT EXISTS autosave_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts REAL, path TEXT, version INTEGER,
+                    sha256 TEXT, backup_path TEXT, note TEXT
+                );
+            """)
+
+    def _sha256_file(self, path: str) -> str:
+        h = hashlib.sha256()
+        try:
+            with open(path, "rb") as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    h.update(chunk)
+        except Exception:
+            pass
+        return h.hexdigest()
+
+    def index_directory(self, directory: str,
+                         extensions: Optional[List[str]] = None,
+                         recursive: bool = True) -> List[Dict]:
+        results = []
+        pattern = "**/*" if recursive else "*"
+        glob_pat = _os.path.join(directory, pattern)
+        try:
+            paths = _glob.glob(glob_pat, recursive=recursive)
+        except Exception as exc:
+            return [{"error": str(exc)}]
+
+        for path in paths:
+            if not _os.path.isfile(path):
+                continue
+            ext = _os.path.splitext(path)[1].lower()
+            if extensions and ext not in extensions:
+                continue
+            try:
+                stat = _os.stat(path)
+                sha  = self._sha256_file(path)
+                entry = {
+                    "path": path, "size_bytes": stat.st_size,
+                    "mtime": stat.st_mtime, "sha256": sha,
+                    "extension": ext,
+                }
+                with self._conn() as c:
+                    c.execute(
+                        "INSERT OR REPLACE INTO file_index "
+                        "(ts, path, size_bytes, mtime, sha256, tags, linked_trail_id) "
+                        "VALUES (?,?,?,?,?,?,?)",
+                        (time.time(), path, stat.st_size, stat.st_mtime,
+                         sha, "", ""))
+                results.append(entry)
+            except Exception:
+                pass
+
+        if self._trail:
+            self._trail.log("FileSystemAgent", "index_directory", directory,
+                            result={"files": len(results)})
+        return results
+
+    def search_files(self, query: str, directory: str = ".",
+                      case_sensitive: bool = False) -> List[Dict]:
+        results = []
+        q = query if case_sensitive else query.lower()
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT path, size_bytes, mtime, sha256 FROM file_index "
+                "ORDER BY mtime DESC LIMIT 2000"
+            ).fetchall()
+
+        for path, size, mtime, sha in rows:
+            name = _os.path.basename(path)
+            check = name if case_sensitive else name.lower()
+            if q in check or q in (path if case_sensitive else path.lower()):
+                results.append({
+                    "path": path, "name": name,
+                    "size_bytes": size, "mtime": mtime, "sha256": sha,
+                })
+
+        # Also do live glob search
+        try:
+            for match in _glob.glob(
+                    _os.path.join(directory, f"**/*{query}*"), recursive=True):
+                if _os.path.isfile(match):
+                    if not any(r["path"] == match for r in results):
+                        results.append({
+                            "path": match,
+                            "name": _os.path.basename(match),
+                            "size_bytes": _os.path.getsize(match),
+                        })
+        except Exception:
+            pass
+
+        return results[:100]
+
+    def autosave(self, path: str, backup_dir: str = "",
+                  note: str = "") -> Dict[str, Any]:
+        if not _os.path.isfile(path):
+            return {"error": f"File not found: {path}"}
+
+        bdir = backup_dir or _os.path.join(
+            _os.path.dirname(path), ".rabbitos_autosave")
+        _os.makedirs(bdir, exist_ok=True)
+
+        sha    = self._sha256_file(path)
+        ts_str = time.strftime("%Y%m%d_%H%M%S")
+        bname  = f"{_os.path.basename(path)}.{ts_str}.bak"
+        bpath  = _os.path.join(bdir, bname)
+
+        try:
+            _shutil.copy2(path, bpath)
+        except Exception as exc:
+            return {"error": str(exc)}
+
+        with self._conn() as c:
+            version = (c.execute(
+                "SELECT COUNT(*) FROM autosave_history WHERE path=?",
+                (path,)).fetchone()[0] or 0) + 1
+            c.execute(
+                "INSERT INTO autosave_history VALUES (NULL,?,?,?,?,?,?)",
+                (time.time(), path, version, sha, bpath, note))
+
+        if self._trail:
+            self._trail.log("FileSystemAgent", "autosave", path,
+                            result={"backup": bpath, "version": version})
+        return {"backed_up": bpath, "version": version, "sha256": sha}
+
+    def watch_and_autosave(self, directories: List[str],
+                            interval: float = 30.0) -> None:
+        """Background thread: auto-backup changed files in watched dirs."""
+        self._watch_dirs = directories
+
+        def _watch():
+            while True:
+                for d in self._watch_dirs:
+                    try:
+                        for path in _glob.glob(
+                                _os.path.join(d, "**/*.py"), recursive=True):
+                            mtime = _os.path.getmtime(path)
+                            with self._lock:
+                                last = self._snapshots.get(path, 0)
+                            if mtime > last:
+                                self.autosave(path, note="auto")
+                                with self._lock:
+                                    self._snapshots[path] = mtime
+                    except Exception:
+                        pass
+                time.sleep(interval)
+
+        threading.Thread(target=_watch, daemon=True, name="fs_watch").start()
+
+    def disk_usage(self, path: str = ".") -> Dict[str, Any]:
+        try:
+            total, used, free = _shutil.disk_usage(path)
+            return {
+                "path": path,
+                "total_gb": round(total / 1e9, 2),
+                "used_gb":  round(used  / 1e9, 2),
+                "free_gb":  round(free  / 1e9, 2),
+                "used_pct": round(used / total * 100, 1),
+            }
+        except Exception as exc:
+            return {"error": str(exc)}
+
+    def ai_suggest_cleanup(self, directory: str) -> str:
+        llm = _get_llm()
+        if llm is None:
+            return "[LLM unavailable]"
+        files = self.index_directory(directory, recursive=True)
+        large = sorted(files, key=lambda x: x.get("size_bytes", 0), reverse=True)[:20]
+        prompt = (
+            f"Analyze these files in '{directory}' and suggest cleanup/organisation:\n"
+            + json.dumps(large, indent=2, default=str)[:3000]
+            + "\n\nSuggest: (1) Files safe to delete, (2) Files to archive, "
+            "(3) Recommended folder structure, (4) Duplicate detection strategy."
+        )
+        return llm.simple_ask(prompt)
+
+    def query_index(self, limit: int = 100) -> List[Dict]:
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT * FROM file_index ORDER BY mtime DESC LIMIT ?",
+                (limit,)).fetchall()
+            desc = c.execute(
+                "SELECT * FROM file_index LIMIT 0").description or []
+            cols = [d[0] for d in desc]
+            return [dict(zip(cols, r)) for r in rows]
+
+    def autosave_history(self, limit: int = 50) -> List[Dict]:
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT * FROM autosave_history ORDER BY ts DESC LIMIT ?",
+                (limit,)).fetchall()
+            desc = c.execute(
+                "SELECT * FROM autosave_history LIMIT 0").description or []
+            cols = [d[0] for d in desc]
+            return [dict(zip(cols, r)) for r in rows]
+
+
+# Attach FileSystemAgent to AssistantOrchestrator
+_FS_AGENT: Optional[FileSystemAgent] = None
+
+
+def get_fs_agent() -> FileSystemAgent:
+    global _FS_AGENT
+    if _FS_AGENT is None:
+        try:
+            trail = get_assistant().trail
+        except Exception:
+            trail = None
+        _FS_AGENT = FileSystemAgent(trail=trail)
+        # Auto-watch Desktop folder
+        desk = _os.path.expanduser("~/Desktop")
+        if _os.path.isdir(desk):
+            _FS_AGENT.watch_and_autosave([desk], interval=60.0)
+    return _FS_AGENT
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # ASSISTANT TOOLS + DISPATCHER
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1346,6 +1602,82 @@ ASSISTANT_TOOLS = [
             "required": ["key"],
         },
     },
+    # ── File System Agent tools ────────────────────────────────────────────────
+    {
+        "name": "assistant_fs_index",
+        "description": "Index a directory: hash + metadata for every file (persisted to SQLite + trail)",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "directory":   {"type": "string"},
+                "extensions":  {"type": "array", "items": {"type": "string"},
+                                 "description": "e.g. [\".py\", \".json\"]"},
+                "recursive":   {"type": "boolean"},
+            },
+            "required": ["directory"],
+        },
+    },
+    {
+        "name": "assistant_fs_search",
+        "description": "Search indexed files by name/path fragment",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query":     {"type": "string"},
+                "directory": {"type": "string"},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "assistant_fs_autosave",
+        "description": "Autosave/backup a specific file with versioning",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path":       {"type": "string"},
+                "backup_dir": {"type": "string"},
+                "note":       {"type": "string"},
+            },
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "assistant_fs_disk_usage",
+        "description": "Get disk usage statistics for a path",
+        "input_schema": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+            "required": [],
+        },
+    },
+    {
+        "name": "assistant_fs_ai_cleanup",
+        "description": "AI-suggest file cleanup and organisation for a directory",
+        "input_schema": {
+            "type": "object",
+            "properties": {"directory": {"type": "string"}},
+            "required": ["directory"],
+        },
+    },
+    {
+        "name": "assistant_fs_query_index",
+        "description": "Query the file system index database",
+        "input_schema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer"}},
+            "required": [],
+        },
+    },
+    {
+        "name": "assistant_fs_autosave_history",
+        "description": "Get autosave/backup history",
+        "input_schema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer"}},
+            "required": [],
+        },
+    },
     {
         "name": "assistant_trail_query",
         "description": "Query the cloud trail log",
@@ -1456,6 +1788,35 @@ def dispatch_assistant_tool(name: str, inputs: Dict,
             return {"found": False}
         return {"found": True, "data_b64": base64.b64encode(data).decode(),
                 "bytes": len(data)}
+
+    elif name == "assistant_fs_index":
+        return get_fs_agent().index_directory(
+            inputs["directory"],
+            inputs.get("extensions"),
+            inputs.get("recursive", True))
+
+    elif name == "assistant_fs_search":
+        return get_fs_agent().search_files(
+            inputs["query"],
+            inputs.get("directory", "."))
+
+    elif name == "assistant_fs_autosave":
+        return get_fs_agent().autosave(
+            inputs["path"],
+            inputs.get("backup_dir", ""),
+            inputs.get("note", ""))
+
+    elif name == "assistant_fs_disk_usage":
+        return get_fs_agent().disk_usage(inputs.get("path", "."))
+
+    elif name == "assistant_fs_ai_cleanup":
+        return {"result": get_fs_agent().ai_suggest_cleanup(inputs["directory"])}
+
+    elif name == "assistant_fs_query_index":
+        return get_fs_agent().query_index(inputs.get("limit", 100))
+
+    elif name == "assistant_fs_autosave_history":
+        return get_fs_agent().autosave_history(inputs.get("limit", 50))
 
     elif name == "assistant_trail_query":
         return eng.trail.query(

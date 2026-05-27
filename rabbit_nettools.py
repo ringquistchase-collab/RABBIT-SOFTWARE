@@ -2246,6 +2246,463 @@ def get_scan_ack() -> NetworkScanACK:
 
 
 # ==============================================================================
+# 8B. BLOCKCHAIN NETWORK SCANNER
+# ==============================================================================
+
+shows_dna_root = False
+assert shows_dna_root is False
+
+# Known blockchain node ports
+BLOCKCHAIN_PORTS: Dict[str, Dict] = {
+    # Bitcoin family
+    "bitcoin_p2p":       {"port": 8333,  "proto": "TCP", "chain": "Bitcoin",   "role": "full_node"},
+    "bitcoin_rpc":       {"port": 8332,  "proto": "TCP", "chain": "Bitcoin",   "role": "rpc"},
+    "litecoin_p2p":      {"port": 9333,  "proto": "TCP", "chain": "Litecoin",  "role": "full_node"},
+    "dogecoin_p2p":      {"port": 22556, "proto": "TCP", "chain": "Dogecoin",  "role": "full_node"},
+    # Ethereum family
+    "eth_devp2p":        {"port": 30303, "proto": "TCP", "chain": "Ethereum",  "role": "devp2p"},
+    "eth_rpc":           {"port": 8545,  "proto": "TCP", "chain": "Ethereum",  "role": "json_rpc"},
+    "eth_ws":            {"port": 8546,  "proto": "TCP", "chain": "Ethereum",  "role": "ws_rpc"},
+    "eth_lighthouse":    {"port": 9000,  "proto": "TCP", "chain": "Ethereum",  "role": "beacon"},
+    # XRPL
+    "xrpl_peer":         {"port": 51235, "proto": "TCP", "chain": "XRPL",      "role": "peer"},
+    "xrpl_rpc":          {"port": 51234, "proto": "TCP", "chain": "XRPL",      "role": "rpc"},
+    "xrpl_ws":           {"port": 6006,  "proto": "TCP", "chain": "XRPL",      "role": "ws"},
+    # Solana
+    "solana_rpc":        {"port": 8899,  "proto": "TCP", "chain": "Solana",    "role": "rpc"},
+    "solana_ws":         {"port": 8900,  "proto": "TCP", "chain": "Solana",    "role": "ws"},
+    "solana_gossip":     {"port": 8001,  "proto": "UDP", "chain": "Solana",    "role": "gossip"},
+    # Monero
+    "monero_p2p":        {"port": 18080, "proto": "TCP", "chain": "Monero",    "role": "p2p"},
+    "monero_rpc":        {"port": 18081, "proto": "TCP", "chain": "Monero",    "role": "rpc"},
+    # Cardano
+    "cardano_node":      {"port": 3001,  "proto": "TCP", "chain": "Cardano",   "role": "node"},
+    # Polkadot / Substrate
+    "polkadot_rpc":      {"port": 9944,  "proto": "TCP", "chain": "Polkadot",  "role": "ws_rpc"},
+    "polkadot_p2p":      {"port": 30333, "proto": "TCP", "chain": "Polkadot",  "role": "p2p"},
+    # Cosmos
+    "cosmos_p2p":        {"port": 26656, "proto": "TCP", "chain": "Cosmos",    "role": "p2p"},
+    "cosmos_rpc":        {"port": 26657, "proto": "TCP", "chain": "Cosmos",    "role": "rpc"},
+    # IPFS / Filecoin / Arweave (NFT storage)
+    "ipfs_swarm":        {"port": 4001,  "proto": "TCP", "chain": "IPFS",      "role": "swarm"},
+    "ipfs_api":          {"port": 5001,  "proto": "TCP", "chain": "IPFS",      "role": "api"},
+    "ipfs_gateway":      {"port": 8080,  "proto": "TCP", "chain": "IPFS",      "role": "gateway"},
+    "filecoin_p2p":      {"port": 1347,  "proto": "TCP", "chain": "Filecoin",  "role": "p2p"},
+    "arweave_p2p":       {"port": 1984,  "proto": "TCP", "chain": "Arweave",   "role": "p2p"},
+    # Mining pool Stratum
+    "stratum_eth":       {"port": 3333,  "proto": "TCP", "chain": "Ethereum",  "role": "stratum_pool"},
+    "stratum_eth2":      {"port": 3334,  "proto": "TCP", "chain": "Ethereum",  "role": "stratum_pool"},
+    "stratum_generic":   {"port": 4444,  "proto": "TCP", "chain": "multi",     "role": "stratum_pool"},
+    "stratum_btc":       {"port": 3032,  "proto": "TCP", "chain": "Bitcoin",   "role": "stratum_pool"},
+    "nicehash":          {"port": 3335,  "proto": "TCP", "chain": "NiceHash",  "role": "stratum_pool"},
+    "stratum_xmr":       {"port": 9999,  "proto": "TCP", "chain": "Monero",    "role": "stratum_pool"},
+    "stratum_high":      {"port": 14444, "proto": "TCP", "chain": "multi",     "role": "stratum_pool"},
+}
+
+# Stratum JSON-RPC subscribe message
+_STRATUM_SUBSCRIBE = json.dumps({
+    "id": 1,
+    "method": "mining.subscribe",
+    "params": ["RabbitOS/1.0"]
+}) + "\n"
+
+
+@dataclass
+class BlockchainNode:
+    host:       str
+    port:       int
+    chain:      str
+    role:       str
+    protocol:   str
+    open:       bool    = False
+    banner:     str     = ""
+    node_id:    str     = ""
+    version:    str     = ""
+    block_height: int   = 0
+    pool_name:  str     = ""
+    is_mining_pool: bool = False
+    is_nft_store: bool  = False
+    latency_ms: float   = 0.0
+    detail:     Dict    = field(default_factory=dict)
+    ts:         str     = ""
+
+
+class BlockchainNetworkScanner:
+    """
+    Scans the local network for blockchain nodes, mining pools (Stratum),
+    NFT storage nodes (IPFS/Filecoin/Arweave), and DeFi/pool farming endpoints.
+
+    TX_LICENSED = False — passive scan only (connect probe + JSON-RPC query).
+    No mining, no transaction submission, no block injection.
+    """
+
+    TX_LICENSED = False
+
+    def __init__(self, timeout: float = 4.0) -> None:
+        self._timeout = timeout
+        self._lock    = threading.Lock()
+        self._found:  List[BlockchainNode] = []
+
+    def _probe_port(self, host: str, port: int,
+                    send: bytes = b"") -> Tuple[bool, str, float]:
+        t0 = time.time()
+        try:
+            s = socket.create_connection((host, port), timeout=self._timeout)
+            if send:
+                s.sendall(send)
+                try:
+                    data = s.recv(512)
+                    banner = data.decode(errors="replace")[:200]
+                except Exception:
+                    banner = ""
+            else:
+                banner = ""
+            s.close()
+            return True, banner, round((time.time() - t0) * 1000, 1)
+        except Exception:
+            return False, "", 0.0
+
+    def _probe_stratum(self, host: str, port: int) -> BlockchainNode:
+        meta = BLOCKCHAIN_PORTS.get(
+            next((k for k, v in BLOCKCHAIN_PORTS.items()
+                  if v["port"] == port and v["role"] == "stratum_pool"), ""),
+            {"chain": "unknown", "role": "stratum_pool", "proto": "TCP"})
+        node = BlockchainNode(
+            host=host, port=port,
+            chain=meta.get("chain", "unknown"),
+            role="stratum_pool",
+            protocol="Stratum/1.0",
+            ts=datetime.now(timezone.utc).isoformat(),
+        )
+        open_, banner, lat = self._probe_port(
+            host, port, _STRATUM_SUBSCRIBE.encode())
+        node.open        = open_
+        node.latency_ms  = lat
+        node.is_mining_pool = open_
+        if banner:
+            node.banner = banner[:150]
+            try:
+                data = json.loads(banner.split("\n")[0])
+                node.pool_name = str(data.get("result", [""])[0] or "")[:60]
+                node.detail["stratum_result"] = data
+            except Exception:
+                pass
+        return node
+
+    def _probe_eth_rpc(self, host: str, port: int = 8545) -> BlockchainNode:
+        node = BlockchainNode(
+            host=host, port=port, chain="Ethereum",
+            role="json_rpc", protocol="ETH-JSON-RPC",
+            ts=datetime.now(timezone.utc).isoformat(),
+        )
+        t0 = time.time()
+        try:
+            body = json.dumps({
+                "jsonrpc": "2.0", "method": "eth_blockNumber",
+                "params": [], "id": 1
+            }).encode()
+            req = urllib.request.Request(
+                f"http://{host}:{port}",
+                data=body,
+                headers={"Content-Type": "application/json",
+                         "User-Agent": "RabbitOS"},
+                method="POST")
+            with urllib.request.urlopen(req, timeout=self._timeout) as r:
+                resp = json.loads(r.read())
+            node.open = True
+            node.latency_ms = round((time.time() - t0) * 1000, 1)
+            if "result" in resp:
+                try:
+                    node.block_height = int(resp["result"], 16)
+                except Exception:
+                    pass
+            node.detail["eth_block"] = resp
+        except Exception as exc:
+            node.detail["error"] = str(exc)[:80]
+        return node
+
+    def _probe_xrpl_ws(self, host: str, port: int = 6006) -> BlockchainNode:
+        node = BlockchainNode(
+            host=host, port=port, chain="XRPL",
+            role="ws", protocol="XRPL-WS",
+            ts=datetime.now(timezone.utc).isoformat(),
+        )
+        t0 = time.time()
+        try:
+            s = socket.create_connection((host, port), timeout=self._timeout)
+            ws_key = base64.b64encode(os.urandom(16)).decode()
+            handshake = (
+                f"GET / HTTP/1.1\r\nHost: {host}:{port}\r\n"
+                f"Upgrade: websocket\r\nConnection: Upgrade\r\n"
+                f"Sec-WebSocket-Key: {ws_key}\r\n"
+                f"Sec-WebSocket-Version: 13\r\nUser-Agent: RabbitOS\r\n\r\n"
+            ).encode()
+            s.sendall(handshake)
+            resp = s.recv(512).decode(errors="replace")
+            node.open = "101 Switching" in resp
+            node.latency_ms = round((time.time() - t0) * 1000, 1)
+            if node.open:
+                # Send server_info command
+                payload = json.dumps({
+                    "id": 1, "command": "server_info"
+                }).encode()
+                mask = os.urandom(4)
+                masked = bytes(payload[i] ^ mask[i % 4] for i in range(len(payload)))
+                frame = bytes([0x81, 0x80 | len(payload)]) + mask + masked
+                s.sendall(frame)
+                try:
+                    data = s.recv(1024)
+                    text = data[6:].decode(errors="replace")[:300]
+                    node.banner = text
+                    info = json.loads(text)
+                    si = info.get("result", {}).get("info", {})
+                    node.version = si.get("build_version", "")
+                    node.block_height = si.get("validated_ledger", {}).get("seq", 0)
+                    node.detail["xrpl_server_info"] = si
+                except Exception:
+                    pass
+            s.close()
+        except Exception as exc:
+            node.detail["error"] = str(exc)[:80]
+        return node
+
+    def _probe_ipfs(self, host: str) -> BlockchainNode:
+        node = BlockchainNode(
+            host=host, port=5001, chain="IPFS",
+            role="api", protocol="IPFS-API",
+            ts=datetime.now(timezone.utc).isoformat(),
+        )
+        t0 = time.time()
+        try:
+            req = urllib.request.Request(
+                f"http://{host}:5001/api/v0/version",
+                headers={"User-Agent": "RabbitOS"})
+            with urllib.request.urlopen(req, timeout=self._timeout) as r:
+                data = json.loads(r.read())
+            node.open = True
+            node.version = data.get("Version", "")
+            node.latency_ms = round((time.time() - t0) * 1000, 1)
+            node.is_nft_store = True
+            node.detail["ipfs_version"] = data
+        except Exception as exc:
+            node.detail["error"] = str(exc)[:80]
+
+        # Also try swarm port
+        swarm_open, _, _ = self._probe_port(host, 4001)
+        node.detail["swarm_port_open"] = swarm_open
+        return node
+
+    def probe_host(self, host: str) -> List[BlockchainNode]:
+        """Probe one host for all known blockchain/pool/NFT ports."""
+        nodes: List[BlockchainNode] = []
+        tasks = []
+
+        for name, meta in BLOCKCHAIN_PORTS.items():
+            port   = meta["port"]
+            chain  = meta["chain"]
+            role   = meta["role"]
+            proto  = meta["proto"]
+
+            if role == "stratum_pool":
+                tasks.append(("stratum", host, port, chain, role, proto, name))
+            elif chain == "Ethereum" and role == "json_rpc":
+                tasks.append(("eth_rpc", host, port, chain, role, proto, name))
+            elif chain == "XRPL" and role == "ws":
+                tasks.append(("xrpl_ws", host, port, chain, role, proto, name))
+            elif chain == "IPFS" and role == "api":
+                tasks.append(("ipfs", host, port, chain, role, proto, name))
+            else:
+                tasks.append(("tcp", host, port, chain, role, proto, name))
+
+        lock = threading.Lock()
+
+        def run_task(task):
+            kind = task[0]
+            h, p, chain, role, proto = task[1], task[2], task[3], task[4], task[5]
+            try:
+                if kind == "stratum":
+                    node = self._probe_stratum(h, p)
+                elif kind == "eth_rpc":
+                    node = self._probe_eth_rpc(h, p)
+                elif kind == "xrpl_ws":
+                    node = self._probe_xrpl_ws(h, p)
+                elif kind == "ipfs":
+                    node = self._probe_ipfs(h)
+                else:
+                    open_, banner, lat = self._probe_port(h, p)
+                    if not open_:
+                        return
+                    node = BlockchainNode(
+                        host=h, port=p, chain=chain, role=role,
+                        protocol=proto, open=open_, banner=banner[:100],
+                        latency_ms=lat,
+                        is_nft_store=(chain in ("IPFS", "Filecoin", "Arweave")),
+                        ts=datetime.now(timezone.utc).isoformat(),
+                    )
+                if node.open:
+                    with lock:
+                        nodes.append(node)
+            except Exception:
+                pass
+
+        threads = [
+            threading.Thread(target=run_task, args=(t,), daemon=True)
+            for t in tasks
+        ]
+        for th in threads:
+            th.start()
+        for th in threads:
+            th.join(timeout=self._timeout + 2)
+
+        with self._lock:
+            self._found.extend(nodes)
+        return nodes
+
+    def scan_subnet(self, subnet_prefix: str = "",
+                    max_hosts: int = 50) -> List[BlockchainNode]:
+        """
+        Scan the local subnet (e.g. '192.168.1') for blockchain nodes.
+        Derives prefix from local IP if not provided.
+        """
+        assert self.TX_LICENSED is False
+
+        if not subnet_prefix:
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.connect(("8.8.8.8", 80))
+                local_ip = s.getsockname()[0]
+                s.close()
+                parts = local_ip.split(".")
+                subnet_prefix = ".".join(parts[:3])
+            except Exception:
+                subnet_prefix = "192.168.1"
+
+        all_nodes: List[BlockchainNode] = []
+        lock = threading.Lock()
+
+        def scan_host(i):
+            host = f"{subnet_prefix}.{i}"
+            # Quick pre-check: try one fast port first
+            open_, _, _ = self._probe_port(host, 8333)
+            if not open_:
+                open_, _, _ = self._probe_port(host, 30303)
+            if not open_:
+                open_, _, _ = self._probe_port(host, 3333)
+            if not open_:
+                open_, _, _ = self._probe_port(host, 5001)
+            if not open_:
+                return
+            nodes = self.probe_host(host)
+            with lock:
+                all_nodes.extend(nodes)
+
+        threads = [
+            threading.Thread(target=scan_host, args=(i,), daemon=True)
+            for i in range(1, min(max_hosts + 1, 255))
+        ]
+        batch = 30
+        for i in range(0, len(threads), batch):
+            for t in threads[i:i+batch]:
+                t.start()
+            for t in threads[i:i+batch]:
+                t.join(timeout=self._timeout + 3)
+
+        _log(f"[BlockchainScan] subnet={subnet_prefix}.x  "
+             f"found={len(all_nodes)} nodes")
+        return all_nodes
+
+    def detect_pool_farming(self, nodes: List[BlockchainNode]) -> List[Dict]:
+        """
+        Identify liquidity/yield farming patterns from discovered nodes.
+        Looks for: Ethereum JSON-RPC, IPFS storage, Stratum pool clusters.
+        """
+        farms: List[Dict] = []
+        pool_hosts: Dict[str, List] = {}
+        for n in nodes:
+            if n.is_mining_pool:
+                pool_hosts.setdefault(n.host, []).append(n)
+            elif n.chain == "Ethereum" and n.role in ("json_rpc", "ws_rpc"):
+                farms.append({
+                    "host": n.host, "type": "defi_rpc_endpoint",
+                    "chain": "Ethereum", "block_height": n.block_height,
+                    "note": "DeFi/farming RPC accessible — potential pool contract endpoint",
+                })
+            elif n.is_nft_store:
+                farms.append({
+                    "host": n.host, "type": "nft_storage",
+                    "chain": n.chain, "version": n.version,
+                    "note": "NFT content storage node",
+                })
+
+        for host, pool_nodes in pool_hosts.items():
+            chains = list({n.chain for n in pool_nodes})
+            ports  = [n.port for n in pool_nodes]
+            farms.append({
+                "host": host, "type": "mining_pool",
+                "chains": chains, "stratum_ports": ports,
+                "pool_names": [n.pool_name for n in pool_nodes if n.pool_name],
+                "note": "Active Stratum mining pool endpoint",
+            })
+
+        return farms
+
+    def xrpl_bio_nft_probe(self, xrpl_host: str = "s1.ripple.com") -> Dict:
+        """
+        Probe an XRPL node for RabbitOS Bio-NFT anchoring readiness.
+        Checks: server_info, ledger access, account_info placeholder.
+        shows_dna_root = FALSE invariant enforced — no DNA data sent.
+        """
+        assert shows_dna_root is False
+        node = self._probe_xrpl_ws(xrpl_host, 6006)
+        return {
+            "xrpl_host":      xrpl_host,
+            "reachable":      node.open,
+            "version":        node.version,
+            "ledger_seq":     node.block_height,
+            "bio_nft_ready":  node.open and node.block_height > 0,
+            "shows_dna_root": False,
+            "note":           "XRPL Bio-NFT anchoring probe — read-only, no TX submitted",
+            "detail":         node.detail,
+        }
+
+    def summary(self, nodes: List[BlockchainNode]) -> Dict:
+        chains: Dict[str, int] = {}
+        roles:  Dict[str, int] = {}
+        pools   = 0
+        nft     = 0
+        for n in nodes:
+            chains[n.chain] = chains.get(n.chain, 0) + 1
+            roles[n.role]   = roles.get(n.role, 0) + 1
+            if n.is_mining_pool:
+                pools += 1
+            if n.is_nft_store:
+                nft += 1
+        return {
+            "total_found":   len(nodes),
+            "chains":        chains,
+            "roles":         roles,
+            "mining_pools":  pools,
+            "nft_stores":    nft,
+            "hosts":         list({n.host for n in nodes}),
+            "tx_licensed":   False,
+        }
+
+    def get_found(self) -> List[BlockchainNode]:
+        with self._lock:
+            return list(self._found)
+
+
+# Singleton
+_bc_scanner: Optional[BlockchainNetworkScanner] = None
+
+def get_blockchain_scanner() -> BlockchainNetworkScanner:
+    global _bc_scanner
+    if _bc_scanner is None:
+        _bc_scanner = BlockchainNetworkScanner()
+    return _bc_scanner
+
+
+# ==============================================================================
 # 8. NET TOOLS ENGINE (orchestrator)
 # ==============================================================================
 
@@ -2656,6 +3113,65 @@ NETTOOLS_TOOLS = [
             "required": [],
         },
     },
+    # ── Blockchain / NFT / Pool Scanner ──────────────────────────────────────
+    {
+        "name": "nettools_blockchain_probe_host",
+        "description": (
+            "Probe a specific host for ALL blockchain node types: Bitcoin, Ethereum, "
+            "XRPL, Solana, Monero, Polkadot, Cosmos, IPFS/Filecoin/Arweave (NFT stores), "
+            "and Stratum mining pool ports. Returns every open blockchain port found."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"host": {"type": "string"}},
+            "required": ["host"],
+        },
+    },
+    {
+        "name": "nettools_blockchain_scan_subnet",
+        "description": (
+            "Scan the local subnet for blockchain nodes, mining pools, and NFT storage. "
+            "Auto-derives subnet from local IP. TX_LICENSED=False — passive scan only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "subnet_prefix": {"type": "string",
+                                   "description": "e.g. '192.168.1' — auto-derived if omitted"},
+                "max_hosts":     {"type": "integer", "description": "Max IPs to scan (default 50)"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "nettools_blockchain_detect_farming",
+        "description": (
+            "From previously discovered blockchain nodes, identify DeFi/yield farming, "
+            "liquidity pool, and NFT farming endpoints. Returns classified farm/pool list."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "nettools_xrpl_bio_nft_probe",
+        "description": (
+            "Probe an XRPL node for RabbitOS Bio-NFT anchoring readiness. "
+            "Checks server_info and ledger access (read-only, no TX submitted). "
+            "shows_dna_root=FALSE enforced."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "xrpl_host": {"type": "string",
+                               "description": "XRPL node host (default s1.ripple.com)"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "nettools_blockchain_summary",
+        "description": "Summarise all blockchain nodes found so far: chains, roles, pool count, NFT stores.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
 ]
 
 
@@ -2777,6 +3293,28 @@ def dispatch_nettools_tool(name: str, inputs: Dict,
 
     elif name == "nettools_ack_sent":
         return get_scan_ack().get_sent(inputs.get("limit", 50))
+
+    elif name == "nettools_blockchain_probe_host":
+        nodes = get_blockchain_scanner().probe_host(inputs["host"])
+        return [asdict(n) for n in nodes]
+
+    elif name == "nettools_blockchain_scan_subnet":
+        nodes = get_blockchain_scanner().scan_subnet(
+            inputs.get("subnet_prefix", ""),
+            inputs.get("max_hosts", 50))
+        return [asdict(n) for n in nodes]
+
+    elif name == "nettools_blockchain_detect_farming":
+        nodes = get_blockchain_scanner().get_found()
+        return get_blockchain_scanner().detect_pool_farming(nodes)
+
+    elif name == "nettools_xrpl_bio_nft_probe":
+        return get_blockchain_scanner().xrpl_bio_nft_probe(
+            inputs.get("xrpl_host", "s1.ripple.com"))
+
+    elif name == "nettools_blockchain_summary":
+        nodes = get_blockchain_scanner().get_found()
+        return get_blockchain_scanner().summary(nodes)
 
     else:
         return {"error": f"unknown tool: {name}"}

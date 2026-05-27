@@ -1718,6 +1718,340 @@ def get_defense_engine() -> DefenseOrchestrator:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# BACKDOOR + HIDDEN NETWORK DETECTOR
+# NOTE: For use ONLY on networks you own or have explicit authorization to test.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Known backdoor / RAT / C2 ports
+BACKDOOR_PORTS: Dict[int, str] = {
+    1337: "l33t-backdoor", 31337: "Back Orifice", 12345: "NetBus",
+    27374: "SubSeven", 65000: "Devil", 4444: "Metasploit/meterpreter",
+    4445: "Metasploit-alt", 9090: "Cobalt-Strike-default",
+    50050: "Cobalt-Strike-teamserver", 8888: "Jupyter/Empire",
+    1234: "generic-backdoor", 2222: "alt-SSH-backdoor",
+    6666: "IRC-C2", 6667: "IRC-C2", 6668: "IRC-C2",
+    7777: "God-mode-backdoor", 8192: "hidden-service",
+    54321: "reverse-shell", 9001: "Tor-hidden-service",
+    2323: "Telnet-alt-backdoor", 23: "Telnet-plaintext",
+    135: "MSRPC-C2", 139: "NetBIOS-C2", 445: "SMB-C2",
+    5985: "WinRM-lateral", 5986: "WinRM-SSL-lateral",
+    3389: "RDP-lateral", 5900: "VNC-backdoor",
+    6379: "Redis-no-auth", 27017: "MongoDB-no-auth",
+    9200: "Elasticsearch-open", 2375: "Docker-daemon-exposed",
+    2376: "Docker-TLS-exposed",
+}
+
+# Hidden SSID / rogue AP indicators
+ROGUE_AP_KEYWORDS = [
+    "evil", "pineapple", "karma", "fake", "rogue", "hack",
+    "mitm", "intercept", "spy", "trap", "honeypot",
+]
+
+
+@dataclass
+class BackdoorFinding:
+    ts: float
+    host: str
+    port: int
+    finding_type: str    # backdoor_port / hidden_service / rogue_ap / covert_channel / rootkit_indicator
+    severity: str        # critical / high / medium / low
+    description: str
+    evidence: str
+    recommended_action: str
+
+
+class BackdoorDetector:
+    """
+    Detects backdoors, hidden networks, and covert channels.
+    AUTHORIZED USE ONLY — run only on networks you own/control.
+    """
+
+    def __init__(self, timeout: float = 2.0) -> None:
+        self._timeout  = timeout
+        self._findings: List[BackdoorFinding] = []
+        self._lock     = threading.Lock()
+
+    def _add(self, f: BackdoorFinding) -> None:
+        with self._lock:
+            self._findings.append(f)
+        _log(f"[BACKDOOR] {f.severity.upper()} {f.finding_type} @ {f.host}:{f.port} - {f.description[:80]}")
+
+    # ── 1. Known backdoor port scan ───────────────────────────────────────────
+    def scan_backdoor_ports(self, host: str = "127.0.0.1") -> List[BackdoorFinding]:
+        found = []
+        lock  = threading.Lock()
+
+        def probe(port: int, label: str) -> None:
+            try:
+                s = socket.create_connection((host, port), timeout=self._timeout)
+                banner = ""
+                try:
+                    s.settimeout(1.0)
+                    banner = s.recv(512).decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+                s.close()
+                f = BackdoorFinding(
+                    ts=time.time(), host=host, port=port,
+                    finding_type="backdoor_port",
+                    severity="critical" if port in (4444, 50050, 31337) else "high",
+                    description=f"Known backdoor port open: {label} ({port})",
+                    evidence=f"Banner: {banner[:100]}" if banner else "Port responded",
+                    recommended_action=(
+                        f"Immediately investigate process on port {port}. "
+                        f"Run: netstat -ano | findstr {port}. "
+                        f"Terminate unauthorized service and check for persistence."
+                    ),
+                )
+                self._add(f)
+                with lock:
+                    found.append(f)
+            except Exception:
+                pass
+
+        threads = [
+            threading.Thread(target=probe, args=(p, l), daemon=True)
+            for p, l in BACKDOOR_PORTS.items()
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=self._timeout + 1)
+
+        return found
+
+    # ── 2. Local listening port audit ─────────────────────────────────────────
+    def audit_listening_ports(self) -> List[BackdoorFinding]:
+        found = []
+        raw = _run(["netstat", "-ano"], timeout=15)
+        listening = [l for l in raw.splitlines()
+                     if "LISTENING" in l or "LISTEN" in l]
+
+        known_safe = {80, 443, 135, 3389, 445, 139, 5040,
+                      49152, 49153, 49154, 49155, 49664, 49665}
+
+        for line in listening:
+            parts = line.split()
+            if len(parts) < 4:
+                continue
+            local_addr = parts[1] if len(parts) > 1 else ""
+            port_str   = local_addr.rsplit(":", 1)[-1]
+            try:
+                port = int(port_str)
+            except ValueError:
+                continue
+
+            pid = parts[-1] if parts[-1].isdigit() else "?"
+            if port in BACKDOOR_PORTS:
+                label = BACKDOOR_PORTS[port]
+                f = BackdoorFinding(
+                    ts=time.time(), host="localhost", port=port,
+                    finding_type="hidden_service",
+                    severity="critical",
+                    description=f"Backdoor-class port {port} ({label}) listening locally (PID {pid})",
+                    evidence=line.strip(),
+                    recommended_action=f"Kill PID {pid}, check startup: "
+                                       f"'wmic process where ProcessId={pid} get CommandLine'",
+                )
+                self._add(f)
+                found.append(f)
+            elif port not in known_safe and port < 1024:
+                f = BackdoorFinding(
+                    ts=time.time(), host="localhost", port=port,
+                    finding_type="hidden_service",
+                    severity="medium",
+                    description=f"Unusual privileged port {port} listening (PID {pid})",
+                    evidence=line.strip(),
+                    recommended_action=f"Investigate PID {pid}: "
+                                       f"'wmic process where ProcessId={pid} get CommandLine'",
+                )
+                self._add(f)
+                found.append(f)
+        return found
+
+    # ── 3. Hidden SSID + rogue AP detection ───────────────────────────────────
+    def scan_hidden_ssids(self) -> List[BackdoorFinding]:
+        found = []
+        raw = _run(["netsh", "wlan", "show", "networks", "mode=bssid"], timeout=15)
+
+        entries = re.split(r"SSID\s+\d+\s*:", raw)
+        for entry in entries[1:]:
+            ssid_m = re.match(r"\s*(.+)", entry)
+            ssid   = ssid_m.group(1).strip() if ssid_m else ""
+            bssid_m = re.search(r"BSSID\s+\d+\s*:\s*([\w:]+)", entry, re.I)
+            bssid   = bssid_m.group(1).strip() if bssid_m else "unknown"
+
+            # Hidden SSID
+            if not ssid or ssid == "" or ssid == "<hidden>":
+                f = BackdoorFinding(
+                    ts=time.time(), host=bssid, port=0,
+                    finding_type="rogue_ap",
+                    severity="high",
+                    description=f"Hidden SSID detected (BSSID: {bssid})",
+                    evidence=entry[:200],
+                    recommended_action="Probe the AP to identify if it is authorized. "
+                                       "Hidden SSIDs are often rogue or evil-twin APs.",
+                )
+                self._add(f)
+                found.append(f)
+
+            # Rogue AP keyword check
+            for kw in ROGUE_AP_KEYWORDS:
+                if kw.lower() in ssid.lower():
+                    f = BackdoorFinding(
+                        ts=time.time(), host=bssid, port=0,
+                        finding_type="rogue_ap",
+                        severity="critical",
+                        description=f"Rogue AP keyword '{kw}' in SSID: '{ssid}'",
+                        evidence=f"SSID={ssid} BSSID={bssid}",
+                        recommended_action=f"Do NOT connect to '{ssid}'. "
+                                           "This may be an evil-twin or pineapple attack AP.",
+                    )
+                    self._add(f)
+                    found.append(f)
+                    break
+
+        return found
+
+    # ── 4. Covert channel detection (unusual outbound UDP) ────────────────────
+    def detect_covert_channels(self) -> List[BackdoorFinding]:
+        found = []
+        raw = _run(["netstat", "-ano"], timeout=15)
+        covert_udp_ports = {53, 123, 161, 1194, 500, 4500}
+        for line in raw.splitlines():
+            if "UDP" not in line.upper():
+                continue
+            parts = line.split()
+            remote = parts[2] if len(parts) > 2 else ""
+            remote_port_str = remote.rsplit(":", 1)[-1]
+            try:
+                remote_port = int(remote_port_str)
+            except ValueError:
+                continue
+            pid = parts[-1] if parts[-1].isdigit() else "?"
+            if remote_port in covert_udp_ports and remote not in ("0.0.0.0:*", "*:*", ":::*"):
+                f = BackdoorFinding(
+                    ts=time.time(), host=remote, port=remote_port,
+                    finding_type="covert_channel",
+                    severity="medium",
+                    description=f"UDP connection to {remote} on port {remote_port} (PID {pid}). "
+                                f"Could be DNS tunneling, NTP covert channel, or VPN.",
+                    evidence=line.strip(),
+                    recommended_action=f"Verify PID {pid}. DNS/NTP ports are common C2 covert channels.",
+                )
+                self._add(f)
+                found.append(f)
+        return found
+
+    # ── 5. Unexpected network interfaces (virtual / TUN/TAP / VPN) ────────────
+    def scan_hidden_interfaces(self) -> List[BackdoorFinding]:
+        found = []
+        raw = _run(["ipconfig", "/all"], timeout=10) \
+            if platform.system() == "Windows" else \
+            _run(["ip", "link", "show"], timeout=5)
+
+        tun_keywords = ["tun", "tap", "vpn", "zerotier", "wg", "tailscale",
+                        "hamachi", "radmin", "ngrok", "utun"]
+        for line in raw.splitlines():
+            ll = line.lower()
+            for kw in tun_keywords:
+                if kw in ll and "adapter" in ll.lower():
+                    f = BackdoorFinding(
+                        ts=time.time(), host="localhost", port=0,
+                        finding_type="hidden_service",
+                        severity="medium",
+                        description=f"Tunnel/VPN interface detected: {line.strip()[:100]}",
+                        evidence=line.strip(),
+                        recommended_action="Verify this VPN/tunnel is authorized. "
+                                           "Unauthorized tunnels may exfiltrate data.",
+                    )
+                    self._add(f)
+                    found.append(f)
+                    break
+        return found
+
+    # ── 6. Scheduled tasks / startup backdoor persistence check ──────────────
+    def check_persistence_mechanisms(self) -> List[BackdoorFinding]:
+        found = []
+        if platform.system() != "Windows":
+            return found
+
+        # Check scheduled tasks
+        raw = _run(["schtasks", "/query", "/fo", "LIST"], timeout=20)
+        suspicious_tasks = []
+        current_task = ""
+        for line in raw.splitlines():
+            if "TaskName:" in line:
+                current_task = line.split("TaskName:")[-1].strip()
+            if "Task To Run:" in line:
+                cmd = line.split("Task To Run:")[-1].strip().lower()
+                if any(kw in cmd for kw in ["powershell", "cmd", "wscript",
+                                              "mshta", "regsvr32", "rundll"]):
+                    suspicious_tasks.append((current_task, cmd))
+
+        for task_name, cmd in suspicious_tasks:
+            f = BackdoorFinding(
+                ts=time.time(), host="localhost", port=0,
+                finding_type="rootkit_indicator",
+                severity="high",
+                description=f"Suspicious scheduled task: {task_name}",
+                evidence=f"Command: {cmd[:200]}",
+                recommended_action=f"Review task '{task_name}' with "
+                                   f"'schtasks /query /tn \"{task_name}\" /fo LIST /v'. "
+                                   "Remove if not authorized.",
+            )
+            self._add(f)
+            found.append(f)
+
+        return found
+
+    # ── 7. Full scan ──────────────────────────────────────────────────────────
+    def full_scan(self, host: str = "127.0.0.1") -> Dict[str, Any]:
+        _log(f"BackdoorDetector: full scan on {host}")
+        t0 = time.time()
+
+        with self._lock:
+            self._findings.clear()
+
+        threads = [
+            threading.Thread(target=self.scan_backdoor_ports, args=(host,), daemon=True),
+            threading.Thread(target=self.audit_listening_ports, daemon=True),
+            threading.Thread(target=self.scan_hidden_ssids, daemon=True),
+            threading.Thread(target=self.detect_covert_channels, daemon=True),
+            threading.Thread(target=self.scan_hidden_interfaces, daemon=True),
+            threading.Thread(target=self.check_persistence_mechanisms, daemon=True),
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=30)
+
+        with self._lock:
+            findings = list(self._findings)
+
+        by_sev: Dict[str, int] = defaultdict(int)
+        for f in findings:
+            by_sev[f.severity] += 1
+
+        return {
+            "host": host,
+            "scan_duration_s": round(time.time() - t0, 2),
+            "total_findings": len(findings),
+            "by_severity": dict(by_sev),
+            "findings": [asdict(f) for f in findings],
+            "authorized_use_notice": (
+                "Backdoor detection results are for AUTHORIZED defensive use only. "
+                "Verify findings before taking action."
+            ),
+        }
+
+    def get_findings(self) -> List[Dict]:
+        with self._lock:
+            return [asdict(f) for f in self._findings]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # DEFENSE TOOLS + DISPATCHER
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1911,6 +2245,48 @@ DEFENSE_TOOLS = [
             "required": ["table", "record_json"],
         },
     },
+    {
+        "name": "defense_backdoor_scan",
+        "description": "Full backdoor + hidden network scan: known RAT ports, hidden SSIDs, covert channels, persistence. AUTHORIZED USE ONLY.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "host": {"type": "string", "description": "Host to scan (default: 127.0.0.1)"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "defense_backdoor_port_scan",
+        "description": "Scan a host for known backdoor/RAT/C2 ports",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "host": {"type": "string"},
+            },
+            "required": ["host"],
+        },
+    },
+    {
+        "name": "defense_scan_hidden_ssids",
+        "description": "Scan for hidden SSIDs and rogue access points",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "defense_audit_listening_ports",
+        "description": "Audit all locally listening ports for backdoor-class services",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "defense_check_persistence",
+        "description": "Check for backdoor persistence mechanisms (scheduled tasks, startup entries)",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "defense_backdoor_findings",
+        "description": "Get all backdoor findings from the last scan",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
 ]
 
 
@@ -2048,6 +2424,42 @@ def dispatch_defense_tool(name: str, inputs: Dict, api_key: str = "",
             return {"error": "invalid record_json"}
         ok = eng.recorder.push_to_supabase(inputs["table"], row, url, skey)
         return {"pushed": ok}
+
+    elif name == "defense_backdoor_scan":
+        host = inputs.get("host", "127.0.0.1")
+        bd = BackdoorDetector()
+        result = bd.full_scan(host)
+        # Award tokens for each critical finding
+        for f in result.get("findings", []):
+            if f.get("severity") == "critical":
+                eng.reward.award("ATTACK_REFLECT", host, f.get("description", "")[:80])
+            else:
+                eng.reward.award("DEFENSE", host, f.get("description", "")[:80])
+        return result
+
+    elif name == "defense_backdoor_port_scan":
+        bd = BackdoorDetector()
+        findings = bd.scan_backdoor_ports(inputs.get("host", "127.0.0.1"))
+        return {"findings": [asdict(f) for f in findings]}
+
+    elif name == "defense_scan_hidden_ssids":
+        bd = BackdoorDetector()
+        findings = bd.scan_hidden_ssids()
+        return {"findings": [asdict(f) for f in findings]}
+
+    elif name == "defense_audit_listening_ports":
+        bd = BackdoorDetector()
+        findings = bd.audit_listening_ports()
+        return {"findings": [asdict(f) for f in findings]}
+
+    elif name == "defense_check_persistence":
+        bd = BackdoorDetector()
+        findings = bd.check_persistence_mechanisms()
+        return {"findings": [asdict(f) for f in findings]}
+
+    elif name == "defense_backdoor_findings":
+        bd = BackdoorDetector()
+        return {"findings": bd.get_findings()}
 
     else:
         return {"error": f"Unknown defense tool: {name}"}
