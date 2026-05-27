@@ -637,6 +637,13 @@ try:
 except ImportError:
     pass
 
+# Merge MCP server + autonomous agent tools
+try:
+    from rabbit_mcp import MCP_TOOLS
+    TOOLS = TOOLS + MCP_TOOLS
+except ImportError:
+    pass
+
 # Merge reward token economy tools
 try:
     from rabbit_reward import REWARD_TOOLS
@@ -1267,6 +1274,13 @@ class RabbitOSAgent:
                     dispatch_shell_tool(name, inputs),
                     indent=2, default=str)
 
+            # ── MCP server + autonomous agent ─────────────────────────────────
+            elif name.startswith("mcp_"):
+                from rabbit_mcp import dispatch_mcp_tool
+                return json.dumps(
+                    dispatch_mcp_tool(name, inputs),
+                    indent=2, default=str)
+
             # ── Reward token economy tools ────────────────────────────────────
             elif name in ("reward_status", "reward_report", "reward_mint",
                           "reward_leaderboard", "reward_recent", "reward_verify"):
@@ -1485,6 +1499,165 @@ class RabbitOSAgent:
 
 
 # =============================================================================
+# SURVIVAL MODE — autonomous online/offline coding with cloud shell fallback
+# =============================================================================
+
+import sqlite3 as _sqlite3
+
+_SURVIVAL_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "rabbit_survival.db")
+
+
+class SurvivalMode:
+    """
+    Keeps RabbitOS running and coding autonomously regardless of
+    network availability. Queues tasks when offline; drains when online.
+    Uses cloud shell (gcloud) when local environment is limited.
+    Persists all state between process restarts.
+    """
+
+    CHECK_INTERVAL = 30.0
+
+    def __init__(self) -> None:
+        self._lock    = threading.Lock()
+        self._online  = False
+        self._running = False
+        self._init_db()
+
+    def _conn(self) -> _sqlite3.Connection:
+        c = _sqlite3.connect(_SURVIVAL_DB, timeout=10, check_same_thread=False)
+        c.execute("PRAGMA journal_mode=WAL")
+        return c
+
+    def _init_db(self) -> None:
+        with self._conn() as c:
+            c.executescript("""
+                CREATE TABLE IF NOT EXISTS task_queue (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts REAL, task TEXT, priority INTEGER DEFAULT 5,
+                    status TEXT DEFAULT 'pending',
+                    result TEXT, completed_ts REAL
+                );
+                CREATE TABLE IF NOT EXISTS survival_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts REAL, event TEXT, detail TEXT
+                );
+            """)
+
+    def _check_online(self) -> bool:
+        try:
+            socket.create_connection(("8.8.8.8", 53), timeout=3).close()
+            return True
+        except Exception:
+            try:
+                socket.create_connection(("1.1.1.1", 53), timeout=3).close()
+                return True
+            except Exception:
+                return False
+
+    def enqueue(self, task: str, priority: int = 5) -> int:
+        with self._conn() as c:
+            c.execute(
+                "INSERT INTO task_queue (ts, task, priority) VALUES (?,?,?)",
+                (time.time(), task, priority))
+            return c.lastrowid
+
+    def _drain_queue(self) -> None:
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT id, task FROM task_queue "
+                "WHERE status='pending' ORDER BY priority DESC, ts ASC LIMIT 5"
+            ).fetchall()
+
+        for row_id, task in rows:
+            try:
+                from rabbit_mcp import get_autonomous_agent
+                result = get_autonomous_agent().run(task)
+                status = "completed"
+            except Exception as exc:
+                result = str(exc)
+                status = "failed"
+
+            with self._conn() as c:
+                c.execute(
+                    "UPDATE task_queue SET status=?, result=?, completed_ts=? WHERE id=?",
+                    (status, result[:2000], time.time(), row_id))
+            self._log(f"task_{row_id}", f"status={status}")
+
+    def _log(self, event: str, detail: str = "") -> None:
+        with self._conn() as c:
+            c.execute("INSERT INTO survival_log VALUES (NULL,?,?,?)",
+                      (time.time(), event, detail[:500]))
+
+    def _survival_loop(self) -> None:
+        while self._running:
+            was_online = self._online
+            self._online = self._check_online()
+
+            if self._online != was_online:
+                state = "ONLINE" if self._online else "OFFLINE"
+                print(f"[SURVIVAL] Network: {state}")
+                self._log("connectivity_change", state)
+
+            if self._online:
+                self._drain_queue()
+            else:
+                # Offline mode: use local Ollama + local SQLite only
+                self._drain_queue()   # local LLM still works offline
+
+            time.sleep(self.CHECK_INTERVAL)
+
+    def start(self) -> None:
+        if self._running:
+            return
+        self._running = True
+        threading.Thread(target=self._survival_loop, daemon=True,
+                          name="survival_mode").start()
+        self._log("start", f"platform={platform.system()}")
+        print(f"[SURVIVAL] Survival mode active — "
+              f"online={self._online} | queue drains every {self.CHECK_INTERVAL}s")
+
+    def stop(self) -> None:
+        self._running = False
+
+    def status(self) -> dict:
+        with self._conn() as c:
+            total = c.execute(
+                "SELECT COUNT(*) FROM task_queue").fetchone()[0]
+            pending = c.execute(
+                "SELECT COUNT(*) FROM task_queue WHERE status='pending'"
+            ).fetchone()[0]
+            done = c.execute(
+                "SELECT COUNT(*) FROM task_queue WHERE status='completed'"
+            ).fetchone()[0]
+        return {
+            "online": self._online,
+            "running": self._running,
+            "task_queue": {"total": total, "pending": pending, "completed": done},
+        }
+
+    def get_queue(self, limit: int = 20) -> list:
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT * FROM task_queue ORDER BY ts DESC LIMIT ?",
+                (limit,)).fetchall()
+            desc = c.execute(
+                "SELECT * FROM task_queue LIMIT 0").description or []
+            cols = [d[0] for d in desc]
+            return [dict(zip(cols, r)) for r in rows]
+
+
+_survival_instance: Optional["SurvivalMode"] = None
+
+
+def get_survival_mode() -> "SurvivalMode":
+    global _survival_instance
+    if _survival_instance is None:
+        _survival_instance = SurvivalMode()
+    return _survival_instance
+
+
+# =============================================================================
 # ENTRY POINT
 # =============================================================================
 
@@ -1494,14 +1667,35 @@ def main():
         print("       Rotate at: https://supabase.com/dashboard/project/ludxbakxpmdqhfgdenwp/settings/api")
         print("       Then: set SUPABASE_SERVICE_ROLE_KEY=<new_key>\n")
 
+    # Auto-start survival mode
+    survival = get_survival_mode()
+    survival.start()
+
     agent = RabbitOSAgent()
 
     if "--status" in sys.argv:
         agent.status()
+        print("\n[SURVIVAL]", json.dumps(survival.status(), indent=2))
     elif "--dashboard" in sys.argv:
         idx   = sys.argv.index("--dashboard")
         secs  = int(sys.argv[idx + 1]) if idx + 1 < len(sys.argv) and sys.argv[idx + 1].isdigit() else 30
         agent.dashboard(secs)
+    elif "--auto" in sys.argv:
+        idx  = sys.argv.index("--auto")
+        task = " ".join(sys.argv[idx + 1:]) if idx + 1 < len(sys.argv) else ""
+        if task:
+            from rabbit_mcp import get_autonomous_agent
+            print(get_autonomous_agent().run(task))
+        else:
+            print("[ERROR] --auto requires a task argument")
+    elif "--mcp" in sys.argv:
+        from rabbit_mcp import get_mcp_server
+        port_arg = next((a for a in sys.argv if a.isdigit()), "8765")
+        print(f"[MCP] Starting HTTP server on port {port_arg}")
+        get_mcp_server().run_http(port=int(port_arg))
+    elif "--mcp-stdio" in sys.argv:
+        from rabbit_mcp import get_mcp_server
+        get_mcp_server().run_stdio()
     else:
         agent.repl()
 
