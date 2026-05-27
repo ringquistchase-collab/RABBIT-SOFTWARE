@@ -1,0 +1,4 @@
+project/
+  rabbit_cli.py         # main entry point
+  rabbit_actions.py     # concrete actions (tools/agents)
+  rabbit_planner.py     # LLM-based planner that outputs a plan
