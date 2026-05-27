@@ -65,6 +65,7 @@ RABBIT_MODULES = [
     "rabbit_watchdog",
     "rabbit_monitor",
     "rabbit_intel",
+    "rabbit_osint",
 ]
 
 RABBIT_DBS = [
@@ -76,6 +77,7 @@ RABBIT_DBS = [
     "rabbit_scan_cache.db",
     "rabbit_monitor.db",
     "rabbit_intel.db",
+    "rabbit_osint.db",
 ]
 
 

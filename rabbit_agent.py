@@ -686,6 +686,13 @@ try:
 except ImportError:
     pass
 
+# Merge passive OSINT server origin tools
+try:
+    from rabbit_osint import OSINT_TOOLS
+    TOOLS = TOOLS + OSINT_TOOLS
+except ImportError:
+    pass
+
 SYSTEM_PROMPT = f"""You are the RabbitOS Universal Agent for Chase Allen Ringquist.
 
 Twin UUID: {TWIN_UUID}
@@ -1355,6 +1362,13 @@ class RabbitOSAgent:
                                          "SUPABASE_SERVICE_ROLE_KEY", "")
                 return json.dumps(
                     dispatch_intel_tool(name, inputs, url, svc),
+                    indent=2, default=str)
+
+            # ── Passive OSINT server origin tools ─────────────────────────────
+            elif name.startswith("osint_"):
+                from rabbit_osint import dispatch_osint_tool
+                return json.dumps(
+                    dispatch_osint_tool(name, inputs),
                     indent=2, default=str)
 
             else:
