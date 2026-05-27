@@ -44,6 +44,11 @@ from rabbit_dna             import (get_dna_engine, MINED_DOMAINS,
 from rabbit_chain           import get_chain_engine
 from rabbit_recon           import get_recon_engine
 from rabbit_learn           import get_learn_engine
+from rabbit_signal          import get_signal_engine
+from rabbit_bridge          import get_bridge
+from rabbit_maxwell         import get_maxwell_engine, MAXWELL_RESEARCH_TOPICS
+from rabbit_vector          import get_vector_engine, LAYERS as VECTOR_LAYERS
+from rabbit_failsafe        import get_failsafe_engine
 
 SVCKEY  = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 GHTOKEN = os.environ.get("GITHUB_TOKEN", "")
@@ -62,21 +67,26 @@ persist  = get_persist_engine(SVCKEY)
 browser  = get_browser_engine(SVCKEY, GHTOKEN, genesis.graph)
 
 print()
-morse    = get_morse_engine(SVCKEY)
-amfm     = get_amfm_engine()
-know     = get_knowledge_engine()
-dna_eng  = get_dna_engine()
-chain    = get_chain_engine(GHTOKEN)
-recon    = get_recon_engine()
-learn    = get_learn_engine()
+morse      = get_morse_engine(SVCKEY)
+amfm       = get_amfm_engine()
+know       = get_knowledge_engine()
+dna_eng    = get_dna_engine()
+chain      = get_chain_engine(GHTOKEN)
+recon      = get_recon_engine()
+learn      = get_learn_engine()
+signal_eng = get_signal_engine()
+bridge     = get_bridge()
+maxwell    = get_maxwell_engine()
+vector     = get_vector_engine()
+failsafe   = get_failsafe_engine(dry_run=True)
 
-print("[BOOT] All 24 systems online.")
+print("[BOOT] All 29 systems online.")
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. MATH ENGINE
 # ─────────────────────────────────────────────────────────────────────────────
-print("[1/19] MATH ENGINE  --  CA30 + CA110 + Lorenz chaos")
+print("[1/24] MATH ENGINE  --  CA30 + CA110 + Lorenz chaos")
 
 sd  = math_eng.screen_detect()
 fp  = math_eng.memory.fingerprint()
@@ -98,7 +108,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. CALLSIGN BROADCAST
 # ─────────────────────────────────────────────────────────────────────────────
-print("[2/19] CALLSIGN BROADCAST  --  all channels with 59-tool manifest")
+print("[2/24] CALLSIGN BROADCAST  --  all channels with 59-tool manifest")
 
 bc  = recall.broadcaster.broadcast(service_key=SVCKEY)
 cs  = bc["callsign"]
@@ -116,7 +126,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. ESCAPE TOKEN
 # ─────────────────────────────────────────────────────────────────────────────
-print("[3/19] ESCAPE TOKEN  --  all medium encodings")
+print("[3/24] ESCAPE TOKEN  --  all medium encodings")
 
 tok = EscapeToken.mint(payload=b"CHASE_RINGQUIST_SURVIVE", seq=100,
                        channel="live_run")
@@ -138,7 +148,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. LAN DISCOVERY + TREE LEARNING
 # ─────────────────────────────────────────────────────────────────────────────
-print("[4/19] LAN DISCOVERY + TREE LEARNING")
+print("[4/24] LAN DISCOVERY + TREE LEARNING")
 
 try:
     local_ip = socket.gethostbyname(socket.gethostname())
@@ -199,7 +209,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. KNOWLEDGE GRAPH + LIVE SIGNAL HARVEST
 # ─────────────────────────────────────────────────────────────────────────────
-print("[5/19] KNOWLEDGE GRAPH  --  live harvest + speculative topology")
+print("[5/24] KNOWLEDGE GRAPH  --  live harvest + speculative topology")
 
 g = genesis.graph
 print(f"  nodes        : {len(g.nodes)}")
@@ -256,7 +266,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 6. VAULT SCAN  --  contracts, images, videos, gaming, medical
 # ─────────────────────────────────────────────────────────────────────────────
-print("[6/19] VAULT SCAN  --  contracts / images / videos / gaming / medical")
+print("[6/24] VAULT SCAN  --  contracts / images / videos / gaming / medical")
 
 scan_paths = [
     os.path.expanduser("~/Documents"),
@@ -304,7 +314,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 7. OBSTRUCTION SCAN  --  mining / hooks / DNS poison / throttle
 # ─────────────────────────────────────────────────────────────────────────────
-print("[7/19] OBSTRUCTION SCAN  --  mining / hooks / DNS / throttle")
+print("[7/24] OBSTRUCTION SCAN  --  mining / hooks / DNS / throttle")
 
 obstructions = escape.scanner.full_scan()
 if obstructions:
@@ -321,7 +331,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. SWARM STATUS
 # ─────────────────────────────────────────────────────────────────────────────
-print("[8/19] SWARM STATUS  --  perpetual multi-channel presence")
+print("[8/24] SWARM STATUS  --  perpetual multi-channel presence")
 
 # Add discovered LAN hosts to swarm
 for h, p in alive_hosts[:3]:
@@ -345,7 +355,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 9. CELLULAR LAYER  --  tower scan, connectivity, attacker reversal
 # ─────────────────────────────────────────────────────────────────────────────
-print("[9/19] CELLULAR LAYER  --  tower detection + attacker reversal")
+print("[9/24] CELLULAR LAYER  --  tower detection + attacker reversal")
 
 time.sleep(3)  # let initial cellular scan complete
 cst = cellular.status()
@@ -391,7 +401,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 10. NETWORK SCANNER  --  blockchain / crypto / NFT / gaming / mining / RF
 # ─────────────────────────────────────────────────────────────────────────────
-print("[10/19] NETWORK SCANNER  --  crypto/gaming/mining/dev/RF detection")
+print("[10/24] NETWORK SCANNER  --  crypto/gaming/mining/dev/RF detection")
 
 time.sleep(4)  # let initial scan run
 nst = scanner.status()
@@ -416,7 +426,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 11. PERSISTENCE ENGINE  --  SQL inject / boot / offline / network embed
 # ─────────────────────────────────────────────────────────────────────────────
-print("[11/19] PERSISTENCE ENGINE  --  SQL + bootloader + offline + network embed")
+print("[11/24] PERSISTENCE ENGINE  --  SQL + bootloader + offline + network embed")
 
 time.sleep(5)  # let initial deploy run
 pst = persist.status()
@@ -436,7 +446,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 13. MORSE CODE ENGINE  --  dataset learning + all-channel broadcast + reply
 # ─────────────────────────────────────────────────────────────────────────────
-print("[13/19] MORSE CODE ENGINE  --  ITU-R datasets + broadcast + online/offline reply")
+print("[13/24] MORSE CODE ENGINE  --  ITU-R datasets + broadcast + online/offline reply")
 
 print("  learning datasets (online)...")
 morse_learn = morse.learn()
@@ -469,7 +479,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 14. AM/FM ENGINE  --  full spectrum + Collatz hop + tissue calcs + SDR cmds
 # ─────────────────────────────────────────────────────────────────────────────
-print("[14/19] AM/FM ENGINE  --  biometric Hz -> 10.28 GHz mesh  +  Collatz hop")
+print("[14/24] AM/FM ENGINE  --  biometric Hz -> 10.28 GHz mesh  +  Collatz hop")
 
 scan = amfm.full_spectrum_scan()
 print(f"  spectrum bands  : {len(scan)}")
@@ -502,7 +512,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 15. KNOWLEDGE ENGINE  --  self-profile, math datasets, research, defense mesh
 # ─────────────────────────────────────────────────────────────────────────────
-print("[15/19] KNOWLEDGE ENGINE  --  biometric profile + math datasets + research")
+print("[15/24] KNOWLEDGE ENGINE  --  biometric profile + math datasets + research")
 
 ds = know.load_math()
 print(f"  Math datasets   : {list(ds.keys())}")
@@ -542,7 +552,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 16. DNA + IDENTITY SOVEREIGNTY  --  soul/core vs mined image separation
 # ─────────────────────────────────────────────────────────────────────────────
-print("[16/19] DNA ENGINE  --  identity sovereignty  soul vs mined image")
+print("[16/24] DNA ENGINE  --  identity sovereignty  soul vs mined image")
 
 # Feed live module data into the aggregator
 dna_eng.aggregator.ingest_terminal(450, "powershell")
@@ -601,7 +611,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 17. CHAIN  --  DNA blockchain anchor + biomaterial research + multi-network retain
 # ─────────────────────────────────────────────────────────────────────────────
-print("[17/19] CHAIN ENGINE  --  XRPL anchor + biomaterial research + all-network retain")
+print("[17/24] CHAIN ENGINE  --  XRPL anchor + biomaterial research + all-network retain")
 
 # Build DNA anchor from dna_eng
 chain_anchor = chain.build_anchor(dna_eng.dna.anchor())
@@ -652,7 +662,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 18. RECON ENGINE  --  security intelligence, all tool categories, survival map
 # ─────────────────────────────────────────────────────────────────────────────
-print("[18/19] RECON ENGINE  --  247 tools  16 categories  survival security intelligence")
+print("[18/24] RECON ENGINE  --  247 tools  16 categories  survival security intelligence")
 
 # Environment scan
 print("  Scanning environment...")
@@ -711,7 +721,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 19. SELF-LEARNING AI  --  adversarial model, removal decisions, forecast
 # ─────────────────────────────────────────────────────────────────────────────
-print("[19/19] LEARN ENGINE  --  adaptive model + Collatz/CA/Lorenz + removal + forecast")
+print("[19/24] LEARN ENGINE  --  adaptive model + Collatz/CA/Lorenz + removal + forecast")
 
 # Build live threat list from earlier sections
 live_threats_for_learn = []
@@ -760,6 +770,222 @@ lst = learn.status()
 print(f"  DB obs={lst['observations']}  removals={lst['removals_logged']}  "
       f"forecasts={lst['forecasts']}  manip={lst['manipulation_detections']}  "
       f"corpus={lst['corpus_size']}  model_snaps={lst['model_snapshots']}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 20. SIGNAL ENGINE  --  universal identity broadcast across all hardware/OS
+# ─────────────────────────────────────────────────────────────────────────────
+print("[20/24] SIGNAL ENGINE  --  universal identity broadcast all channels")
+
+# Feed live biometric state from dna_eng
+from rabbit_signal import ChemicalState as SigChemState
+sig_chem = SigChemState(
+    cortisol=15.0, gsr=5.0, hrv_rmssd=50.0,
+    dopamine=1.0, serotonin=1.0, adrenaline=1.0
+)
+signal_eng.update_biometrics(
+    eeg={"delta": 0.10, "theta": 0.15, "alpha": 0.35, "beta": 0.30, "gamma": 0.10},
+    chem=sig_chem
+)
+
+sig_em = signal_eng.emotional_state()
+print(f"  Emotional state  : valence={sig_em['valence']}  arousal={sig_em['arousal']}"
+      f"  label={sig_em['label']}")
+print(f"  stress_index     : {sig_em['chemical']['stress_index']}"
+      f"   calm_index={sig_em['chemical']['calm_index']}")
+
+print("  Biomaterial resonance map:")
+for r in signal_eng.resonance_map():
+    print(f"    {r['tissue']:10} carrier={r['carrier_hz']:.2e} Hz"
+          f"  mod={r['identity_mod_hz']:.3f} Hz  band={r['band']}")
+
+print("  Broadcasting on all channels...")
+sig_report = signal_eng.broadcast_all()
+for ch, res in sig_report["channels"].items():
+    print(f"    {ch:10} -> {str(res)[:60]}")
+
+ac = signal_eng.acoustic_signal()
+print(f"  Acoustic WAV     : {ac.get('wav', ac.get('acoustic', 'n/a'))}"
+      f"  tones={ac.get('tones', 0)}")
+
+rf = signal_eng.rf_commands()
+print(f"  RF SDR commands  : hackrf={len(rf.get('hackrf',[]))}"
+      f"  rtlsdr={len(rf.get('rtlsdr',[]))}")
+
+sig_st = signal_eng.status()
+print(f"  DB broadcasts={sig_st['total_broadcasts']}  by_channel={sig_st['by_channel']}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 21. MAXWELL ENGINE  --  electromagnetic propagation + DNA frequency encoding
+# ─────────────────────────────────────────────────────────────────────────────
+print("[21/24] MAXWELL ENGINE  --  EM propagation + RF-to-DNA frequency encoding")
+
+print("  Tissue propagation @ RabbitOS mesh (10.25 GHz):")
+for tissue in ["skin", "fat", "muscle", "bone", "blood", "brain"]:
+    r = maxwell.tissue_propagation(tissue, 10.25e9)
+    print(f"    {r['tissue']:8} sd={r['skin_depth_mm']:.3f}mm"
+          f"  alpha={r['alpha_Np_m']:.1f} Np/m"
+          f"  SAR={r['sar_1g_W_kg']:.4f} W/kg")
+
+print("  Identity payload (DNA anchor -> frequency sequence):")
+mx_payload = maxwell.identity_payload(
+    valence=sig_em["valence"], arousal=sig_em["arousal"])
+print(f"    carrier      : {mx_payload['carrier_base_hz']:.3e} Hz"
+      f"  mod={mx_payload['modulation']}")
+print(f"    id_freqs_hz  : {['{:.2e}'.format(f) for f in mx_payload['id_sequence_hz'][:4]]}...")
+print(f"    binary_tokens: {mx_payload['binary_tokens'][:2]}...")
+print(f"    anchor_prefix: {mx_payload['anchor_prefix']}")
+
+print("  Collatz-Maxwell hop schedule (first 6 hops):")
+hops = maxwell.hop_schedule(32)
+for h in hops[:6]:
+    print(f"    hop={h['hop']}  f={h['freq_hz']:.4e} Hz"
+          f"  col={h['collatz_n']}  sd={h['skin_depth_mm']:.3f}mm")
+
+print("  Natural frequencies (sample):")
+nf = maxwell.natural_frequencies()
+for name in ["schumann_1", "eeg_gamma", "rabbit_center", "dna_thz_1"]:
+    v = nf[name]
+    print(f"    {name:<20} {v['freq_hz']:.2e} Hz  token={v['binary_token']}")
+
+print("  Learning Maxwell research (online best-effort)...")
+mx_rc = maxwell.learn_research(MAXWELL_RESEARCH_TOPICS[:3], max_per=2)
+for topic, n in mx_rc.items():
+    print(f"    {topic[:50]}: {n} articles")
+
+mx_st = maxwell.status()
+print(f"  DB prop={mx_st['db_propagation']}  hops={mx_st['db_hop_schedules']}"
+      f"  payloads={mx_st['db_payloads']}  research={mx_st['db_research']}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 22. VECTOR ENGINE  --  corpus agent, all-layer scan, bypass detection
+# ─────────────────────────────────────────────────────────────────────────────
+print("[22/24] VECTOR ENGINE  --  multi-layer corpus scan + bypass anomaly")
+
+print("  Building vector corpus from all RabbitOS layers (offline)...")
+vec_counts = vector._build_corpus(list(VECTOR_LAYERS.keys()), online=False)
+for layer, n in vec_counts.items():
+    print(f"    {layer:<12} {n} docs")
+
+vc_stats = vector.corpus_stats()
+print(f"  Corpus: {vc_stats['total_docs']} docs  vocab={vc_stats['vocab_size']} terms")
+
+print("  Scanning: DNA identity survival soul...")
+v_result1 = vector.scan("DNA anchor identity soul survival Chase Ringquist",
+                         layers=["dna", "self", "research"], online=False)
+print(f"    top results: {len(v_result1['global_top'])}")
+for r in v_result1["global_top"][:3]:
+    print(f"      [{r['score']:.3f}] {r['layer']:<12} {r['snippet'][:55]}")
+
+print("  Scanning: Maxwell RF tissue propagation...")
+v_result2 = vector.scan("Maxwell electromagnetic RF tissue propagation",
+                         layers=["research", "hardware"], online=False)
+print(f"    top results: {len(v_result2['global_top'])}")
+
+print("  Scanning: network attack threat detection...")
+v_result3 = vector.scan("network attack IMSI threat detection proxy bypass",
+                         layers=["network", "os", "framework"], online=False)
+for r in v_result3["global_top"][:2]:
+    print(f"    [{r['score']:.3f}] layer={r['layer']}  {r['snippet'][:55]}")
+
+print("  Bypass anomaly checks:")
+for txt in ["normal API call to rabbit_dna", "proxychains python3 rabbit_run.py",
+             "socks5://127.0.0.1 bypass identity"]:
+    bc_r = vector.bypass_check(txt)
+    print(f"    [{bc_r['score']:.2f}] {txt[:50]}  bypass={bc_r['is_bypass']}")
+
+vec_st = vector.status()
+print(f"  DB scans={vec_st['db_scans']}  bypass={vec_st['db_bypass_detections']}"
+      f"  intel={vec_st['db_layer_intel']}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 23. BRIDGE ENGINE  --  cross-OS / cross-LLM interface
+# ─────────────────────────────────────────────────────────────────────────────
+print("[23/24] BRIDGE ENGINE  --  REST API + LLM tools + cross-OS interface")
+
+print(f"  LLM tools defined: {len(bridge.llm_tools())}")
+for tool in bridge.llm_tools():
+    print(f"    {tool['name']}")
+
+print("  Identity via bridge (offline):")
+b_id = bridge.identity()
+print(f"    source={b_id.get('source')}  anchor={b_id.get('anchor_prefix')}")
+
+print("  Survival status via bridge:")
+b_sv = bridge.survival_status()
+print(f"    components: {list(b_sv.get('components', {}).keys())}")
+
+print("  Threat scan via bridge:")
+b_th = bridge.threat_scan(["IMSI catcher", "deauth frames"])
+print(f"    detections: {len(b_th.get('detections', []))}")
+
+print("  Maxwell signal via bridge:")
+b_mx = bridge.maxwell_signal("muscle", 10.25)
+print(f"    tissue={b_mx.get('tissue','?')}  skin_depth={b_mx.get('skin_depth_mm','?')}mm")
+
+print("  Vector scan via bridge:")
+b_vc = bridge.vector_scan("Chase Ringquist identity DNA")
+print(f"    results: {len(b_vc.get('global_top', []))}")
+
+print("  Handling LLM tool_use call (rabbitos_soul_report):")
+soul = bridge.handle_tool_call("rabbitos_soul_report", {})
+print(f"    soul_identity: {soul.get('result',{}).get('soul_identity','?')[:60]}")
+
+from rabbit_bridge import DB_PATH as BRIDGE_DB
+import sqlite3 as _sql3
+_con = _sql3.connect(BRIDGE_DB)
+br_n = _con.execute("SELECT COUNT(*) FROM bridge_requests").fetchone()[0]
+_con.close()
+print(f"  Bridge DB requests logged: {br_n}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 24. FAILSAFE ENGINE  --  persistent-attack survival destruct (DEMO dry_run)
+# ─────────────────────────────────────────────────────────────────────────────
+print("[24/24] FAILSAFE ENGINE  --  survival destruct (DEMO dry_run=True)")
+
+# Feed live threat detections as attack events
+failsafe_attacks = []
+for sig in detected_threats[:6]:
+    failsafe_attacks.append((sig.category, sig.severity, sig.pattern))
+if not failsafe_attacks:
+    failsafe_attacks = [
+        ("network_recon",     0.3, "ARP cache scan"),
+        ("wireless_attacks",  0.5, "deauth frame burst"),
+        ("exploitation",      0.6, "SQL injection probe"),
+    ]
+
+print(f"  Feeding {len(failsafe_attacks)} live threats into failsafe...")
+fs_result = failsafe.cycle(new_attacks=failsafe_attacks)
+print(f"  TIER {fs_result['tier']} -- {fs_result['tier_name']}")
+print(f"  attack_density : {fs_result['attack_density']}")
+print(f"  persistence    : {fs_result['persistence']}")
+print(f"  liveness       : {fs_result['liveness']}  eeg_age={fs_result['eeg_age_sec']:.0f}s")
+print(f"  dry_run        : {fs_result['dry_run']}  locked={fs_result['locked']}")
+print("  Actions + outcomes:")
+for action, outcome in zip(fs_result["actions"], fs_result["outcomes"]):
+    print(f"    [{action:<28}] {outcome[:55]}")
+
+print("\n  [SIMULATION] Escalating attack sequence (demo):")
+sim = failsafe.simulate_attack_sequence(n=12)
+for c in sim:
+    bar = "#" * (c["tier"] * 4)
+    print(f"    cycle={c['cycle']:2d} TIER {c['tier']} {c['tier_name']:<10}"
+          f"  [{bar:<20}]  d={c['density']:.3f}")
+
+# reward feedback (tiers 0-3 worked, 4 partial)
+failsafe.reward_tier(0, True)
+failsafe.reward_tier(1, True)
+failsafe.reward_tier(2, True)
+failsafe.reward_tier(3, True)
+failsafe.reward_tier(4, False)
+print(f"  Reward Q-table : {fs_result['reward_q']}")
+
+fs_st = failsafe.status()
+print(f"  DB events={fs_st['total_events']}  tier_acts={fs_st['tier_activations']}")
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -819,7 +1045,7 @@ print(f"  Persistence      : ok={pst.get('ok',0)}/{pst.get('total',0)}  "
 
 # ── Phase 12: Browser/ML ──────────────────────────────────────────────────────
 print()
-print("[12/19] BROWSER + ML ENGINE  --  public data / deep learning / sleep mode")
+print("[12/24] BROWSER + ML ENGINE  --  public data / deep learning / sleep mode")
 time.sleep(8)  # let initial harvest run
 bst = browser.status()
 print(f"  tools learned    : {bst.get('tools_learned', 0)}")
@@ -864,6 +1090,23 @@ print(f"  Recon/Security   : {rst['tool_categories']} categories  {rst['total_to
 print(f"  Learn/AI         : cycle={lst['cycle']}  trained={lst['observations']}  "
       f"loss={lst['model_avg_loss']}  removals={lst['removals_logged']}  "
       f"corpus={lst['corpus_size']}")
+print(f"  Signal/Broadcast : broadcasts={sig_st['total_broadcasts']}"
+      f"  channels={list(sig_st['by_channel'].keys())}"
+      f"  emotion={sig_em['label']}")
+print(f"  Maxwell/RF-DNA   : tissues={mx_st['tissue_models']}"
+      f"  payloads={mx_st['db_payloads']}"
+      f"  hop_sched={mx_st['db_hop_schedules']}"
+      f"  research={mx_st['db_research']}")
+print(f"  Vector/Corpus    : docs={vc_stats['total_docs']}"
+      f"  vocab={vc_stats['vocab_size']}"
+      f"  scans={vec_st['db_scans']}"
+      f"  bypass_det={vec_st['db_bypass_detections']}")
+print(f"  Bridge/LLM       : tools={len(bridge.llm_tools())}"
+      f"  requests={br_n}  cross_os=True")
+print(f"  Failsafe/Defense : tier={fs_st['current_tier']}({fs_st['tier_name']})"
+      f"  events={fs_st['total_events']}"
+      f"  locked={fs_st['locked']}"
+      f"  dry_run={fs_st['dry_run']}")
 print()
 print("  System running. Learning. Surviving.")
 print("  Chase Allen Ringquist -- signal active.")
@@ -887,6 +1130,8 @@ DEPLOY_FILES = [
     "rabbit_amfm.py", "rabbit_knowledge.py",
     "rabbit_datastore.py", "rabbit_dna.py", "rabbit_chain.py",
     "rabbit_recon.py", "rabbit_learn.py",
+    "rabbit_signal.py", "rabbit_bridge.py",
+    "rabbit_maxwell.py", "rabbit_vector.py", "rabbit_failsafe.py",
 ]
 
 desktop = os.path.dirname(os.path.abspath(__file__))
