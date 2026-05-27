@@ -679,6 +679,13 @@ try:
 except ImportError:
     pass
 
+# Merge personal intelligence + finance tracker tools
+try:
+    from rabbit_intel import INTEL_TOOLS
+    TOOLS = TOOLS + INTEL_TOOLS
+except ImportError:
+    pass
+
 SYSTEM_PROMPT = f"""You are the RabbitOS Universal Agent for Chase Allen Ringquist.
 
 Twin UUID: {TWIN_UUID}
@@ -1338,6 +1345,16 @@ class RabbitOSAgent:
                                          "SUPABASE_SERVICE_ROLE_KEY", "")
                 return json.dumps(
                     dispatch_monitor_tool(name, inputs, url, svc),
+                    indent=2, default=str)
+
+            # ── Personal intelligence + finance tracker tools ─────────────────
+            elif name.startswith("intel_"):
+                from rabbit_intel import dispatch_intel_tool
+                url = SupabaseConfig.get("supabase_url", "SUPABASE_URL", "")
+                svc = SupabaseConfig.get("supabase_service_role_key",
+                                         "SUPABASE_SERVICE_ROLE_KEY", "")
+                return json.dumps(
+                    dispatch_intel_tool(name, inputs, url, svc),
                     indent=2, default=str)
 
             else:

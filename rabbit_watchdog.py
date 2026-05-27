@@ -63,6 +63,8 @@ RABBIT_MODULES = [
     "rabbit_mcp",
     "rabbit_agent",
     "rabbit_watchdog",
+    "rabbit_monitor",
+    "rabbit_intel",
 ]
 
 RABBIT_DBS = [
@@ -72,6 +74,8 @@ RABBIT_DBS = [
     "rabbit_watchdog.db",
     "rabbit_nettools.db",
     "rabbit_scan_cache.db",
+    "rabbit_monitor.db",
+    "rabbit_intel.db",
 ]
 
 
@@ -1330,6 +1334,373 @@ def get_watchdog() -> WatchdogOrchestrator:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PART 8 — RESILIENCE ENGINE (error approval + removed-item recovery)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class ErrorRecord:
+    error_id:   str
+    component:  str
+    error_type: str
+    message:    str
+    context:    str
+    approved:   bool  = False
+    note:       str   = ""
+    ts:         float = field(default_factory=time.time)
+
+@dataclass
+class RemovedItem:
+    item_id:     str
+    component:   str
+    reason:      str          # blocked / import-error / syntax / github-rejected / manual
+    code_hash:   str          # SHA-256 of what was removed
+    alternative: str          # suggested replacement approach
+    recovered:   bool  = False
+    recovery_note: str = ""
+    ts:          float = field(default_factory=time.time)
+
+
+class ResilienceEngine:
+    """
+    Tracks errors and removed/blocked components.
+    Provides an algorithm to recover them via alternative strategies.
+    """
+
+    def __init__(self) -> None:
+        self._lock   = threading.Lock()
+        self._errors: List[ErrorRecord] = []
+        self._removed: List[RemovedItem] = []
+        self._init_db()
+
+    def _init_db(self) -> None:
+        try:
+            con = sqlite3.connect(str(_WD_DB), timeout=10)
+            con.execute("""CREATE TABLE IF NOT EXISTS resilience_errors (
+                error_id TEXT PRIMARY KEY, component TEXT, error_type TEXT,
+                message TEXT, context TEXT, approved INTEGER, note TEXT, ts REAL)""")
+            con.execute("""CREATE TABLE IF NOT EXISTS resilience_removed (
+                item_id TEXT PRIMARY KEY, component TEXT, reason TEXT,
+                code_hash TEXT, alternative TEXT,
+                recovered INTEGER, recovery_note TEXT, ts REAL)""")
+            con.commit(); con.close()
+        except Exception:
+            pass
+
+    def _uid(self) -> str:
+        import uuid; return str(uuid.uuid4())[:16]
+
+    # ── Error tracking ───────────────────────────────────────────────────────
+
+    def log_error(self, component: str, error: Exception,
+                  context: str = "") -> ErrorRecord:
+        rec = ErrorRecord(
+            error_id=self._uid(), component=component,
+            error_type=type(error).__name__,
+            message=str(error)[:500], context=context[:300])
+        with self._lock:
+            self._errors.append(rec)
+        try:
+            con = sqlite3.connect(str(_WD_DB), timeout=5)
+            con.execute(
+                "INSERT OR REPLACE INTO resilience_errors VALUES (?,?,?,?,?,?,?,?)",
+                (rec.error_id, rec.component, rec.error_type,
+                 rec.message, rec.context, 0, "", rec.ts))
+            con.commit(); con.close()
+        except Exception:
+            pass
+        _log(f"[Resilience] Error logged: {component} — {rec.error_type}: {rec.message[:80]}")
+        return rec
+
+    def approve_error(self, error_id: str, note: str = "") -> bool:
+        """Mark an error as reviewed/approved so it doesn't block the system."""
+        with self._lock:
+            for e in self._errors:
+                if e.error_id == error_id:
+                    e.approved = True; e.note = note
+        try:
+            con = sqlite3.connect(str(_WD_DB), timeout=5)
+            con.execute(
+                "UPDATE resilience_errors SET approved=1, note=? WHERE error_id=?",
+                (note, error_id))
+            con.commit(); con.close()
+            return True
+        except Exception:
+            return False
+
+    def approve_all_errors(self, component: str = "") -> int:
+        """Approve all errors (optionally for a specific component)."""
+        count = 0
+        with self._lock:
+            for e in self._errors:
+                if not e.approved and (not component or e.component == component):
+                    e.approved = True; count += 1
+        try:
+            con = sqlite3.connect(str(_WD_DB), timeout=5)
+            if component:
+                con.execute(
+                    "UPDATE resilience_errors SET approved=1 WHERE component=?",
+                    (component,))
+            else:
+                con.execute("UPDATE resilience_errors SET approved=1")
+            con.commit(); con.close()
+        except Exception:
+            pass
+        return count
+
+    def get_errors(self, include_approved: bool = False,
+                   limit: int = 100) -> List[Dict]:
+        try:
+            con = sqlite3.connect(str(_WD_DB), timeout=5)
+            if include_approved:
+                rows = con.execute(
+                    "SELECT * FROM resilience_errors ORDER BY ts DESC LIMIT ?",
+                    (limit,)).fetchall()
+            else:
+                rows = con.execute(
+                    "SELECT * FROM resilience_errors WHERE approved=0 ORDER BY ts DESC LIMIT ?",
+                    (limit,)).fetchall()
+            con.close()
+            return [{"error_id": r[0], "component": r[1], "error_type": r[2],
+                     "message": r[3], "context": r[4],
+                     "approved": bool(r[5]), "note": r[6]} for r in rows]
+        except Exception:
+            with self._lock:
+                return [asdict(e) for e in self._errors[-limit:]]
+
+    # ── Removed-item tracking + recovery algorithm ───────────────────────────
+
+    def log_removed(self, component: str, reason: str,
+                    code_snippet: str = "", alternative: str = "") -> RemovedItem:
+        item = RemovedItem(
+            item_id=self._uid(), component=component, reason=reason,
+            code_hash=hashlib.sha256(code_snippet.encode()).hexdigest()[:16],
+            alternative=alternative or self._suggest_alternative(component, reason))
+        with self._lock:
+            self._removed.append(item)
+        try:
+            con = sqlite3.connect(str(_WD_DB), timeout=5)
+            con.execute(
+                "INSERT OR REPLACE INTO resilience_removed VALUES (?,?,?,?,?,?,?,?)",
+                (item.item_id, item.component, item.reason, item.code_hash,
+                 item.alternative, 0, "", item.ts))
+            con.commit(); con.close()
+        except Exception:
+            pass
+        _log(f"[Resilience] Removed item logged: {component} — reason={reason}")
+        return item
+
+    def _suggest_alternative(self, component: str, reason: str) -> str:
+        """Heuristic alternatives for common removal reasons."""
+        if "token" in reason.lower() or "secret" in reason.lower():
+            return "Move token to env var; read with os.environ.get()"
+        if "import" in reason.lower():
+            return "Add try/except ImportError with fallback stub"
+        if "syntax" in reason.lower():
+            return "Run ast.parse() to verify before committing"
+        if "github" in reason.lower() or "push" in reason.lower():
+            return "Use Git Trees API blob→tree→commit→PATCH pattern"
+        if "blocked" in reason.lower():
+            return "Wrap in try/except; store result or stub in SQLite"
+        return "Refactor with defensive try/except and fallback value"
+
+    def get_removed(self, recovered: bool = None,
+                    limit: int = 100) -> List[Dict]:
+        try:
+            con = sqlite3.connect(str(_WD_DB), timeout=5)
+            if recovered is None:
+                rows = con.execute(
+                    "SELECT * FROM resilience_removed ORDER BY ts DESC LIMIT ?",
+                    (limit,)).fetchall()
+            else:
+                rows = con.execute(
+                    "SELECT * FROM resilience_removed WHERE recovered=? ORDER BY ts DESC LIMIT ?",
+                    (int(recovered), limit)).fetchall()
+            con.close()
+            return [{"item_id": r[0], "component": r[1], "reason": r[2],
+                     "code_hash": r[3], "alternative": r[4],
+                     "recovered": bool(r[5]), "recovery_note": r[6]} for r in rows]
+        except Exception:
+            with self._lock:
+                items = self._removed[-limit:]
+            return [asdict(i) for i in items]
+
+    def attempt_recovery(self, item_id: str) -> Dict:
+        """
+        Recovery algorithm for a single removed item.
+        Tries: re-import → pyc clear → LLM fix → stub injection.
+        """
+        try:
+            con = sqlite3.connect(str(_WD_DB), timeout=5)
+            row = con.execute(
+                "SELECT * FROM resilience_removed WHERE item_id=?",
+                (item_id,)).fetchone()
+            con.close()
+        except Exception:
+            row = None
+
+        if not row:
+            return {"error": f"item_id {item_id} not found"}
+
+        component  = row[1]
+        reason     = row[2]
+        alternative = row[4]
+        steps_tried = []
+
+        # Step 1 — try reimport
+        try:
+            importlib.import_module(component)
+            steps_tried.append("reimport: success")
+            self._mark_recovered(item_id, "reimport succeeded")
+            return {"item_id": item_id, "component": component,
+                    "recovered": True, "steps": steps_tried}
+        except Exception as e:
+            steps_tried.append(f"reimport: failed ({e!s:.60})")
+
+        # Step 2 — clear __pycache__ and retry
+        cache_dir = _BASE / "__pycache__"
+        cleared = 0
+        if cache_dir.exists():
+            for pyc in cache_dir.glob(f"{component}*.pyc"):
+                try: pyc.unlink(); cleared += 1
+                except Exception: pass
+        if cleared:
+            try:
+                importlib.import_module(component)
+                steps_tried.append(f"pyc_clear+reimport: success (cleared {cleared})")
+                self._mark_recovered(item_id, "pyc clear + reimport succeeded")
+                return {"item_id": item_id, "component": component,
+                        "recovered": True, "steps": steps_tried}
+            except Exception as e:
+                steps_tried.append(f"pyc_clear+reimport: failed ({e!s:.60})")
+
+        # Step 3 — LLM syntax fix if source exists
+        py_path = _BASE / f"{component}.py"
+        if py_path.exists():
+            try:
+                src = py_path.read_text(encoding="utf-8", errors="replace")
+                try:
+                    ast.parse(src)
+                    steps_tried.append("ast_parse: ok — no syntax error")
+                except SyntaxError as se:
+                    steps_tried.append(f"ast_parse: SyntaxError at line {se.lineno}")
+                    llm = _get_llm()
+                    if llm:
+                        fix = llm.simple_ask(
+                            f"Fix this Python syntax error in {component}.py:\n"
+                            f"Error: {se}\nCode (first 2000 chars):\n{src[:2000]}\n"
+                            "Return ONLY corrected Python code.")
+                        if fix and "def " in fix:
+                            try:
+                                ast.parse(fix)
+                                bak = py_path.with_suffix(".py.resilience_bak")
+                                shutil.copy2(str(py_path), str(bak))
+                                py_path.write_text(fix, encoding="utf-8")
+                                steps_tried.append("llm_fix: applied")
+                                importlib.import_module(component)
+                                self._mark_recovered(item_id, "LLM syntax fix applied")
+                                return {"item_id": item_id, "component": component,
+                                        "recovered": True, "steps": steps_tried}
+                            except Exception as e2:
+                                steps_tried.append(f"llm_fix: failed ({e2!s:.60})")
+                        else:
+                            steps_tried.append("llm_fix: LLM produced no valid code")
+                    else:
+                        steps_tried.append("llm_fix: LLM unavailable")
+            except Exception as e:
+                steps_tried.append(f"source_check: error ({e!s:.60})")
+
+        # Step 4 — record alternative and mark partial
+        steps_tried.append(f"alternative_recorded: {alternative}")
+        self._mark_recovered(item_id, f"partial — manual action needed: {alternative}",
+                             partial=True)
+        return {"item_id": item_id, "component": component,
+                "recovered": False, "steps": steps_tried,
+                "next_action": alternative}
+
+    def _mark_recovered(self, item_id: str, note: str,
+                        partial: bool = False) -> None:
+        recovered_flag = 0 if partial else 1
+        with self._lock:
+            for r in self._removed:
+                if r.item_id == item_id:
+                    r.recovered = not partial
+                    r.recovery_note = note
+        try:
+            con = sqlite3.connect(str(_WD_DB), timeout=5)
+            con.execute(
+                "UPDATE resilience_removed SET recovered=?, recovery_note=? WHERE item_id=?",
+                (recovered_flag, note, item_id))
+            con.commit(); con.close()
+        except Exception:
+            pass
+
+    def recovery_algorithm(self, auto_approve: bool = False) -> Dict:
+        """
+        Full recovery pass over all unrecovered removed items.
+        Also approves all errors if auto_approve=True.
+        """
+        results: Dict[str, Any] = {
+            "approved_errors": 0,
+            "recovery_attempts": [],
+            "recovered": 0,
+            "partial": 0,
+            "failed": 0,
+        }
+        if auto_approve:
+            results["approved_errors"] = self.approve_all_errors()
+
+        removed = self.get_removed(recovered=False, limit=50)
+        for item in removed:
+            rec = self.attempt_recovery(item["item_id"])
+            results["recovery_attempts"].append({
+                "component": item["component"],
+                "recovered": rec.get("recovered", False),
+                "steps":     rec.get("steps", []),
+            })
+            if rec.get("recovered"):
+                results["recovered"] += 1
+            elif rec.get("next_action"):
+                results["partial"] += 1
+            else:
+                results["failed"] += 1
+
+        results["summary"] = (
+            f"Approved {results['approved_errors']} errors. "
+            f"Recovery: {results['recovered']} ok, "
+            f"{results['partial']} partial, "
+            f"{results['failed']} failed of {len(removed)} items.")
+        return results
+
+    def safe_dispatch(self, name: str, fn: Callable, *args, **kwargs) -> Any:
+        """Wraps a tool dispatch call; catches errors and logs them so the system keeps running."""
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            self.log_error(name, e, context=f"dispatch args={args!s:.100}")
+            return {"error": str(e), "component": name,
+                    "status": "error_logged", "system_continues": True}
+
+    def summary(self) -> Dict:
+        errors   = self.get_errors(include_approved=True, limit=500)
+        removed  = self.get_removed(limit=500)
+        return {
+            "total_errors":    len(errors),
+            "unapproved":      sum(1 for e in errors if not e["approved"]),
+            "total_removed":   len(removed),
+            "unrecovered":     sum(1 for r in removed if not r["recovered"]),
+            "recovered":       sum(1 for r in removed if r["recovered"]),
+        }
+
+
+_resilience: Optional[ResilienceEngine] = None
+def get_resilience() -> ResilienceEngine:
+    global _resilience
+    if _resilience is None:
+        _resilience = ResilienceEngine()
+    return _resilience
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # WATCHDOG TOOLS + DISPATCHER
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1534,6 +1905,63 @@ WATCHDOG_TOOLS = [
             "required": [],
         },
     },
+    # ── Resilience engine tools ───────────────────────────────────────────────
+    {
+        "name": "watchdog_resilience_summary",
+        "description": "Summary of all logged errors and removed/blocked items.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "watchdog_resilience_errors",
+        "description": "List errors logged by the resilience engine (unapproved by default).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "include_approved": {"type": "boolean"},
+                "limit":            {"type": "integer"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "watchdog_resilience_approve",
+        "description": "Approve an error (or all errors for a component) so it no longer blocks the system.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "error_id":  {"type": "string", "description": "Specific error ID to approve"},
+                "component": {"type": "string", "description": "Approve ALL errors for this component"},
+                "note":      {"type": "string"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "watchdog_resilience_log_removed",
+        "description": "Record a removed or blocked component so the recovery algorithm can track and re-implement it.",
+        "input_schema": {
+            "type": "object",
+            "required": ["component", "reason"],
+            "properties": {
+                "component":   {"type": "string"},
+                "reason":      {"type": "string"},
+                "code_snippet":{"type": "string"},
+                "alternative": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "watchdog_resilience_recover",
+        "description": "Run the recovery algorithm on all unrecovered removed items (reimport → pyc clear → LLM fix → alternative).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "auto_approve": {"type": "boolean",
+                                 "description": "Also approve all pending errors (default true)"},
+            },
+            "required": [],
+        },
+    },
 ]
 
 
@@ -1704,6 +2132,37 @@ def dispatch_watchdog_tool(name: str, inputs: Dict,
         actions = wd.repair.get_actions()
         limit   = inputs.get("limit", 50)
         return [asdict(a) for a in actions[-limit:]]
+
+    # ── Resilience engine ─────────────────────────────────────────────────────
+    elif name == "watchdog_resilience_summary":
+        return get_resilience().summary()
+
+    elif name == "watchdog_resilience_errors":
+        return get_resilience().get_errors(
+            include_approved=inputs.get("include_approved", False),
+            limit=inputs.get("limit", 100))
+
+    elif name == "watchdog_resilience_approve":
+        r = get_resilience()
+        if inputs.get("error_id"):
+            ok = r.approve_error(inputs["error_id"], inputs.get("note", ""))
+            return {"approved": ok, "error_id": inputs["error_id"]}
+        elif inputs.get("component"):
+            count = r.approve_all_errors(inputs["component"])
+            return {"approved_count": count, "component": inputs["component"]}
+        else:
+            count = r.approve_all_errors()
+            return {"approved_count": count, "scope": "all"}
+
+    elif name == "watchdog_resilience_log_removed":
+        item = get_resilience().log_removed(
+            inputs["component"], inputs["reason"],
+            inputs.get("code_snippet", ""), inputs.get("alternative", ""))
+        return asdict(item)
+
+    elif name == "watchdog_resilience_recover":
+        return get_resilience().recovery_algorithm(
+            auto_approve=inputs.get("auto_approve", True))
 
     else:
         return {"error": f"Unknown watchdog tool: {name}"}
