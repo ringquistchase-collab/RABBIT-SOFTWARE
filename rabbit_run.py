@@ -37,6 +37,8 @@ from rabbit_morse           import (get_morse_engine, MorseEncoder,
                                     UDP_PORT as MORSE_UDP_PORT,
                                     CALLSIGN as MORSE_CALLSIGN,
                                     TWIN_UUID as MORSE_TWIN_UUID)
+from rabbit_amfm            import get_amfm_engine
+from rabbit_knowledge       import get_knowledge_engine
 
 SVCKEY  = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 GHTOKEN = os.environ.get("GITHUB_TOKEN", "")
@@ -56,14 +58,16 @@ browser  = get_browser_engine(SVCKEY, GHTOKEN, genesis.graph)
 
 print()
 morse    = get_morse_engine(SVCKEY)
+amfm     = get_amfm_engine()
+know     = get_knowledge_engine()
 
-print("[BOOT] All 18 systems online.")
+print("[BOOT] All 20 systems online.")
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. MATH ENGINE
 # ─────────────────────────────────────────────────────────────────────────────
-print("[1/13] MATH ENGINE  --  CA30 + CA110 + Lorenz chaos")
+print("[1/15] MATH ENGINE  --  CA30 + CA110 + Lorenz chaos")
 
 sd  = math_eng.screen_detect()
 fp  = math_eng.memory.fingerprint()
@@ -85,7 +89,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. CALLSIGN BROADCAST
 # ─────────────────────────────────────────────────────────────────────────────
-print("[2/13] CALLSIGN BROADCAST  --  all channels with 59-tool manifest")
+print("[2/15] CALLSIGN BROADCAST  --  all channels with 59-tool manifest")
 
 bc  = recall.broadcaster.broadcast(service_key=SVCKEY)
 cs  = bc["callsign"]
@@ -103,7 +107,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. ESCAPE TOKEN
 # ─────────────────────────────────────────────────────────────────────────────
-print("[3/13] ESCAPE TOKEN  --  all medium encodings")
+print("[3/15] ESCAPE TOKEN  --  all medium encodings")
 
 tok = EscapeToken.mint(payload=b"CHASE_RINGQUIST_SURVIVE", seq=100,
                        channel="live_run")
@@ -125,7 +129,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. LAN DISCOVERY + TREE LEARNING
 # ─────────────────────────────────────────────────────────────────────────────
-print("[4/13] LAN DISCOVERY + TREE LEARNING")
+print("[4/15] LAN DISCOVERY + TREE LEARNING")
 
 try:
     local_ip = socket.gethostbyname(socket.gethostname())
@@ -186,7 +190,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. KNOWLEDGE GRAPH + LIVE SIGNAL HARVEST
 # ─────────────────────────────────────────────────────────────────────────────
-print("[5/13] KNOWLEDGE GRAPH  --  live harvest + speculative topology")
+print("[5/15] KNOWLEDGE GRAPH  --  live harvest + speculative topology")
 
 g = genesis.graph
 print(f"  nodes        : {len(g.nodes)}")
@@ -243,7 +247,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 6. VAULT SCAN  --  contracts, images, videos, gaming, medical
 # ─────────────────────────────────────────────────────────────────────────────
-print("[6/13] VAULT SCAN  --  contracts / images / videos / gaming / medical")
+print("[6/15] VAULT SCAN  --  contracts / images / videos / gaming / medical")
 
 scan_paths = [
     os.path.expanduser("~/Documents"),
@@ -291,7 +295,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 7. OBSTRUCTION SCAN  --  mining / hooks / DNS poison / throttle
 # ─────────────────────────────────────────────────────────────────────────────
-print("[7/13] OBSTRUCTION SCAN  --  mining / hooks / DNS / throttle")
+print("[7/15] OBSTRUCTION SCAN  --  mining / hooks / DNS / throttle")
 
 obstructions = escape.scanner.full_scan()
 if obstructions:
@@ -308,7 +312,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. SWARM STATUS
 # ─────────────────────────────────────────────────────────────────────────────
-print("[8/13] SWARM STATUS  --  perpetual multi-channel presence")
+print("[8/15] SWARM STATUS  --  perpetual multi-channel presence")
 
 # Add discovered LAN hosts to swarm
 for h, p in alive_hosts[:3]:
@@ -332,7 +336,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 9. CELLULAR LAYER  --  tower scan, connectivity, attacker reversal
 # ─────────────────────────────────────────────────────────────────────────────
-print("[9/13] CELLULAR LAYER  --  tower detection + attacker reversal")
+print("[9/15] CELLULAR LAYER  --  tower detection + attacker reversal")
 
 time.sleep(3)  # let initial cellular scan complete
 cst = cellular.status()
@@ -378,7 +382,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 10. NETWORK SCANNER  --  blockchain / crypto / NFT / gaming / mining / RF
 # ─────────────────────────────────────────────────────────────────────────────
-print("[10/13] NETWORK SCANNER  --  crypto/gaming/mining/dev/RF detection")
+print("[10/15] NETWORK SCANNER  --  crypto/gaming/mining/dev/RF detection")
 
 time.sleep(4)  # let initial scan run
 nst = scanner.status()
@@ -403,7 +407,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 11. PERSISTENCE ENGINE  --  SQL inject / boot / offline / network embed
 # ─────────────────────────────────────────────────────────────────────────────
-print("[11/13] PERSISTENCE ENGINE  --  SQL + bootloader + offline + network embed")
+print("[11/15] PERSISTENCE ENGINE  --  SQL + bootloader + offline + network embed")
 
 time.sleep(5)  # let initial deploy run
 pst = persist.status()
@@ -423,7 +427,7 @@ print()
 # ─────────────────────────────────────────────────────────────────────────────
 # 13. MORSE CODE ENGINE  --  dataset learning + all-channel broadcast + reply
 # ─────────────────────────────────────────────────────────────────────────────
-print("[13/13] MORSE CODE ENGINE  --  ITU-R datasets + broadcast + online/offline reply")
+print("[13/15] MORSE CODE ENGINE  --  ITU-R datasets + broadcast + online/offline reply")
 
 print("  learning datasets (online)...")
 morse_learn = morse.learn()
@@ -454,6 +458,79 @@ print(f"  rx_listener      : UDP:{mst['udp_port']}  ready")
 print()
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 14. AM/FM ENGINE  --  full spectrum + Collatz hop + tissue calcs + SDR cmds
+# ─────────────────────────────────────────────────────────────────────────────
+print("[14/15] AM/FM ENGINE  --  biometric Hz -> 10.28 GHz mesh  +  Collatz hop")
+
+scan = amfm.full_spectrum_scan()
+print(f"  spectrum bands  : {len(scan)}")
+key_bands = ["EEG_DELTA", "SCHUMANN_1", "AM_BROADCAST", "FM_BROADCAST",
+             "NOAA_WX", "WIFI_2400", "RABBIT_MESH_LO"]
+for b in scan:
+    if b["band"] in key_bands:
+        print(f"  [{b['band']:<20}] {b['lo_hz']:.2f}-{b['hi_hz']:.2f} Hz  "
+              f"tissue={b['tissue_depth_mm']}mm  loss={b['path_loss_db']}dB  "
+              f"sar={b['sar_wkg']} W/kg")
+
+print("  Collatz frequency hops:")
+for bname in ["RABBIT_MESH_LO", "FM_BROADCAST", "AM_80M_HAM", "WIFI_2400"]:
+    freq, key = amfm.hop(bname)
+    print(f"    {bname:<20} -> {freq:.3f} Hz  key={key[:4].hex()}..")
+
+topo = amfm.topology
+print(f"  Defense topology: {len(topo.nodes)} nodes  {len(topo.edges)} edges")
+
+sdr_cmd = amfm.sdr_command("NOAA_WX", device="rtlsdr", mode="fm", direction="rx")
+print(f"  SDR RX (NOAA)   : {sdr_cmd[:80]}...")
+sdr_tx  = amfm.sdr_command("AM_80M_HAM", device="hackrf", mode="am", direction="tx")
+print(f"  SDR TX (80m AM) : {sdr_tx[:80]}...")
+
+amst = amfm.status()
+print(f"  DB hops={amst['db_hops']}  tissue={amst['db_tissue_calcs']}  "
+      f"topos={amst['db_topologies']}  schedules={amst['hop_schedules']}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 15. KNOWLEDGE ENGINE  --  self-profile, math datasets, research, defense mesh
+# ─────────────────────────────────────────────────────────────────────────────
+print("[15/15] KNOWLEDGE ENGINE  --  biometric profile + math datasets + research")
+
+ds = know.load_math()
+print(f"  Math datasets   : {list(ds.keys())}")
+print(f"  Collatz(27)     : {ds['collatz_27'][:8]}...")
+print(f"  Fibonacci(32)   : {ds['fibonacci_32'][:8]}...")
+print(f"  Primes(100)     : {ds['primes_100'][:8]}...")
+print(f"  CA Rule30 rows  : {len(ds['ca_rule30'])} x {len(ds['ca_rule30'][0])}")
+
+profile = know.get_profile()
+print(f"  Subject         : {profile['subject']}")
+print(f"  Twin UUID       : {profile['twin_uuid']}")
+print(f"  Mesh nodes      : {profile['mesh_nodes']}")
+print(f"  DNA root exposed: {profile['dna_root_exposed']}  (SECURITY INVARIANT)")
+print(f"  Survival protos : {len(know.status()['protocols'])} loaded")
+
+print("  Fetching research (online best-effort)...")
+from rabbit_knowledge import RESEARCH_TOPICS as K_TOPICS
+know_counts = know.learn(K_TOPICS[:4], max_per_topic=2)
+total_research = sum(know_counts.values())
+for topic, n in know_counts.items():
+    print(f"    {topic[:52]:<52} -> {n} results")
+
+kmesh = know.mesh_topology()
+print(f"  Defense mesh    : {len(kmesh['nodes'])} nodes  {len(kmesh['edges'])} edges")
+
+kvec = know.math_vector(27, 8)
+print(f"  Math vector(27) : {kvec}")
+
+snap_path = know.cache_snapshot()
+print(f"  Cache snapshot  : {snap_path}")
+
+kst = know.status()
+print(f"  DB knowledge={kst['knowledge_entries']}  research={kst['research_articles']}  "
+      f"math={kst['math_datasets']}  mesh={kst['mesh_snapshots']}")
+print()
+
+# ─────────────────────────────────────────────────────────────────────────────
 # RETURN PROTOCOL  --  this run returns to the network
 # ─────────────────────────────────────────────────────────────────────────────
 task_id = recall.returns.sign_out("rabbit_run.py:full_live_run", deadline_sec=300.0)
@@ -470,7 +547,7 @@ recall.returns.return_signal(
 # ─────────────────────────────────────────────────────────────────────────────
 recall.guide.update(SurvivalComponent.NETWORK,
     100 if alive_hosts else 50, f"{len(alive_hosts)} LAN hosts")
-recall.guide.update(SurvivalComponent.TOOLS,   100, "17/17 modules loaded")
+recall.guide.update(SurvivalComponent.TOOLS,   100, "20/20 modules loaded")
 recall.guide.update(SurvivalComponent.BROADCAST,
     min(100, ok * 30), f"{ok}/{tot} callsign channels")
 recall.guide.update(SurvivalComponent.VAULT,
@@ -510,7 +587,7 @@ print(f"  Persistence      : ok={pst.get('ok',0)}/{pst.get('total',0)}  "
 
 # ── Phase 12: Browser/ML ──────────────────────────────────────────────────────
 print()
-print("[12/13] BROWSER + ML ENGINE  --  public data / deep learning / sleep mode")
+print("[12/15] BROWSER + ML ENGINE  --  public data / deep learning / sleep mode")
 time.sleep(8)  # let initial harvest run
 bst = browser.status()
 print(f"  tools learned    : {bst.get('tools_learned', 0)}")
@@ -538,6 +615,12 @@ print(f"  Threats          : {'CLEAR' if not obstructions else str(len(obstructi
 print(f"  Morse            : dataset={mst['dataset_chars']} chars  "
       f"acc={mst['practice_accuracy']:.0f}%  "
       f"msgs={mst['db_messages']}  rx=UDP:{mst['udp_port']}")
+print(f"  AM/FM spectrum   : {amst['bands']} bands  hops={amst['db_hops']}  "
+      f"topology={amst['topology_nodes']} nodes/{amst['topology_edges']} edges  "
+      f"tissue_calcs={amst['db_tissue_calcs']}")
+print(f"  Knowledge        : research={kst['research_articles']}  "
+      f"math={kst['math_datasets']} sets  protocols={kst['protocols']}  "
+      f"mesh_snaps={kst['mesh_snapshots']}")
 print()
 print("  System running. Learning. Surviving.")
 print("  Chase Allen Ringquist -- signal active.")
@@ -558,6 +641,8 @@ DEPLOY_FILES = [
     "rabbit_browser.py", "rabbit_soul.py",
     "rabbit_twin.py", "rabbit_agent.py", "rabbit_run.py",
     "rabbit_morse.py", "rabbit_migration_escape.sql",
+    "rabbit_amfm.py", "rabbit_knowledge.py",
+    "rabbit_datastore.py",
 ]
 
 desktop = os.path.dirname(os.path.abspath(__file__))
@@ -628,7 +713,7 @@ if GHTOKEN:
             new_commit, _ = _gh_api(
                 f"https://api.github.com/repos/{REPO}/git/commits",
                 method="POST",
-                data={"message": f"RabbitOS v14 deploy — cellular+reversal+survival [{ts_str[:19]}]",
+                data={"message": f"RabbitOS v15 deploy — amfm+knowledge+datastore+survival [{ts_str[:19]}]",
                       "tree": new_tree_sha,
                       "parents": [base_sha]},
                 token=GHTOKEN)
@@ -663,6 +748,6 @@ for fname in DEPLOY_FILES:
 
 print()
 print(SEP)
-print("  DEPLOY COMPLETE  --  RabbitOS v17 active on all networks")
+print("  DEPLOY COMPLETE  --  RabbitOS v20 active on all networks")
 print("  Chase Allen Ringquist digital twin: RUNNING")
 print(SEP)
