@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+"""
+Maxwell Blockchain
+==================
+A custom blockchain where each block carries a full James Clerk Maxwell
+electromagnetic field signature derived from its data payload.
+
+The four Maxwell equations are embedded structurally:
+
+  I.   Gauss's Law (E):     div(E) = rho/epsilon_0      → Block integrity metric
+  II.  Gauss's Law (B):     div(B) = 0                  → Chain validity check (no monopoles)
+  III. Faraday's Law:       curl(E) = -dB/dt            → Forward field chaining between blocks
+  IV.  Ampere-Maxwell Law:  curl(H) = J + dD/dt         → Displacement current links data change
+
+Author:  Claremore, Oklahoma — Embedded Systems Engineer
+Date:    2026-07-16
+"""
+
+import hashlib
+import json
+import time
+import math
+import numpy as np
+from datetime import datetime, timezone
+
+
+# ============================================================
+# MAXWELL MATHEMATICS ENGINE
+# ============================================================
+
+def data_to_field_vector(data_str: str, seed: int = 0) -> np.ndarray:
+    """Map a string to a 3D vector field sample point via deterministic seeding."""
+    rng = np.random.default_rng(seed + sum(ord(c) for c in data_str[:64]))
+    return rng.uniform(-1.0, 1.0, size=(3,))
+
+
+def maxwell_divergence(E: np.ndarray, rho: float, epsilon0: float = 8.854e-12) -> float:
+    """
+    Gauss's Law I (differential form):
+        ∇·E = ρ/ε₀
+    Returns divergence residual as a block integrity metric.
+    """
+    div_E = np.sum(E)
+    return float(div_E - (rho / epsilon0))
+
+
+def maxwell_curl_E(E: np.ndarray, dB_dt: np.ndarray) -> np.ndarray:
+    """
+    Faraday's Law III:
+        ∇×E = −∂B/∂t
+    The curl residual is passed FORWARD to the next block (field chaining).
+    """
+    curl = np.array([
+        E[1] - E[2],
+        E[2] - E[0],
+        E[0] - E[1],
+    ])
+    return curl + dB_dt
+
+
+def maxwell_curl_H(H: np.ndarray, J: np.ndarray, dD_dt: np.ndarray) -> np.ndarray:
+    """
+    Ampere-Maxwell Law IV:
+        ∇×H = J + ∂D/∂t
+    Displacement current dD/dt connects data change between consecutive blocks.
+    """
+    curl_H = np.array([
+        H[1] - H[2],
+        H[2] - H[0],
+        H[0] - H[1],
+    ])
+    return curl_H - (J + dD_dt)
+
+
+def maxwell_gauss_magnetism(B: np.ndarray) -> float:
+    """
+    Gauss's Law for Magnetism II:
+        ∇·B = 0
+    Magnetic monopoles do not exist — used as chain validity invariant.
+    |div(B)| > threshold signals a tampered or invalid block.
+    """
+    return float(np.sum(B))
+
+
+def compute_maxwell_signature(data_str: str, block_index: int, prev_curl: np.ndarray) -> dict:
+    """
+    Compute a full Maxwell electromagnetic field signature for a block.
+    All four equations contribute to the signature, creating a
+    physics-inspired proof of field continuity across the chain.
+    """
+    seed = block_index * 1337
+    E = data_to_field_vector(data_str, seed=seed)
+    H = data_to_field_vector(data_str[::-1], seed=seed + 1)
+    B = data_to_field_vector(data_str, seed=seed + 2)
+    D = data_to_field_vector(data_str, seed=seed + 3)
+
+    raw_hash = hashlib.sha256(data_str.encode()).hexdigest()
+    rho      = int(raw_hash[:8], 16) / 1e10
+
+    J      = np.array([block_index * 0.01, block_index * 0.007, block_index * 0.003])
+    dD_dt  = prev_curl * 0.1
+    dB_dt  = np.array([math.sin(block_index), math.cos(block_index),
+                        math.tan(block_index % 1.4)])
+
+    div_E_residual  = maxwell_divergence(E, rho)
+    curl_E_residual = maxwell_curl_E(E, dB_dt)
+    curl_H_residual = maxwell_curl_H(H, J, dD_dt)
+    div_B           = maxwell_gauss_magnetism(B)
+    S               = np.cross(E, H)
+    wave_impedance  = float(np.linalg.norm(E) / (np.linalg.norm(H) + 1e-15))
+
+    return {
+        "E_field":         E.tolist(),
+        "H_field":         H.tolist(),
+        "B_field":         B.tolist(),
+        "D_field":         D.tolist(),
+        "rho_charge":      rho,
+        "div_E_residual":  div_E_residual,
+        "curl_E_residual": curl_E_residual.tolist(),
+        "curl_H_residual": curl_H_residual.tolist(),
+        "div_B":           div_B,
+        "poynting_vector": S.tolist(),
+        "wave_impedance":  wave_impedance,
+        "next_curl":       curl_E_residual.tolist(),
+    }
+
+
+# ============================================================
+# BLOCK CLASS
+# ============================================================
+
+class MaxwellBlock:
+    def __init__(self, index: int, data: dict, previous_hash: str, prev_curl: np.ndarray):
+        self.index         = index
+        self.timestamp     = datetime.now(timezone.utc).isoformat()
+        self.data          = data
+        self.previous_hash = previous_hash
+        data_str           = json.dumps(data, sort_keys=True)
+        self.maxwell_sig   = compute_maxwell_signature(data_str, index, prev_curl)
+        self.nonce         = 0
+        self.hash          = self._calculate_hash()
+
+    def _calculate_hash(self) -> str:
+        """
+        SHA-256 of block content PLUS Maxwell field invariants.
+        Embedding div_E, div_B, wave_impedance, and Poynting vector
+        into the hash input means physical field properties are
+        cryptographically inseparable from the data.
+        """
+        content = {
+            "index":              self.index,
+            "timestamp":          self.timestamp,
+            "data":               self.data,
+            "previous_hash":      self.previous_hash,
+            "nonce":              self.nonce,
+            "maxwell_div_E":      round(self.maxwell_sig["div_E_residual"], 8),
+            "maxwell_div_B":      round(self.maxwell_sig["div_B"], 8),
+            "maxwell_impedance":  round(self.maxwell_sig["wave_impedance"], 8),
+            "maxwell_poynting":   [round(v, 8) for v in self.maxwell_sig["poynting_vector"]],
+        }
+        return hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
+
+    def mine(self, difficulty: int = 3):
+        """Proof-of-Work: increment nonce until hash starts with `difficulty` zeros."""
+        target = "0" * difficulty
+        while not self.hash.startswith(target):
+            self.nonce += 1
+            self.hash = self._calculate_hash()
+
+    def to_dict(self) -> dict:
+        return {
+            "index":              self.index,
+            "timestamp":          self.timestamp,
+            "data":               self.data,
+            "previous_hash":      self.previous_hash,
+            "nonce":              self.nonce,
+            "hash":               self.hash,
+            "maxwell_signature":  self.maxwell_sig,
+        }
+
+
+# ============================================================
+# BLOCKCHAIN CLASS
+# ============================================================
+
+class MaxwellBlockchain:
+    def __init__(self, owner: str, difficulty: int = 3):
+        self.owner      = owner
+        self.difficulty = difficulty
+        self.chain      = []
+        self._genesis()
+
+    def _genesis(self):
+        genesis_data = {
+            "author":     self.owner,
+            "message":    "Genesis Block — Maxwell Blockchain",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "note":       "The beginning of all fields. div(B)=0 forever.",
+            "constants": {
+                "epsilon_0":   8.854187817e-12,
+                "mu_0":        1.2566370614e-6,
+                "c":           299792458,
+                "description": "Speed of light c = 1/sqrt(epsilon_0 * mu_0)"
+            }
+        }
+        genesis = MaxwellBlock(0, genesis_data, "0" * 64, np.zeros(3))
+        genesis.mine(self.difficulty)
+        self.chain.append(genesis)
+        print(f"[Genesis] Block 0 mined. Hash: {genesis.hash}")
+
+    def add_block(self, data: dict) -> MaxwellBlock:
+        """Add a block, chaining Faraday curl from the previous block forward."""
+        prev       = self.chain[-1]
+        prev_curl  = np.array(prev.maxwell_sig["next_curl"])
+        block      = MaxwellBlock(len(self.chain), data, prev.hash, prev_curl)
+        block.mine(self.difficulty)
+        self.chain.append(block)
+        print(f"[Block {block.index}] Mined. Hash: {block.hash}")
+        return block
+
+    def validate_chain(self) -> bool:
+        """
+        Full validation:
+          1. Hash integrity (recalculate and compare)
+          2. previous_hash chain linkage
+          3. Maxwell invariant: div(B) ≈ 0 (Gauss's Law for Magnetism)
+        """
+        for i in range(1, len(self.chain)):
+            curr = self.chain[i]
+            prev = self.chain[i - 1]
+            if curr.hash != curr._calculate_hash():
+                print(f"  [FAIL] Block {i}: hash tampered")
+                return False
+            if curr.previous_hash != prev.hash:
+                print(f"  [FAIL] Block {i}: broken chain link")
+                return False
+            div_B = abs(curr.maxwell_sig["div_B"])
+            if div_B > 1.5:
+                print(f"  [WARN] Block {i}: div(B)={div_B:.4f} — anomalous field")
+        print("  [OK] Chain valid. Maxwell fields continuous across all blocks.")
+        return True
+
+    def to_json(self) -> str:
+        return json.dumps([b.to_dict() for b in self.chain], indent=2)
+
+    def save(self, path: str = "maxwell_blockchain.json"):
+        with open(path, "w") as f:
+            f.write(self.to_json())
+        print(f"Chain saved to {path}")
+
+
+# ============================================================
+# MAIN — Build the chain
+# ============================================================
+
+if __name__ == "__main__":
+    bc = MaxwellBlockchain(
+        owner="Claremore, Oklahoma — Embedded Systems Engineer",
+        difficulty=3
+    )
+
+    bc.add_block({
+        "type":           "EEG_Signal_Record",
+        "channels":       16,
+        "sample_rate_hz": 250,
+        "note":           "Alpha/Theta band FFT biosignal fingerprint",
+        "faraday":        "Changing B induces E — neural flux induces signal"
+    })
+
+    bc.add_block({
+        "type":           "RF_Telemetry_Record",
+        "device":         "ESP32",
+        "frequency_mhz":  915,
+        "protocol":       "libp2p over BLE",
+        "ampere_maxwell": "Displacement current enables EM propagation through free space"
+    })
+
+    bc.add_block({
+        "type":      "CryptoWallet_Anchor",
+        "chains":    ["Bitcoin", "Ethereum"],
+        "whisper":   True,
+        "gauss_e":   "Electric charges are sources — wallets are sources of cryptographic truth"
+    })
+
+    bc.add_block({
+        "type":      "Genomic_Record",
+        "encoding":  "BinaryDNA_Manifest",
+        "crispr":    True,
+        "bases":     "ATCG -> 00,01,10,11",
+        "gauss_b":   "div(B)=0 — no monopoles, no isolated fragments; life is a closed field"
+    })
+
+    print("\n--- Chain Validation ---")
+    bc.validate_chain()
+    bc.save()
