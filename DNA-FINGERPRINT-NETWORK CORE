@@ -1,0 +1,202 @@
+# genesis_network.py
+from fastapi import FastAPI, WebSocket, Depends
+import asyncio
+import hashlib
+import json
+import sqlite3
+import time
+import numpy as np
+from typing import Dict, List, Tuple
+from dataclasses import dataclass
+import subprocess
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization, hashes
+import network_fingerprint
+
+app = FastAPI(title="MedicalBlockNet GENESIS")
+db = sqlite3.connect("genesis_dna.db", check_same_thread=False)
+BITCOIN_CLI = r'"C:\Program Files\Bitcoin\daemon\bitcoin-cli.exe"'
+
+@dataclass
+class DNABlock:
+    fingerprint: str          # Unique 256-bit DNA hash
+    owner_dna_id: str         # Person's unique DNA identifier
+    consumer_data_hash: str   # SATs + consumer data
+    network_metrics: Dict     # Latency/ping/handshake
+    sat_certificate: str      # Ordinals/BRC20 cert
+    timestamp: int
+    prev_hash: str = "0" * 64
+    signature: str = ""
+
+class GenesisNetwork:
+    def __init__(self):
+        self.dna_chain: List[DNABlock] = []
+        self.active_connections: Dict[str, Dict] = {}
+        self.dna_fingerprints: Dict[str, float] = {}  # dna_id -> confidence
+        self.init_genesis_db()
+    
+    def init_genesis_db(self):
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS dna_blocks (
+                fingerprint TEXT PRIMARY KEY,
+                dna_id TEXT UNIQUE,
+                consumer_hash TEXT,
+                network_metrics TEXT,
+                sat_cert TEXT,
+                timestamp INTEGER,
+                prev_hash TEXT,
+                signature TEXT,
+                confidence REAL DEFAULT 0.0
+            )
+        """)
+        db.commit()
+    
+    def generate_dna_fingerprint(self, connection_data: Dict) -> str:
+        """Create UNIQUE DNA fingerprint from network behavior"""
+        metrics = [
+            connection_data["handshake_time"],
+            connection_data["avg_ping"],
+            connection_data["latency_variance"],
+            connection_data["packet_loss"],
+            connection_data["tcp_window_size"],
+            connection_data["mtu"],
+            connection_data["ttl"]
+        ]
+        
+        # Consumer data fingerprint
+        consumer_fp = hashlib.sha256(
+            f"{connection_data['user_agent']}{connection_data['sat_balance']}{connection_data['consumer_id']}".encode()
+        ).digest()
+        
+        # Network behavior fingerprint (builds over time)
+        network_vec = np.array(metrics, dtype=np.float32)
+        behavior_hash = hashlib.sha256(network_vec.tobytes()).hexdigest()
+        
+        # SAT certificate fingerprint
+        sat_fp = hashlib.sha256(connection_data["sat_certificate"].encode()).digest()
+        
+        # FINAL DNA (immutable + evolves)
+        dna_bytes = consumer_fp + sat_fp + behavior_hash.encode()
+        return hashlib.sha256(dna_bytes).hexdigest()
+    
+    async def network_handshake(self, websocket: WebSocket, consumer_data: Dict) -> Dict:
+        """Multi-stage DNA handshake"""
+        start_time = time.time()
+        
+        # Stage 1: Ping/Latency measurement
+        pings = []
+        for _ in range(5):
+            ping_start = time.time()
+            await websocket.send_json({"type": "ping", "id": secrets.token_hex(8)})
+            await asyncio.sleep(0.1)
+            pings.append((time.time() - ping_start) * 1000)
+        
+        avg_ping = np.mean(pings)
+        latency_var = np.var(pings)
+        
+        # Stage 2: TCP metrics extraction
+        tcp_metrics = await network_fingerprint.extract_tcp_fingerprint()
+        
+        # Stage 3: SAT certificate verification
+        sat_valid = await self.verify_sat_certificate(consumer_data["sat_certificate"])
+        
+        handshake_time = time.time() - start_time
+        
+        fingerprint_data = {
+            "handshake_time": handshake_time,
+            "avg_ping": avg_ping,
+            "latency_variance": latency_var,
+            "packet_loss": 0.0,
+            **tcp_metrics,
+            "sat_certificate": consumer_data["sat_certificate"],
+            "sat_valid": sat_valid,
+            "consumer_id": consumer_data["consumer_id"],
+            "user_agent": consumer_data.get("user_agent", ""),
+            "sat_balance": consumer_data.get("sat_balance", 0)
+        }
+        
+        # Generate DNA fingerprint
+        dna_fp = self.generate_dna_fingerprint(fingerprint_data)
+        
+        return {"fingerprint": dna_fp, "metrics": fingerprint_data}
+    
+    async def verify_sat_certificate(self, sat_cert: str) -> bool:
+        """Verify Ordinals/BRC20 SAT certificate"""
+        try:
+            # Query Bitcoin for inscription
+            txid = sat_cert.split(":")[0]
+            output = subprocess.check_output([BITCOIN_CLI, "getrawtransaction", txid, "1"]).decode()
+            return "ORD" in output or "BRC20" in output
+        except:
+            return False
+
+genesis_net = GenesisNetwork()
+
+# === DNA FINGERPRINT API ===
+@app.websocket("/ws/dna-handshake")
+async def dna_handshake(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        consumer_data = await websocket.receive_json()
+        
+        # Perform DNA handshake
+        fp_data = await genesis_net.network_handshake(websocket, consumer_data)
+        dna_id = fp_data["fingerprint"]
+        
+        # Store DNA block
+        dna_block = DNABlock(
+            fingerprint=dna_id,
+            owner_dna_id=consumer_data["consumer_id"],
+            consumer_data_hash=hashlib.sha256(json.dumps(consumer_data).encode()).hexdigest(),
+            network_metrics=fp_data["metrics"],
+            sat_certificate=consumer_data["sat_certificate"],
+            timestamp=int(time.time())
+        )
+        
+        # Add to chain + DB
+        genesis_net.dna_chain.append(dna_block)
+        db.execute("""
+            INSERT OR REPLACE INTO dna_blocks 
+            (fingerprint, dna_id, consumer_hash, network_metrics, sat_cert, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (dna_block.fingerprint, dna_block.owner_dna_id, 
+              dna_block.consumer_data_hash, json.dumps(dna_block.network_metrics),
+              dna_block.sat_certificate, dna_block.timestamp))
+        db.commit()
+        
+        await websocket.send_json({
+            "type": "dna_verified",
+            "fingerprint": dna_id,
+            "confidence": genesis_net.update_dna_confidence(dna_id)
+        })
+        
+        # Keep connection alive for continuous fingerprinting
+        genesis_net.active_connections[dna_id] = {"ws": websocket, "last_seen": time.time()}
+        
+    except Exception as e:
+        await websocket.send_json({"error": str(e)})
+
+def update_dna_confidence(self, dna_id: str) -> float:
+    """Confidence builds over time + consistent behavior"""
+    sessions = len([c for c in self.active_connections.values() if c.get("dna_id") == dna_id])
+    return min(1.0, sessions * 0.1 + 0.1)  # Max 1.0 confidence
+
+@app.get("/dna/{fingerprint}")
+async def get_dna_profile(fingerprint: str):
+    """Get DNA profile + confidence"""
+    row = db.execute("SELECT * FROM dna_blocks WHERE fingerprint=?", (fingerprint,)).fetchone()
+    if row:
+        profile = dict(zip([c[0] for c in db.description], row))
+        profile["confidence"] = genesis_net.dna_fingerprints.get(fingerprint, 0.0)
+        return profile
+    return {"error": "DNA not found"}
+
+@app.get("/network-health")
+async def network_health():
+    """Network latency/ping dashboard"""
+    health = {
+        "active_dnas": len(genesis_net.active_connections),
+        "avg_ping": np.mean([c["metrics"]["avg_ping"] for c in genesis_net.active_connections.values()]),
+        "confidence_avg": np.mean(list(genesis_net.dna_fingerprints.values()))
+    }
+    return health
