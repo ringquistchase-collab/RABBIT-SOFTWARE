@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+echo "Starting RABBIT-SOFTWARE setup..."
+
+# Update system
+pkg update -y && pkg upgrade -y
+
+# Install required packages for RABBIT-SOFTWARE
+echo "Installing system dependencies..."
+pkg install -y git python nodejs termux-tools
+
+# Install Python packages
+echo "Installing Python packages..."
+pip install --upgrade pip
+pip install fastapi uvicorn pandas numpy cryptography flask discord.py
+
+# Create workspace directory
+mkdir -p ~/rabbit-system/{repos,scan_results,logs,config,ml_data,llm_data,sanitized_data,static,templates}
+
+echo "RABBIT-SOFTWARE dependencies installed successfully!"
+echo "Use 'python3 rabbit_system.py' to run the system"
