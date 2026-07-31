@@ -1,0 +1,19 @@
+# 1. Install
+pip install fastapi uvicorn cryptography requests
+
+# 2. Initialize shards (pre-flatline)
+python -c "
+from resurrection_engine import ResurrectionEngine, ResurrectionShard
+r = ResurrectionEngine()
+# Shard your API code
+with open('medical_blocknet_secure.py','rb') as f:
+    data = f.read()
+r.shards['shard1'] = ResurrectionShard('shard1', r.compute_current_state_hash(), 'owner1', data[:len(data)//3], 0.01, 'active')
+"
+
+# 3. Start protected network
+python medical_blocknet_secure.py
+
+# 4. Test flatline recovery
+# rm medical_blocknet_secure.py  # Simulate theft
+# python ResurrectionClient.ps1   # Auto-rebuilds!
