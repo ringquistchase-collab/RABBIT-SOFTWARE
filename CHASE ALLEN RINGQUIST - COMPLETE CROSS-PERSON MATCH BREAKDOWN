@@ -755,11 +755,3 @@ class DetailedMatchDatabase:
             date=
 
 
-Show quoted text
-Error Icon
-Address not found
-Your message wasn't delivered to alex@infowaresstore.com because the domain infowaresstore.com couldn't be found. Check for typos or unnecessary spaces and try again.
-LEARN MORE
-The response was:
-DNS Error: DNS type 'mx' lookup of infowaresstore.com responded with code NXDOMAIN Domain name not found: infowaresstore.com For more information, go to https://support.google.com/mail/?p=BadRcptDomain
-
