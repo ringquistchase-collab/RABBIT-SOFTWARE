@@ -1,0 +1,1149 @@
+#!/usr/bin/env python3
+"""
+BIOHACKING - DNA/RNA NODE INTEGRATION SYSTEM
+===============================================
+Complete biological interface for neural nodes with:
+- DNA data storage and retrieval
+- RNA/mRNA/tRNA signal translation
+- Genetic sequence to RF frequency mapping
+- Epigenetic modulation via node stimulation
+- CRISPR-based node programming
+
+This system bridges biological genetics with RF neural nodes,
+enabling DNA/RNA to control node behavior and vice versa.
+
+NOTE: This is a computational simulation / protocol scaffold.
+It does not perform real wet-lab biology, gene editing, or RF transmission.
+"""
+
+import numpy as np
+import hashlib
+import json
+import time
+import zlib
+from typing import Dict, List, Tuple, Optional, Any
+from dataclasses import dataclass, field
+from enum import Enum
+
+
+# =============================================================================
+# SECTION 0: COMMON GENETIC UTILITIES
+# =============================================================================
+
+BASE_TO_BITS: Dict[str, int] = {
+    "A": 0,
+    "C": 1,
+    "G": 2,
+    "T": 3,
+}
+
+BITS_TO_BASE: Dict[int, str] = {
+    0: "A",
+    1: "C",
+    2: "G",
+    3: "T",
+}
+
+COMPLEMENT_TABLE: Dict[str, str] = {
+    "A": "T",
+    "T": "A",
+    "C": "G",
+    "G": "C",
+    "U": "A",
+    "N": "N",
+}
+
+
+def complement(sequence: str) -> str:
+    """Return the complement strand for DNA/RNA symbols."""
+    return "".join(COMPLEMENT_TABLE.get(base, "N") for base in sequence.upper())
+
+
+def reverse_complement(sequence: str) -> str:
+    """Return the reverse complement of a DNA/RNA sequence."""
+    return complement(sequence)[::-1]
+
+
+def clean_sequence(sequence: str, rna: bool = False, allow_n: bool = False) -> str:
+    """Normalize and filter a genetic sequence."""
+    valid = "ACGTUN" if allow_n else "ACGTU"
+    seq = "".join(ch for ch in sequence.upper() if ch in valid)
+
+    if rna:
+        seq = seq.replace("T", "U")
+    else:
+        seq = seq.replace("U", "T")
+
+    return seq
+
+
+# =============================================================================
+# SECTION 1: DNA/RNA SEQUENCE TO RF FREQUENCY MAPPING
+# =============================================================================
+
+@dataclass
+class RFPacket:
+    """
+    A packetized RF representation of a genetic sequence.
+
+    Each base is mapped to a frequency offset around a center frequency.
+    Phases and amplitudes are deterministic and can be used for waveform synthesis.
+    """
+
+    sequence: str
+    frequencies: List[float]
+    phases: List[float]
+    amplitudes: List[float]
+    symbol_duration: float
+    checksum: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "sequence": self.sequence,
+            "frequencies": [float(x) for x in self.frequencies],
+            "phases": [float(x) for x in self.phases],
+            "amplitudes": [float(x) for x in self.amplitudes],
+            "symbol_duration": float(self.symbol_duration),
+            "checksum": self.checksum,
+            "metadata": self.metadata,
+        }
+
+
+class GeneticToRFMapper:
+    """
+    Maps DNA/RNA sequences to RF frequencies for node communication.
+
+    Each genetic base is assigned to a frequency offset around a center frequency:
+
+        A -> -2 * channel_spacing
+        C -> -1 * channel_spacing
+        G -> +1 * channel_spacing
+        T -> +2 * channel_spacing
+        U -> same as T
+
+    This is intentionally deterministic and reversible.
+    """
+
+    BASES: Tuple[str, ...] = ("A", "C", "G", "T", "U")
+
+    def __init__(
+        self,
+        center_frequency: float = 2.4e9,
+        channel_spacing: float = 250e3,
+        base_power: float = 1.0,
+    ) -> None:
+        self.center_frequency = float(center_frequency)
+        self.channel_spacing = float(channel_spacing)
+        self.base_power = float(base_power)
+
+        self.base_offsets: Dict[str, float] = {
+            "A": -2.0,
+            "C": -1.0,
+            "G": +1.0,
+            "T": +2.0,
+            "U": +2.0,
+        }
+
+    def normalize(self, sequence: str) -> str:
+        """Normalize sequence to canonical RF-DNA form."""
+        seq = sequence.upper().replace(" ", "").replace("\n", "").replace("\r", "")
+        seq = "".join(ch for ch in seq if ch in self.BASES)
+        return seq.replace("U", "T")
+
+    def base_frequency(self, base: str) -> float:
+        """Return the RF frequency assigned to a base."""
+        base = base.upper().replace("U", "T")
+        offset = self.base_offsets.get(base, 0.0)
+        return self.center_frequency + offset * self.channel_spacing
+
+    def sequence_to_rf(
+        self,
+        sequence: str,
+        symbol_duration: float = 1e-3,
+    ) -> RFPacket:
+        """Convert a genetic sequence into an RF packet."""
+        normalized = self.normalize(sequence)
+
+        frequencies: List[float] = []
+        phases: List[float] = []
+        amplitudes: List[float] = []
+
+        prev_phase = 0.0
+        two_pi = 2.0 * np.pi
+
+        for i, base in enumerate(normalized):
+            freq = self.base_frequency(base)
+
+            # Use offset frequency for phase accumulation to avoid huge carrier phase values.
+            phase_freq = freq - self.center_frequency
+            phase = float((prev_phase + two_pi * phase_freq * symbol_duration) % two_pi)
+
+            # Deterministic amplitude shaping.
+            amp = float(self.base_power * (1.0 + 0.1 * np.sin(i * 0.35)))
+
+            frequencies.append(float(freq))
+            phases.append(phase)
+            amplitudes.append(amp)
+
+            prev_phase = phase
+
+        checksum = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
+
+        metadata = {
+            "center_frequency": self.center_frequency,
+            "channel_spacing": self.channel_spacing,
+            "symbol_duration": float(symbol_duration),
+            "base_count": len(normalized),
+            "created_at": time.time(),
+        }
+
+        return RFPacket(
+            sequence=normalized,
+            frequencies=frequencies,
+            phases=phases,
+            amplitudes=amplitudes,
+            symbol_duration=float(symbol_duration),
+            checksum=checksum,
+            metadata=metadata,
+        )
+
+    def rf_to_sequence(self, packet: RFPacket) -> str:
+        """Decode an RF packet back into a DNA sequence by nearest-frequency mapping."""
+        canonical_bases = ("A", "C", "G", "T")
+        decoded: List[str] = []
+
+        for freq in packet.frequencies:
+            best_base = min(
+                canonical_bases,
+                key=lambda b: abs(self.base_frequency(b) - float(freq)),
+            )
+            decoded.append(best_base)
+
+        return "".join(decoded)
+
+    def verify_packet(self, packet: RFPacket) -> bool:
+        """Verify packet integrity by comparing stored checksum."""
+        normalized = self.normalize(packet.sequence)
+        expected = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
+        return expected == packet.checksum
+
+    def generate_waveform(
+        self,
+        packet: RFPacket,
+        sample_rate: float = 1.0e6,
+        max_symbols: Optional[int] = None,
+        use_baseband: bool = True,
+    ) -> np.ndarray:
+        """
+        Generate a synthetic waveform from an RFPacket.
+
+        If use_baseband=True, the center carrier is removed and only frequency
+        offsets are synthesized. This avoids impossible sample-rate requirements
+        for GHz carriers in simulation.
+        """
+        if not packet.frequencies:
+            return np.array([], dtype=float)
+
+        symbol_count = len(packet.frequencies)
+        if max_symbols is not None:
+            symbol_count = min(symbol_count, int(max_symbols))
+
+        samples_per_symbol = max(1, int(packet.symbol_duration * sample_rate))
+        t = np.arange(samples_per_symbol) / float(sample_rate)
+
+        chunks: List[np.ndarray] = []
+
+        for i in range(symbol_count):
+            freq = float(packet.frequencies[i])
+
+            if use_baseband:
+                freq -= self.center_frequency
+
+            phase = float(packet.phases[i]) if i < len(packet.phases) else 0.0
+            amp = float(packet.amplitudes[i]) if i < len(packet.amplitudes) else self.base_power
+
+            chunks.append(amp * np.sin(2.0 * np.pi * freq * t + phase))
+
+        return np.concatenate(chunks)
+
+
+# =============================================================================
+# SECTION 2: GENETIC CODE TRANSLATION
+# =============================================================================
+
+class GeneticCodeTranslator:
+    """
+    Translates DNA/RNA sequences into protein-like symbolic output.
+
+    This uses the standard genetic code. Stop codons are represented as '*'.
+    """
+
+    CODON_TABLE: Dict[str, str] = {
+        "UUU": "F", "UUC": "F", "UUA": "L", "UUG": "L",
+        "UCU": "S", "UCC": "S", "UCA": "S", "UCG": "S",
+        "UAU": "Y", "UAC": "Y", "UAA": "*", "UAG": "*",
+        "UGU": "C", "UGC": "C", "UGA": "*", "UGG": "W",
+
+        "CUU": "L", "CUC": "L", "CUA": "L", "CUG": "L",
+        "CCU": "P", "CCC": "P", "CCA": "P", "CCG": "P",
+        "CAU": "H", "CAC": "H", "CAA": "Q", "CAG": "Q",
+        "CGU": "R", "CGC": "R", "CGA": "R", "CGG": "R",
+
+        "AUU": "I", "AUC": "I", "AUA": "I", "AUG": "M",
+        "ACU": "T", "ACC": "T", "ACA": "T", "ACG": "T",
+        "AAU": "N", "AAC": "N", "AAA": "K", "AAG": "K",
+        "AGU": "S", "AGC": "S", "AGA": "R", "AGG": "R",
+
+        "GUU": "V", "GUC": "V", "GUA": "V", "GUG": "V",
+        "GCU": "A", "GCC": "A", "GCA": "A", "GCG": "A",
+        "GAU": "D", "GAC": "D", "GAA": "E", "GAG": "E",
+        "GGU": "G", "GGC": "G", "GGA": "G", "GGG": "G",
+    }
+
+    def normalize_rna(self, sequence: str) -> str:
+        """Normalize input to RNA alphabet."""
+        seq = sequence.upper().replace(" ", "").replace("\n", "").replace("\r", "")
+        seq = "".join(ch for ch in seq if ch in "ACGTU")
+        return seq.replace("T", "U")
+
+    def dna_to_mrna(self, sequence: str, template: bool = False) -> str:
+        """
+        Convert DNA to mRNA.
+
+        If template=False, the input is treated as the coding strand.
+        If template=True, the input is treated as the template strand.
+        """
+        seq = clean_sequence(sequence, rna=False, allow_n=True)
+
+        if template:
+            seq = complement(seq)
+
+        return seq.replace("T", "U")
+
+    def translate(
+        self,
+        sequence: str,
+        reading_frame: int = 0,
+        to_stop: bool = False,
+    ) -> str:
+        """Translate an RNA or DNA sequence into a protein string."""
+        rna = self.normalize_rna(sequence)
+        reading_frame = max(0, int(reading_frame))
+
+        protein: List[str] = []
+
+        for i in range(reading_frame, len(rna) - 2, 3):
+            codon = rna[i:i + 3]
+            amino_acid = self.CODON_TABLE.get(codon, "X")
+
+            if amino_acid == "*" and to_stop:
+                break
+
+            protein.append(amino_acid)
+
+        return "".join(protein)
+
+
+# =============================================================================
+# SECTION 3: EPIGENETIC MODULATION MODEL
+# =============================================================================
+
+@dataclass
+class EpigeneticState:
+    """
+    Simulated epigenetic state for a node.
+
+    Methylation is modeled as a map from sequence position to methylation level [0, 1].
+    Histone acetylation and node gain are global scalar modulators.
+    """
+
+    methylation: Dict[int, float] = field(default_factory=dict)
+    histone_acetylation: float = 0.5
+    node_gain: float = 1.0
+    last_updated: float = field(default_factory=time.time)
+
+    def clamp(self) -> None:
+        self.histone_acetylation = float(np.clip(self.histone_acetylation, 0.0, 1.0))
+        self.node_gain = float(np.clip(self.node_gain, 0.0, 10.0))
+
+        self.methylation = {
+            int(pos): float(np.clip(level, 0.0, 1.0))
+            for pos, level in self.methylation.items()
+        }
+
+        self.last_updated = time.time()
+
+
+class EpigeneticModulator:
+    """
+    Simulates epigenetic modulation of node expression.
+
+    This is not a biological assay; it is a control-system abstraction using
+    biological metaphors.
+    """
+
+    def methylate(
+        self,
+        state: EpigeneticState,
+        positions: List[int],
+        strength: float = 0.5,
+    ) -> None:
+        strength = float(np.clip(strength, 0.0, 1.0))
+
+        for pos in positions:
+            pos = int(pos)
+            current = state.methylation.get(pos, 0.0)
+            state.methylation[pos] = current + strength
+
+        state.clamp()
+
+    def demethylate(
+        self,
+        state: EpigeneticState,
+        positions: List[int],
+        strength: float = 0.5,
+    ) -> None:
+        strength = float(np.clip(strength, 0.0, 1.0))
+
+        for pos in positions:
+            pos = int(pos)
+            current = state.methylation.get(pos, 0.0)
+            state.methylation[pos] = current - strength
+
+        state.clamp()
+
+    def acetylate(self, state: EpigeneticState, delta: float = 0.1) -> None:
+        state.histone_acetylation += float(delta)
+        state.clamp()
+
+    def stimulate_node(
+        self,
+        state: EpigeneticState,
+        intensity: float = 0.5,
+        duration: float = 1.0,
+    ) -> None:
+        """
+        Apply simulated node stimulation.
+
+        Low-to-moderate stimulation increases acetylation and node gain.
+        Stimulation also slightly reduces methylation globally.
+        """
+        intensity = float(np.clip(intensity, 0.0, 1.0))
+        duration = max(0.0, float(duration))
+
+        state.histone_acetylation += 0.08 * intensity * duration
+        state.node_gain += 0.05 * intensity * duration
+
+        for pos in list(state.methylation.keys()):
+            state.methylation[pos] -= 0.02 * intensity * duration
+
+        state.clamp()
+
+    def average_methylation(self, state: EpigeneticState) -> float:
+        if not state.methylation:
+            return 0.0
+
+        return float(np.mean(list(state.methylation.values())))
+
+    def expression_multiplier(self, state: EpigeneticState) -> float:
+        """
+        Compute a simulated expression multiplier.
+
+        Higher acetylation increases expression.
+        Higher methylation decreases expression.
+        Node gain provides an additional scalar amplifier.
+        """
+        avg_methylation = self.average_methylation(state)
+
+        expression = (
+            (1.0 - avg_methylation)
+            * (0.25 + state.histone_acetylation)
+            * state.node_gain
+        )
+
+        return max(0.0, float(expression))
+
+
+# =============================================================================
+# SECTION 4: CRISPR-BASED NODE PROGRAMMING
+# =============================================================================
+
+@dataclass
+class GuideRNA:
+    """
+    Simulated guide RNA object.
+
+    target: sequence to match
+    pam: simple PAM pattern, e.g. NGG
+    """
+
+    guide_id: str
+    target: str
+    pam: str = "NGG"
+
+
+@dataclass
+class EditPlan:
+    """
+    A fully resolved simulated edit plan.
+    """
+
+    guide_id: str
+    target: str
+    pam: str
+    position: int
+    target_length: int
+    mode: str
+    payload: str
+    original_segment: str
+    edited_segment: str
+    edited_sequence: str
+    notes: List[str] = field(default_factory=list)
+
+
+class CRISPRNodeProgrammer:
+    """
+    Simulated CRISPR-like node programming system.
+
+    This performs symbolic sequence edits only. It does not interact with
+    real genomes, cells, or laboratory equipment.
+    """
+
+    def _match_pattern(self, sequence: str, start: int, pattern: str) -> bool:
+        """
+        Match a simple pattern where 'N' means any base.
+
+        Example:
+            pattern = 'NGG'
+            sequence segment = 'AGG' -> True
+            sequence segment = 'TTT' -> False
+        """
+        pattern = pattern.upper()
+
+        if start < 0 or start + len(pattern) > len(sequence):
+            return False
+
+        segment = sequence[start:start + len(pattern)]
+
+        for seq_base, pat_base in zip(segment, pattern):
+            if pat_base == "N":
+                continue
+            if seq_base != pat_base:
+                return False
+
+        return True
+
+    def find_targets(self, sequence: str, guide: GuideRNA) -> List[int]:
+        """Find all target positions with a valid downstream PAM."""
+        seq = sequence.upper().replace("U", "T")
+        target = guide.target.upper().replace("U", "T")
+
+        if not target:
+            return []
+
+        hits: List[int] = []
+
+        for i in range(0, len(seq) - len(target) + 1):
+            if seq[i:i + len(target)] != target:
+                continue
+
+            pam_start = i + len(target)
+
+            if self._match_pattern(seq, pam_start, guide.pam):
+                hits.append(i)
+
+        return hits
+
+    def plan_edit(
+        self,
+        sequence: str,
+        guide: GuideRNA,
+        payload: str = "",
+        mode: str = "replace",
+        occurrence: int = 0,
+    ) -> Optional[EditPlan]:
+        """
+        Plan a symbolic edit.
+
+        Modes:
+            replace: replace target with payload
+            delete: remove target
+            insert: insert payload immediately after target
+            knockout: replace target with a stop-like symbolic payload
+        """
+        seq = sequence.upper().replace("U", "T")
+        target = guide.target.upper().replace("U", "T")
+
+        hits = self.find_targets(seq, guide)
+
+        if not target or not hits:
+            return None
+
+        occurrence = max(0, int(occurrence))
+        position = hits[min(occurrence, len(hits) - 1)]
+        end = position + len(target)
+
+        payload = payload.upper().replace("U", "T")
+        payload = "".join(ch for ch in payload if ch in "ACGT")
+
+        mode = mode.lower()
+        notes: List[str] = [
+            f"occurrence={occurrence}",
+            f"pam={guide.pam}",
+        ]
+
+        valid_modes = {"replace", "insert", "delete", "knockout"}
+
+        if mode not in valid_modes:
+            mode = "replace"
+            notes.append("mode-fallback=replace")
+
+        if mode == "replace" and not payload:
+            mode = "delete"
+            notes.append("empty-payload=delete")
+
+        original_segment = seq[position:end]
+
+        if mode == "insert":
+            edited_segment = original_segment + payload
+            edited_sequence = seq[:end] + payload + seq[end:]
+
+        elif mode == "delete":
+            edited_segment = ""
+            edited_sequence = seq[:position] + seq[end:]
+
+        elif mode == "knockout":
+            payload = "TAA"
+            edited_segment = payload
+            edited_sequence = seq[:position] + payload + seq[end:]
+
+        else:
+            payload = payload or target
+            edited_segment = payload
+            edited_sequence = seq[:position] + payload + seq[end:]
+
+        return EditPlan(
+            guide_id=guide.guide_id,
+            target=target,
+            guide.pam.upper(),
+            position=position,
+            target_length=len(target),
+            mode=mode,
+            payload=payload,
+            original_segment=original_segment,
+            edited_segment=edited_segment,
+            edited_sequence=edited_sequence,
+            notes=notes,
+        )
+
+    def apply_edit(self, sequence: str, plan: EditPlan) -> str:
+        """Apply an edit plan to a sequence."""
+        return plan.edited_sequence
+
+
+# =============================================================================
+# SECTION 5: NODE STATE AND INTEGRATION SYSTEM
+# =============================================================================
+
+@dataclass
+class NodeBioState:
+    """
+    State object for a biological/RF node.
+    """
+
+    node_id: str
+    dna_address: str
+    genome: str = ""
+    status: str = "idle"
+    expression: float = 1.0
+    rf_channel: int = 0
+    created_at: float = field(default_factory=time.time)
+    last_command: Optional[Dict[str, Any]] = None
+
+
+class BioNodeIntegrationSystem:
+    """
+    Top-level integration system connecting:
+    - DNA payload storage
+    - RF packetization
+    - genetic translation
+    - epigenetic modulation
+    - CRISPR-like symbolic node programming
+    """
+
+    def __init__(
+        self,
+        center_frequency: float = 2.4e9,
+        channel_spacing: float = 250e3,
+    ) -> None:
+        self.mapper = GeneticToRFMapper(
+            center_frequency=center_frequency,
+            channel_spacing=channel_spacing,
+        )
+
+        self.translator = GeneticCodeTranslator()
+        self.epigenetic = EpigeneticModulator()
+        self.crispr = CRISPRNodeProgrammer()
+
+        self.nodes: Dict[str, NodeBioState] = {}
+        self.epigenetic_states: Dict[str, EpigeneticState] = {}
+        self.storage: Dict[str, Dict[str, Any]] = {}
+
+    # -------------------------------------------------------------------------
+    # Node management
+    # -------------------------------------------------------------------------
+
+    def _require_node(self, node_id: str) -> NodeBioState:
+        if node_id not in self.nodes:
+            raise KeyError(f"Unknown node: {node_id}")
+
+        return self.nodes[node_id]
+
+    def register_node(
+        self,
+        node_id: str,
+        rf_channel: Optional[int] = None,
+    ) -> NodeBioState:
+        """Register a node and assign it a DNA address and synthetic genome."""
+        if node_id in self.nodes:
+            return self.nodes[node_id]
+
+        seed = hashlib.sha256(node_id.encode("utf-8")).digest()
+
+        # Synthetic genome: 32-byte seed repeated to produce 512 DNA bases.
+        genome = self._bytes_to_dna(seed * 4)
+
+        # DNA address: compact identifier encoded as DNA.
+        dna_address = self._bytes_to_dna(seed)[:48]
+
+        channel = len(self.nodes) if rf_channel is None else int(rf_channel)
+
+        node = NodeBioState(
+            node_id=node_id,
+            dna_address=dna_address,
+            genome=genome,
+            rf_channel=channel,
+        )
+
+        self.nodes[node_id] = node
+        self.epigenetic_states[node_id] = EpigeneticState()
+
+        return node
+
+    def get_epigenetic_state(self, node_id: str) -> EpigeneticState:
+        self._require_node(node_id)
+        return self.epigenetic_states.setdefault(node_id, EpigeneticState())
+
+    # -------------------------------------------------------------------------
+    # DNA payload encoding
+    # -------------------------------------------------------------------------
+
+    def _bytes_to_dna(self, data: bytes) -> str:
+        """Encode bytes into DNA using 2 bits per base."""
+        bases: List[str] = []
+
+        for byte in data:
+            bases.append(BITS_TO_BASE[(byte >> 6) & 0x03])
+            bases.append(BITS_TO_BASE[(byte >> 4) & 0x03])
+            bases.append(BITS_TO_BASE[(byte >> 2) & 0x03])
+            bases.append(BITS_TO_BASE[byte & 0x03])
+
+        return "".join(bases)
+
+    def _dna_to_bytes(self, dna: str) -> bytes:
+        """Decode DNA into bytes. Ignores incomplete trailing bases."""
+        dna = dna.upper().replace("U", "T")
+
+        values: List[int] = []
+
+        for base in dna:
+            if base in BASE_TO_BITS:
+                values.append(BASE_TO_BITS[base])
+
+        out = bytearray()
+
+        full_length = len(values) - (len(values) % 4)
+
+        for i in range(0, full_length, 4):
+            byte = 0
+
+            for value in values[i:i + 4]:
+                byte = (byte << 2) | value
+
+            out.append(byte)
+
+        return bytes(out)
+
+    def payload_to_dna(self, payload: Any) -> str:
+        """Serialize a JSON-compatible payload into compressed DNA storage."""
+        raw = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+        compressed = zlib.compress(raw, level=9)
+        return self._bytes_to_dna(compressed)
+
+    def dna_to_payload(self, dna: str) -> Any:
+        """Decode DNA storage back into a JSON-compatible payload."""
+        compressed = self._dna_to_bytes(dna)
+        raw = zlib.decompress(compressed)
+        return json.loads(raw.decode("utf-8"))
+
+    # -------------------------------------------------------------------------
+    # Command encoding / decoding
+    # -------------------------------------------------------------------------
+
+    def encode_command(
+        self,
+        node_id: str,
+        command: Dict[str, Any],
+        symbol_duration: float = 1e-3,
+    ) -> RFPacket:
+        """Encode a node command into DNA, then map it to an RF packet."""
+        node = self._require_node(node_id)
+
+        envelope = {
+            "node_id": node_id,
+            "dna_address": node.dna_address,
+            "timestamp": time.time(),
+            "command": command,
+        }
+
+        dna = self.payload_to_dna(envelope)
+        packet = self.mapper.sequence_to_rf(dna, symbol_duration=symbol_duration)
+
+        packet.metadata.update(
+            {
+                "kind": "command",
+                "node_id": node_id,
+                "dna_address": node.dna_address,
+            }
+        )
+
+        node.status = "commanded"
+        node.last_command = envelope
+
+        return packet
+
+    def decode_command(self, packet: RFPacket) -> Optional[Dict[str, Any]]:
+        """Decode an RF packet back into a command envelope."""
+        dna = self.mapper.rf_to_sequence(packet)
+
+        try:
+            return self.dna_to_payload(dna)
+        except Exception:
+            return None
+
+    # -------------------------------------------------------------------------
+    # Storage
+    # -------------------------------------------------------------------------
+
+    def store_payload(
+        self,
+        payload: Any,
+        namespace: str = "default",
+    ) -> Tuple[str, str]:
+        """Store a payload as DNA and return record_id and dna."""
+        dna = self.payload_to_dna(payload)
+
+        record_id = hashlib.sha256(dna.encode("utf-8")).hexdigest()[:24]
+
+        self.storage[record_id] = {
+            "namespace": namespace,
+            "dna": dna,
+            "payload": payload,
+            "stored_at": time.time(),
+        }
+
+        return record_id, dna
+
+    def retrieve_payload(
+        self,
+        record_id: Optional[str] = None,
+        dna: Optional[str] = None,
+    ) -> Optional[Any]:
+        """Retrieve a stored payload by record ID or DNA string."""
+        if record_id and record_id in self.storage:
+            return self.storage[record_id]["payload"]
+
+        if dna:
+            for record in self.storage.values():
+                if record["dna"] == dna:
+                    return record["payload"]
+
+            try:
+                return self.dna_to_payload(dna)
+            except Exception:
+                return None
+
+        return None
+
+    # -------------------------------------------------------------------------
+    # Epigenetic node modulation
+    # -------------------------------------------------------------------------
+
+    def stimulate_node(
+        self,
+        node_id: str,
+        intensity: float = 0.5,
+        duration: float = 1.0,
+    ) -> float:
+        """Apply simulated stimulation and update node expression."""
+        node = self._require_node(node_id)
+        state = self.get_epigenetic_state(node_id)
+
+        self.epigenetic.stimulate_node(state, intensity=intensity, duration=duration)
+
+        node.expression = self.epigenetic.expression_multiplier(state)
+        node.status = "expressing"
+
+        return node.expression
+
+    def methylate_node(
+        self,
+        node_id: str,
+        positions: List[int],
+        strength: float = 0.5,
+    ) -> EpigeneticState:
+        """Apply simulated methylation to selected node positions."""
+        node = self._require_node(node_id)
+        state = self.get_epigenetic_state(node_id)
+
+        self.epigenetic.methylate(state, positions=positions, strength=strength)
+        node.expression = self.epigenetic.expression_multiplier(state)
+
+        return state
+
+    def demethylate_node(
+        self,
+        node_id: str,
+        positions: List[int],
+        strength: float = 0.5,
+    ) -> EpigeneticState:
+        """Apply simulated demethylation to selected node positions."""
+        node = self._require_node(node_id)
+        state = self.get_epigenetic_state(node_id)
+
+        self.epigenetic.demethylate(state, positions=positions, strength=strength)
+        node.expression = self.epigenetic.expression_multiplier(state)
+
+        return state
+
+    def acetylate_node(
+        self,
+        node_id: str,
+        delta: float = 0.1,
+    ) -> EpigeneticState:
+        """Apply simulated histone acetylation change."""
+        node = self._require_node(node_id)
+        state = self.get_epigenetic_state(node_id)
+
+        self.epigenetic.acetylate(state, delta=delta)
+        node.expression = self.epigenetic.expression_multiplier(state)
+
+        return state
+
+    # -------------------------------------------------------------------------
+    # Genetic translation
+    # -------------------------------------------------------------------------
+
+    def transcribe_and_translate(
+        self,
+        sequence: str,
+        template: bool = False,
+        reading_frame: int = 0,
+        to_stop: bool = False,
+    ) -> str:
+        """Transcribe DNA to mRNA and translate to protein string."""
+        mrna = self.translator.dna_to_mrna(sequence, template=template)
+        return self.translator.translate(
+            mrna,
+            reading_frame=reading_frame,
+            to_stop=to_stop,
+        )
+
+    # -------------------------------------------------------------------------
+    # CRISPR-like node programming
+    # -------------------------------------------------------------------------
+
+    def edit_sequence(
+        self,
+        sequence: str,
+        guide: GuideRNA,
+        payload: str = "",
+        mode: str = "replace",
+        occurrence: int = 0,
+    ) -> Optional[EditPlan]:
+        """Plan an edit on an arbitrary sequence."""
+        return self.crispr.plan_edit(
+            sequence=sequence,
+            guide=guide,
+            payload=payload,
+            mode=mode,
+            occurrence=occurrence,
+        )
+
+    def program_node_edit(
+        self,
+        node_id: str,
+        guide: GuideRNA,
+        payload: str = "",
+        mode: str = "replace",
+        occurrence: int = 0,
+    ) -> Optional[EditPlan]:
+        """
+        Plan and apply a symbolic edit to a node's synthetic genome.
+        """
+        node = self._require_node(node_id)
+
+        plan = self.crispr.plan_edit(
+            sequence=node.genome,
+            guide=guide,
+            payload=payload,
+            mode=mode,
+            occurrence=occurrence,
+        )
+
+        if plan is None:
+            return None
+
+        node.genome = plan.edited_sequence
+        node.status = "edited"
+
+        return plan
+
+
+# =============================================================================
+# SECTION 6: DEMO / SELF TEST
+# =============================================================================
+
+def main() -> None:
+    system = BioNodeIntegrationSystem(
+        center_frequency=2.4e9,
+        channel_spacing=250e3,
+    )
+
+    # Register a node.
+    node = system.register_node("node-alpha")
+
+    print("=== NODE REGISTRATION ===")
+    print(f"Node ID:      {node.node_id}")
+    print(f"DNA address:  {node.dna_address[:24]}...")
+    print(f"Genome size:  {len(node.genome)} bases")
+    print(f"RF channel:   {node.rf_channel}")
+    print()
+
+    # Encode and decode a command.
+    command = {
+        "op": "set_rf",
+        "channel": node.rf_channel,
+        "gain": 0.8,
+        "mode": "adaptive",
+    }
+
+    packet = system.encode_command(node.node_id, command)
+    decoded = system.decode_command(packet)
+
+    print("=== RF COMMAND ENCODING ===")
+    print(f"DNA bases:          {len(packet.sequence)}")
+    print(f"RF symbols:         {len(packet.frequencies)}")
+    print(f"Checksum:           {packet.checksum}")
+    print(f"Packet valid:       {system.mapper.verify_packet(packet)}")
+    print(f"Decoded OK:         {decoded is not None}")
+    print(f"Command matches:    {bool(decoded) and decoded.get('command') == command}")
+    print()
+
+    # Generate a small baseband waveform.
+    waveform = system.mapper.generate_waveform(
+        packet,
+        sample_rate=1_000_000,
+        max_symbols=16,
+        use_baseband=True,
+    )
+
+    print("=== WAVEFORM SYNTHESIS ===")
+    print(f"Waveform samples:   {waveform.size}")
+    print(f"Waveform RMS:       {float(np.sqrt(np.mean(waveform ** 2))):.6f}")
+    print()
+
+    # Translation demo.
+    sample_dna = "ATGGCCATTGTAATGGGCCGCTGAAAGGGTGCCCGATAG"
+    protein = system.transcribe_and_translate(sample_dna, to_stop=True)
+
+    print("=== TRANSLATION ===")
+    print(f"DNA:      {sample_dna}")
+    print(f"Protein:  {protein}")
+    print()
+
+    # CRISPR-like node editing demo.
+    # Insert a known target site into the node genome so the demo always has a hit.
+    node.genome = "AAAGGCCGGG" + node.genome
+
+    guide = GuideRNA(
+        guide_id="guide-1",
+        target="GGCC",
+        pam="NGG",
+    )
+
+    plan = system.program_node_edit(
+        node_id=node.node_id,
+        guide=guide,
+        payload="TTAA",
+        mode="replace",
+        occurrence=0,
+    )
+
+    print("=== CRISPR-LIKE NODE EDIT ===")
+
+    if plan is None:
+        print("No target found.")
+    else:
+        print(f"Guide ID:     {plan.guide_id}")
+        print(f"Target:       {plan.target}")
+        print(f"PAM:          {plan.pam}")
+        print(f"Position:     {plan.position}")
+        print(f"Mode:         {plan.mode}")
+        print(f"Original:     {plan.original_segment}")
+        print(f"Edited:       {plan.edited_segment}")
+        print(f"Notes:        {', '.join(plan.notes)}")
+        print(f"Node status:  {node.status}")
+
+    print()
+
+    # Epigenetic stimulation demo.
+    expression = system.stimulate_node(
+        node_id=node.node_id,
+        intensity=0.7,
+        duration=2.0,
+    )
+
+    print("=== EPIGENETIC STIMULATION ===")
+    print(f"Node expression multiplier: {expression:.4f}")
+    print(f"Node status:                {node.status}")
+    print()
+
+    # DNA storage demo.
+    payload = {
+        "telemetry": "ok",
+        "battery": 0.97,
+        "temperature_c": 36.5,
+        "timestamp": time.time(),
+    }
+
+    record_id, dna = system.store_payload(payload, namespace="telemetry")
+    recovered = system.retrieve_payload(record_id=record_id)
+
+    print("=== DNA DATA STORAGE ===")
+    print(f"Record ID:        {record_id}")
+    print(f"DNA length:       {len(dna)} bases")
+    print(f"Payload recovery: {recovered == payload}")
+    print()
+
+    print("Done.")
+
+
+if __name__ == "__main__":
+    main()
