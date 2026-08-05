@@ -1,0 +1,95 @@
+    # ------------------------------------------------------------
+    # Maxwell Bio DNA Engineer demo
+    # ------------------------------------------------------------
+
+    engineer = MaxwellBioDNAEngineer(
+        chain=bc,
+        bridge=bridge,
+        engineer_id="maxwell-bio-dna-engineer-01",
+    )
+
+    # Consent is required before simulated modulation/broadcast actions.
+    engineer.grant_consent(True)
+
+    # Keep hardware broadcast disabled for safety unless you want simulated receipts.
+    engineer.configure_safety(
+        max_modulation_intensity=0.20,
+        max_session_duration_minutes=5.0,
+        allow_hardware_broadcast=False,
+        allowed_rf_channels=["sim-rf-0", "sim-ble-0", "sim-serial-0"],
+    )
+
+    # Register a biological/node digital twin.
+    engineer.register_bio_node(
+        node_id="node-alpha",
+        metadata={
+            "role": "demo_bio_node",
+            "location": "simulated",
+            "hardware": "virtual",
+        },
+    )
+
+    # Choose a real target from the generated genome so the edit succeeds.
+    demo_genome = engineer.genomes["node-alpha"]["dna"]
+    demo_target = demo_genome[8:12]
+
+    engineer.propose_dna_edit(
+        node_id="node-alpha",
+        target=demo_target,
+        payload="TTTT",
+        edit_mode="replace",
+    )
+
+    # Simulated chemical/hormone state adjustment.
+    engineer.apply_hormone_modulation(
+        node_id="node-alpha",
+        marker="stress_response_sim",
+        delta=-0.08,
+        duration_minutes=2.0,
+        reason="Simulated calm-state transition",
+    )
+
+    engineer.apply_hormone_modulation(
+        node_id="node-alpha",
+        marker="sleep_pressure_sim",
+        delta=0.05,
+        duration_minutes=2.0,
+        reason="Simulated wind-down state",
+    )
+
+    # Simulated RF profile broadcast receipt.
+    engineer.broadcast_rf_profile(
+        profile_name="calm-low-power",
+        params={
+            "band": "sim-915mhz",
+            "power": "low",
+            "mode": "adaptive",
+        },
+    )
+
+    # Offline mode: actions are queued locally.
+    engineer.set_offline()
+
+    engineer.apply_hormone_modulation(
+        node_id="node-alpha",
+        marker="hormone_axis_1_sim",
+        delta=0.03,
+        duration_minutes=1.0,
+        reason="Offline simulated regulatory drift",
+    )
+
+    engineer.propose_dna_edit(
+        node_id="node-alpha",
+        target=engineer.genomes["node-alpha"]["dna"][16:20],
+        payload="AAAA",
+        edit_mode="replace",
+    )
+
+    # Return online and sync offline queue to Maxwell chain.
+    engineer.set_online()
+
+    # Save simulated body state.
+    engineer.save_body_state("maxwell_bio_body_state.json")
+
+    print("\n--- Maxwell Bio DNA Engineer Status ---")
+    print(json.dumps(engineer.status(), indent=2))
