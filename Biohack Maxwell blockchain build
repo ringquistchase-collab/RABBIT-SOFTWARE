@@ -1,0 +1,169 @@
+# ============================================================
+# MAIN — Build Maxwell chain, connect Bio system, bridge chains
+# ============================================================
+
+if __name__ == "__main__":
+    # ------------------------------------------------------------
+    # 1. Create primary Maxwell blockchain
+    # ------------------------------------------------------------
+
+    bc = MaxwellBlockchain(
+        owner="Claremore, Oklahoma — Embedded Systems Engineer",
+        difficulty=3
+    )
+
+    bc.add_block({
+        "type":           "EEG_Signal_Record",
+        "channels":       16,
+        "sample_rate_hz": 250,
+        "note":           "Alpha/Theta band FFT biosignal fingerprint",
+        "faraday":        "Changing B induces E — neural flux induces signal"
+    })
+
+    bc.add_block({
+        "type":           "RF_Telemetry_Record",
+        "device":         "ESP32",
+        "frequency_mhz":  915,
+        "protocol":       "libp2p over BLE",
+        "ampere_maxwell": "Displacement current enables EM propagation through free space"
+    })
+
+    bc.add_block({
+        "type":      "CryptoWallet_Anchor",
+        "chains":    ["Bitcoin", "Ethereum"],
+        "whisper":   True,
+        "gauss_e":   "Electric charges are sources — wallets are sources of cryptographic truth"
+    })
+
+    bc.add_block({
+        "type":      "Genomic_Record",
+        "encoding":  "BinaryDNA_Manifest",
+        "crispr":    True,
+        "bases":     "ATCG -> 00,01,10,11",
+        "gauss_b":   "div(B)=0 — no monopoles, no isolated fragments; life is a closed field"
+    })
+
+    # ------------------------------------------------------------
+    # 2. Try to load BioNodeIntegrationSystem
+    # ------------------------------------------------------------
+
+    bio_system = None
+
+    # First check if the Bio system class is already in this file.
+    BioSystemClass = globals().get("BioNodeIntegrationSystem")
+
+    # If not, try importing from a separate file.
+    if BioSystemClass is None:
+        try:
+            from bio_node_system import BioNodeIntegrationSystem as BioSystemClass
+        except Exception as import_error:
+            print(f"[Bio] Bio module not loaded: {import_error}")
+            BioSystemClass = None
+
+    if BioSystemClass is not None:
+        try:
+            bio_system = BioSystemClass()
+            bio_system.register_node("node-alpha")
+            print("[Bio] BioNodeIntegrationSystem loaded.")
+        except Exception as exc:
+            print(f"[Bio] Bio system initialization failed: {exc}")
+            bio_system = None
+    else:
+        print("[Bio] Running in standalone Maxwell bridge mode.")
+
+    # ------------------------------------------------------------
+    # 3. Create Maxwell/Bio cross-chain bridge
+    # ------------------------------------------------------------
+
+    bridge = MaxwellBioBridge(
+        maxwell_chain=bc,
+        bio_system=bio_system,
+        network_id="maxwell-bio-crosschain",
+        difficulty=2
+    )
+
+    # ------------------------------------------------------------
+    # 4. Send Maxwell field record into Bio DNA ledger
+    # ------------------------------------------------------------
+
+    bridge.send_maxwell_field_to_bio({
+        "type":          "RF_Telemetry_Record",
+        "device":        "ESP32",
+        "frequency_mhz": 915,
+        "note":          "Maxwell field telemetry routed into Bio DNA ledger",
+        "field_source":  "maxwell_blockchain",
+    })
+
+    # ------------------------------------------------------------
+    # 5. Send Bio node command into Maxwell chain
+    # ------------------------------------------------------------
+
+    bridge.send_bio_command_to_maxwell(
+        node_id="node-alpha",
+        command={
+            "op": "set_rf",
+            "channel": 3,
+            "gain": 0.85,
+            "mode": "adaptive_bio_rf",
+        }
+    )
+
+    # ------------------------------------------------------------
+    # 6. Anchor external chains
+    # ------------------------------------------------------------
+
+    bridge.anchor_external_chain(
+        chain_id="bitcoin",
+        height=900000,
+        head_hash="0000000000000000000123abc456def789000111222333444555666777888999",
+        extra={
+            "note": "Bitcoin header anchor",
+            "source": "manual_demo",
+        }
+    )
+
+    bridge.anchor_external_chain(
+        chain_id="ethereum",
+        height=22000000,
+        head_hash="0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+        extra={
+            "note": "Ethereum head anchor",
+            "source": "manual_demo",
+        }
+    )
+
+    # ------------------------------------------------------------
+    # 7. Route external chain packet through the bridge
+    # ------------------------------------------------------------
+
+    bridge.network.send_packet(
+        source_chain="bitcoin",
+        target_chain="ethereum",
+        opcode="atomic_anchor",
+        payload={
+            "asset": "BTC->WETH",
+            "amount": "0.05",
+            "mode": "simulated_cross_chain_settlement",
+        }
+    )
+
+    # ------------------------------------------------------------
+    # 8. Report, validate, and save
+    # ------------------------------------------------------------
+
+    bridge.report()
+
+    print("\n--- Primary Maxwell Chain Validation ---")
+    bc.validate_chain()
+
+    bc.save("maxwell_primary_chain.json")
+    bridge.network.bridge_chain.save("maxwell_bridge_chain.json")
+
+    # Save Bio bridge ledger.
+    with open("bio_bridge_ledger.json", "w") as f:
+        json.dump(bridge.bio_adapter.records, f, indent=2)
+
+    print("\nSaved:")
+    print("  maxwell_primary_chain.json")
+    print("  maxwell_bridge_chain.json")
+    print("  bio_bridge_ledger.json")
