@@ -1,0 +1,930 @@
+# ============================================================
+# MAXWELL BIO DNA ENGINEER
+# Safe simulated chemical/hormone editor + DNA network engineer
+# ============================================================
+
+from enum import Enum
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Any
+import time
+import hashlib
+import json
+
+
+# ------------------------------------------------------------
+# Fallback utilities in case bridge utilities are not present
+# ------------------------------------------------------------
+
+if "sanitize_json" not in globals():
+    def sanitize_json(obj: Any) -> Any:
+        return json.loads(json.dumps(obj, sort_keys=True, default=str))
+
+
+if "deterministic_hash" not in globals():
+    def deterministic_hash(obj: Any) -> str:
+        return hashlib.sha256(
+            json.dumps(obj, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+
+
+if "merkle_root" not in globals():
+    def merkle_root(hashes: List[str]) -> str:
+        if not hashes:
+            return hashlib.sha256(b"empty_merkle_root").hexdigest()
+
+        level = [h for h in hashes if h]
+
+        if not level:
+            return hashlib.sha256(b"empty_merkle_root").hexdigest()
+
+        while len(level) > 1:
+            if len(level) % 2 == 1:
+                level.append(level[-1])
+
+            next_level = []
+
+            for i in range(0, len(level), 2):
+                combined = f"{level[i]}{level[i + 1]}".encode("utf-8")
+                next_level.append(hashlib.sha256(combined).hexdigest())
+
+            level = next_level
+
+        return level[0]
+
+
+# ------------------------------------------------------------
+# Engineer mode
+# ------------------------------------------------------------
+
+class BioEngineerMode(Enum):
+    ONLINE = "online"
+    OFFLINE = "offline"
+
+
+# ------------------------------------------------------------
+# Safety policy
+# ------------------------------------------------------------
+
+@dataclass
+class BioSafetyPolicy:
+    """
+    Safety policy for the simulated Bio DNA Engineer.
+
+    This module is not a medical system and does not administer chemicals,
+    hormones, drugs, or electrical stimulation. It only simulates state
+    changes inside a digital twin.
+    """
+
+    max_modulation_intensity: float = 0.35
+    max_session_duration_minutes: float = 10.0
+    require_consent: bool = True
+    consent_granted: bool = False
+
+    # Keep this false unless you intentionally want simulated broadcast receipts.
+    allow_hardware_broadcast: bool = False
+
+    allowed_rf_channels: List[str] = field(
+        default_factory=lambda: [
+            "sim-rf-0",
+            "sim-ble-0",
+            "sim-serial-0",
+        ]
+    )
+
+    medical_disclaimer: str = (
+        "Simulation only. Not medical advice, not a hormone editor, "
+        "not a chemical dosing system, and not a real hardware controller."
+    )
+
+    def to_json(self) -> Dict[str, Any]:
+        return sanitize_json({
+            "max_modulation_intensity": self.max_modulation_intensity,
+            "max_session_duration_minutes": self.max_session_duration_minutes,
+            "require_consent": self.require_consent,
+            "consent_granted": self.consent_granted,
+            "allow_hardware_broadcast": self.allow_hardware_broadcast,
+            "allowed_rf_channels": list(self.allowed_rf_channels),
+            "medical_disclaimer": self.medical_disclaimer,
+        })
+
+
+# ------------------------------------------------------------
+# Simulated chemical/hormone state
+# ------------------------------------------------------------
+
+DEFAULT_BIO_MARKERS = {
+    "hormone_axis_1_sim": 0.50,
+    "hormone_axis_2_sim": 0.50,
+    "neuro_chemical_1_sim": 0.50,
+    "neuro_chemical_2_sim": 0.50,
+    "stress_response_sim": 0.50,
+    "sleep_pressure_sim": 0.50,
+    "metabolic_signal_sim": 0.50,
+}
+
+
+@dataclass
+class ChemicalHormoneState:
+    """
+    Simulated body-state model.
+
+    Values are normalized from 0.0 to 1.0. They are symbolic and are not
+    tied to real biological measurements or medical interventions.
+    """
+
+    markers: Dict[str, float] = field(
+        default_factory=lambda: dict(DEFAULT_BIO_MARKERS)
+    )
+
+    setpoints: Dict[str, float] = field(
+        default_factory=lambda: dict(DEFAULT_BIO_MARKERS)
+    )
+
+    history: List[Dict[str, Any]] = field(default_factory=list)
+    last_update: float = field(default_factory=time.time)
+
+    @staticmethod
+    def _clamp(value: float) -> float:
+        return max(0.0, min(1.0, float(value)))
+
+    def clamp(self) -> None:
+        self.markers = {
+            k: self._clamp(v)
+            for k, v in self.markers.items()
+        }
+
+        self.setpoints = {
+            k: self._clamp(v)
+            for k, v in self.setpoints.items()
+        }
+
+        self.last_update = time.time()
+
+
+# ------------------------------------------------------------
+# Simulated hardware / RF / network fabric
+# ------------------------------------------------------------
+
+@dataclass
+class HardwareEndpoint:
+    endpoint_id: str
+    kind: str
+    uri: str
+    enabled: bool = True
+    tags: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class SimulatedHardwareFabric:
+    """
+    Simulated hardware/RF/network fabric.
+
+    Important:
+      - This does not scan your system.
+      - This does not transmit RF.
+      - This does not access real hardware.
+      - It only creates simulated receipts for architecture testing.
+    """
+
+    def __init__(self):
+        self.endpoints: Dict[str, HardwareEndpoint] = {}
+
+    def register_endpoint(
+        self,
+        endpoint_id: str,
+        kind: str,
+        uri: str,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> HardwareEndpoint:
+        endpoint = HardwareEndpoint(
+            endpoint_id=endpoint_id,
+            kind=kind,
+            uri=uri,
+            tags=tags or [],
+            metadata=metadata or {},
+        )
+
+        self.endpoints[endpoint_id] = endpoint
+        return endpoint
+
+    def register_default_simulated_endpoints(self) -> None:
+        defaults = [
+            ("sim-rf-0", "rf", "sim://rf/0", ["rf", "wireless"]),
+            ("sim-ble-0", "ble", "sim://ble/0", ["ble", "wireless"]),
+            ("sim-serial-0", "serial", "sim://serial/0", ["serial", "hardware"]),
+            ("sim-network-0", "network", "sim://network/0", ["network"]),
+            ("sim-body-bus-0", "body-bus", "sim://body/bus/0", ["body", "simulated"]),
+        ]
+
+        for endpoint_id, kind, uri, tags in defaults:
+            self.register_endpoint(
+                endpoint_id=endpoint_id,
+                kind=kind,
+                uri=uri,
+                tags=tags,
+                metadata={"registered_at": time.time()},
+            )
+
+    def list_endpoints(self) -> List[Dict[str, Any]]:
+        return sanitize_json([
+            {
+                "endpoint_id": e.endpoint_id,
+                "kind": e.kind,
+                "uri": e.uri,
+                "enabled": e.enabled,
+                "tags": e.tags,
+            }
+            for e in self.endpoints.values()
+        ])
+
+    def emit(
+        self,
+        endpoint_id: str,
+        event: Dict[str, Any],
+        policy: BioSafetyPolicy,
+    ) -> Dict[str, Any]:
+        endpoint = self.endpoints.get(endpoint_id)
+
+        if not endpoint:
+            return {
+                "ok": False,
+                "simulated": True,
+                "error": "unknown_endpoint",
+                "endpoint_id": endpoint_id,
+            }
+
+        if not endpoint.enabled:
+            return {
+                "ok": False,
+                "simulated": True,
+                "error": "endpoint_disabled",
+                "endpoint_id": endpoint_id,
+            }
+
+        if policy.require_consent and not policy.consent_granted:
+            return {
+                "ok": False,
+                "simulated": True,
+                "dry_run": True,
+                "reason": "consent_required",
+                "endpoint_id": endpoint_id,
+            }
+
+        if not policy.allow_hardware_broadcast:
+            return {
+                "ok": True,
+                "simulated": True,
+                "dry_run": True,
+                "endpoint_id": endpoint_id,
+                "event_hash": deterministic_hash(event),
+                "note": "Hardware broadcast disabled by safety policy.",
+            }
+
+        if endpoint.kind in {"rf", "ble", "wifi", "serial", "network"}:
+            if endpoint.endpoint_id not in policy.allowed_rf_channels:
+                return {
+                    "ok": False,
+                    "simulated": True,
+                    "reason": "channel_not_allowed",
+                    "endpoint_id": endpoint_id,
+                }
+
+        return {
+            "ok": True,
+            "simulated": True,
+            "endpoint_id": endpoint_id,
+            "kind": endpoint.kind,
+            "event_hash": deterministic_hash(event),
+        }
+
+    def broadcast(
+        self,
+        event: Dict[str, Any],
+        policy: BioSafetyPolicy,
+    ) -> Dict[str, Any]:
+        if policy.require_consent and not policy.consent_granted:
+            return {
+                "ok": False,
+                "simulated": True,
+                "dry_run": True,
+                "reason": "consent_required",
+            }
+
+        if not policy.allow_hardware_broadcast:
+            return {
+                "ok": True,
+                "simulated": True,
+                "dry_run": True,
+                "event_hash": deterministic_hash(event),
+                "note": "Hardware broadcast disabled by safety policy.",
+            }
+
+        receipts = []
+
+        for endpoint in self.endpoints.values():
+            receipts.append(
+                self.emit(endpoint.endpoint_id, event, policy)
+            )
+
+        return {
+            "ok": True,
+            "simulated": True,
+            "receipts": receipts,
+        }
+
+
+# ------------------------------------------------------------
+# Maxwell Bio DNA Engineer
+# ------------------------------------------------------------
+
+class MaxwellBioDNAEngineer:
+    """
+    A Maxwell-chain-resident Bio DNA Engineer module.
+
+    This module provides:
+      - DNA node registration and symbolic editing
+      - simulated chemical/hormone state editing
+      - online/offline operation
+      - offline queueing and later chain sync
+      - simulated RF/hardware/network event receipts
+      - Maxwell blockchain anchoring for every action
+
+    This is a digital-twin simulation module only.
+    """
+
+    def __init__(
+        self,
+        chain: "MaxwellBlockchain",
+        bridge: Optional[Any] = None,
+        hardware: Optional[SimulatedHardwareFabric] = None,
+        engineer_id: str = "maxwell-bio-dna-engineer-01",
+    ):
+        self.chain = chain
+        self.bridge = bridge
+        self.engineer_id = engineer_id
+
+        self.mode = BioEngineerMode.ONLINE
+        self.safety = BioSafetyPolicy()
+
+        self.state = ChemicalHormoneState()
+        self.genomes: Dict[str, Dict[str, Any]] = {}
+
+        self.hardware = hardware or SimulatedHardwareFabric()
+        self.hardware.register_default_simulated_endpoints()
+
+        self.offline_queue: List[Dict[str, Any]] = []
+
+        self._commit(
+            action="engineer_init",
+            payload={
+                "note": "Maxwell Bio DNA Engineer initialized",
+                "simulation_only": True,
+            },
+        )
+
+    # ------------------------------------------------------------
+    # Internal record helpers
+    # ------------------------------------------------------------
+
+    def state_root(self) -> str:
+        genome_summary = {}
+
+        for node_id, info in self.genomes.items():
+            genome_summary[node_id] = {
+                "dna_sha256": hashlib.sha256(
+                    info.get("dna", "").encode("utf-8")
+                ).hexdigest(),
+                "edit_count": info.get("edit_count", 0),
+            }
+
+        return deterministic_hash({
+            "markers": self.state.markers,
+            "setpoints": self.state.setpoints,
+            "genomes": genome_summary,
+        })
+
+    def _make_record(self, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        record = sanitize_json({
+            "type": "BioDNAEngineerRecord",
+            "engineer_id": self.engineer_id,
+            "action": action,
+            "mode": self.mode.value,
+            "timestamp": time.time(),
+            "payload": payload or {},
+            "state_root": self.state_root(),
+            "safety": self.safety.to_json(),
+        })
+
+        record["record_hash"] = deterministic_hash(record)
+        return record
+
+    def _commit(self, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        record = self._make_record(action, payload)
+
+        if self.mode == BioEngineerMode.ONLINE:
+            block = self.chain.add_block(record)
+
+            return {
+                "status": "anchored",
+                "block_index": block.index,
+                "block_hash": block.hash,
+                "record_hash": record["record_hash"],
+            }
+
+        self.offline_queue.append(record)
+
+        return {
+            "status": "queued_offline",
+            "queue_size": len(self.offline_queue),
+            "record_hash": record["record_hash"],
+        }
+
+    # ------------------------------------------------------------
+    # Consent / safety / mode
+    # ------------------------------------------------------------
+
+    def grant_consent(self, granted: bool = True) -> Dict[str, Any]:
+        self.safety.consent_granted = bool(granted)
+
+        return self._commit(
+            action="consent_update",
+            payload={"granted": self.safety.consent_granted},
+        )
+
+    def configure_safety(
+        self,
+        max_modulation_intensity: Optional[float] = None,
+        max_session_duration_minutes: Optional[float] = None,
+        allow_hardware_broadcast: Optional[bool] = None,
+        allowed_rf_channels: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        if max_modulation_intensity is not None:
+            self.safety.max_modulation_intensity = max(
+                0.0,
+                min(1.0, float(max_modulation_intensity))
+            )
+
+        if max_session_duration_minutes is not None:
+            self.safety.max_session_duration_minutes = max(
+                0.0,
+                float(max_session_duration_minutes)
+            )
+
+        if allow_hardware_broadcast is not None:
+            self.safety.allow_hardware_broadcast = bool(allow_hardware_broadcast)
+
+        if allowed_rf_channels is not None:
+            self.safety.allowed_rf_channels = [
+                str(ch) for ch in allowed_rf_channels
+            ]
+
+        return self._commit(
+            action="safety_policy_update",
+            payload=self.safety.to_json(),
+        )
+
+    def set_offline(self) -> Dict[str, Any]:
+        self.mode = BioEngineerMode.OFFLINE
+
+        return self._commit(
+            action="mode_change",
+            payload={"mode": "offline"},
+        )
+
+    def set_online(self) -> Dict[str, Any]:
+        self.mode = BioEngineerMode.ONLINE
+
+        mode_receipt = self._commit(
+            action="mode_change",
+            payload={"mode": "online"},
+        )
+
+        sync_receipt = self.sync_offline()
+
+        return {
+            "mode_change": mode_receipt,
+            "offline_sync": sync_receipt,
+        }
+
+    def sync_offline(self) -> Dict[str, Any]:
+        if self.mode != BioEngineerMode.ONLINE:
+            return {
+                "status": "still_offline",
+                "queued_records": len(self.offline_queue),
+            }
+
+        if not self.offline_queue:
+            return {
+                "status": "no_offline_records",
+            }
+
+        queued_hashes = [r["record_hash"] for r in self.offline_queue]
+
+        block = self.chain.add_block(sanitize_json({
+            "type": "BioDNAEngineerOfflineSync",
+            "engineer_id": self.engineer_id,
+            "record_count": len(self.offline_queue),
+            "queued_record_hashes": queued_hashes,
+            "queue_merkle_root": merkle_root(queued_hashes),
+            "synced_at": time.time(),
+            "state_root": self.state_root(),
+        }))
+
+        synced_count = len(self.offline_queue)
+        self.offline_queue = []
+
+        return {
+            "status": "synced",
+            "block_index": block.index,
+            "block_hash": block.hash,
+            "synced_records": synced_count,
+        }
+
+    # ------------------------------------------------------------
+    # DNA node registry
+    # ------------------------------------------------------------
+
+    @staticmethod
+    def _clean_dna(sequence: str) -> str:
+        sequence = sequence.upper().replace("U", "T")
+        return "".join(ch for ch in sequence if ch in "ACGT")
+
+    @staticmethod
+    def _generate_dna_from_seed(seed_text: str, length: int = 256) -> str:
+        bases = "ACGT"
+        seed_hash = hashlib.sha256(seed_text.encode("utf-8")).hexdigest()
+
+        dna = []
+
+        while len(dna) < length:
+            for ch in seed_hash:
+                if len(dna) >= length:
+                    break
+
+                dna.append(bases[int(ch, 16) % 4])
+
+            seed_hash = hashlib.sha256(seed_hash.encode("utf-8")).hexdigest()
+
+        return "".join(dna)
+
+    def register_bio_node(
+        self,
+        node_id: str,
+        dna_sequence: str = "",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        dna = self._clean_dna(dna_sequence)
+
+        if not dna:
+            dna = self._generate_dna_from_seed(node_id)
+
+        self.genomes[node_id] = {
+            "dna": dna,
+            "edit_count": 0,
+            "created_at": time.time(),
+            "metadata": sanitize_json(metadata or {}),
+        }
+
+        return self._commit(
+            action="register_bio_node",
+            payload={
+                "node_id": node_id,
+                "dna_length": len(dna),
+                "dna_sha256": hashlib.sha256(dna.encode("utf-8")).hexdigest(),
+                "metadata": metadata or {},
+            },
+        )
+
+    def propose_dna_edit(
+        self,
+        node_id: str,
+        target: str,
+        payload: str = "",
+        edit_mode: str = "replace",
+        max_edit_length: int = 64,
+    ) -> Dict[str, Any]:
+        if node_id not in self.genomes:
+            return {
+                "status": "error",
+                "reason": "unknown_node",
+                "node_id": node_id,
+            }
+
+        target = self._clean_dna(target)
+        payload = self._clean_dna(payload)[:max_edit_length]
+
+        if not target:
+            return {
+                "status": "error",
+                "reason": "empty_target",
+            }
+
+        dna = self.genomes[node_id]["dna"]
+        position = dna.find(target)
+
+        if position == -1:
+            return {
+                "status": "no_target_found",
+                "target": target,
+            }
+
+        end = position + len(target)
+        original_segment = dna[position:end]
+
+        edit_mode = edit_mode.lower()
+
+        if edit_mode == "delete":
+            edited = dna[:position] + dna[end:]
+            edited_segment = ""
+
+        elif edit_mode == "insert":
+            edited = dna[:end] + payload + dna[end:]
+            edited_segment = original_segment + payload
+
+        else:
+            edit_mode = "replace"
+            payload = payload or target
+            edited = dna[:position] + payload + dna[end:]
+            edited_segment = payload
+
+        self.genomes[node_id]["dna"] = edited
+        self.genomes[node_id]["edit_count"] += 1
+
+        receipt = self._commit(
+            action="dna_edit",
+            payload={
+                "node_id": node_id,
+                "edit_mode": edit_mode,
+                "target": target,
+                "position": position,
+                "original_segment": original_segment,
+                "edited_segment": edited_segment,
+                "payload_insert": payload,
+                "new_dna_length": len(edited),
+                "new_dna_sha256": hashlib.sha256(edited.encode("utf-8")).hexdigest(),
+                "edit_count": self.genomes[node_id]["edit_count"],
+            },
+        )
+
+        # Optional bridge integration.
+        if self.bridge is not None and hasattr(self.bridge, "send_bio_to_maxwell"):
+            try:
+                self.bridge.send_bio_to_maxwell(
+                    payload={
+                        "type": "BioDNAEngineerEdit",
+                        "node_id": node_id,
+                        "edit_mode": edit_mode,
+                        "target": target,
+                        "position": position,
+                    },
+                    dna_payload=edited[:1024],
+                )
+            except Exception:
+                pass
+
+        return receipt
+
+    # ------------------------------------------------------------
+    # Simulated chemical/hormone editor
+    # ------------------------------------------------------------
+
+    def apply_hormone_modulation(
+        self,
+        node_id: str,
+        marker: str,
+        delta: float,
+        duration_minutes: float = 1.0,
+        reason: str = "",
+    ) -> Dict[str, Any]:
+        if self.safety.require_consent and not self.safety.consent_granted:
+            return {
+                "status": "blocked",
+                "reason": "consent_required",
+            }
+
+        if marker not in self.state.markers:
+            return {
+                "status": "error",
+                "reason": "unknown_marker",
+                "available_markers": list(self.state.markers.keys()),
+            }
+
+        try:
+            delta = float(delta)
+        except Exception:
+            delta = 0.0
+
+        try:
+            duration_minutes = float(duration_minutes)
+        except Exception:
+            duration_minutes = 0.0
+
+        duration_minutes = max(
+            0.0,
+            min(duration_minutes, self.safety.max_session_duration_minutes)
+        )
+
+        limit = float(self.safety.max_modulation_intensity)
+        actual_delta = max(-limit, min(limit, delta))
+
+        old_value = self.state.markers[marker]
+        new_value = max(0.0, min(1.0, old_value + actual_delta))
+
+        self.state.markers[marker] = new_value
+        self.state.last_update = time.time()
+
+        self.state.history.append(sanitize_json({
+            "timestamp": time.time(),
+            "node_id": node_id,
+            "marker": marker,
+            "old": old_value,
+            "new": new_value,
+            "delta": actual_delta,
+            "duration_minutes": duration_minutes,
+            "reason": reason,
+        }))
+
+        if len(self.state.history) > 500:
+            self.state.history = self.state.history[-500:]
+
+        chain_receipt = self._commit(
+            action="hormone_modulation_sim",
+            payload={
+                "node_id": node_id,
+                "marker": marker,
+                "old": old_value,
+                "new": new_value,
+                "requested_delta": delta,
+                "actual_delta": actual_delta,
+                "duration_minutes": duration_minutes,
+                "reason": reason,
+            },
+        )
+
+        event = sanitize_json({
+            "type": "hormone_modulation_sim",
+            "node_id": node_id,
+            "marker": marker,
+            "old": old_value,
+            "new": new_value,
+            "delta": actual_delta,
+            "duration_minutes": duration_minutes,
+            "reason": reason,
+        })
+
+        hardware_receipt = self.hardware.broadcast(event, self.safety)
+
+        return {
+            "status": "applied_sim",
+            "marker": marker,
+            "old": old_value,
+            "new": new_value,
+            "actual_delta": actual_delta,
+            "chain_receipt": chain_receipt,
+            "hardware_receipt": hardware_receipt,
+        }
+
+    def set_marker_setpoint(
+        self,
+        marker: str,
+        value: float,
+    ) -> Dict[str, Any]:
+        if marker not in self.state.setpoints:
+            return {
+                "status": "error",
+                "reason": "unknown_marker",
+                "available_markers": list(self.state.setpoints.keys()),
+            }
+
+        value = max(0.0, min(1.0, float(value)))
+        old_value = self.state.setpoints[marker]
+
+        self.state.setpoints[marker] = value
+
+        return self._commit(
+            action="setpoint_update",
+            payload={
+                "marker": marker,
+                "old": old_value,
+                "new": value,
+            },
+        )
+
+    # ------------------------------------------------------------
+    # RF / hardware / network simulation
+    # ------------------------------------------------------------
+
+    def broadcast_rf_profile(
+        self,
+        profile_name: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        if self.safety.require_consent and not self.safety.consent_granted:
+            return {
+                "status": "blocked",
+                "reason": "consent_required",
+            }
+
+        event = sanitize_json({
+            "type": "rf_profile_sim",
+            "profile": profile_name,
+            "params": params or {},
+        })
+
+        hardware_receipt = self.hardware.broadcast(event, self.safety)
+
+        chain_receipt = self._commit(
+            action="rf_profile_broadcast_sim",
+            payload={
+                "profile": profile_name,
+                "params": params or {},
+                "hardware_receipt": hardware_receipt,
+            },
+        )
+
+        return {
+            "chain_receipt": chain_receipt,
+            "hardware_receipt": hardware_receipt,
+        }
+
+    # ------------------------------------------------------------
+    # Body-state storage
+    # ------------------------------------------------------------
+
+    def export_body_state(self) -> Dict[str, Any]:
+        return sanitize_json({
+            "engineer_id": self.engineer_id,
+            "mode": self.mode.value,
+            "state_root": self.state_root(),
+            "markers": self.state.markers,
+            "setpoints": self.state.setpoints,
+            "genome_registry": {
+                node_id: {
+                    "dna_length": len(info.get("dna", "")),
+                    "dna_sha256": hashlib.sha256(
+                        info.get("dna", "").encode("utf-8")
+                    ).hexdigest(),
+                    "edit_count": info.get("edit_count", 0),
+                }
+                for node_id, info in self.genomes.items()
+            },
+            "offline_queue_size": len(self.offline_queue),
+            "hardware_endpoints": self.hardware.list_endpoints(),
+            "safety": self.safety.to_json(),
+        })
+
+    def save_body_state(self, path: str = "maxwell_bio_body_state.json") -> str:
+        data = self.export_body_state()
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+        self._commit(
+            action="body_state_saved",
+            payload={"path": path},
+        )
+
+        return path
+
+    def load_body_state(self, path: str = "maxwell_bio_body_state.json") -> Dict[str, Any]:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as exc:
+            return {
+                "status": "error",
+                "reason": f"failed_to_load: {exc}",
+            }
+
+        if "markers" in data and isinstance(data["markers"], dict):
+            for k, v in data["markers"].items():
+                self.state.markers[str(k)] = max(0.0, min(1.0, float(v)))
+
+        if "setpoints" in data and isinstance(data["setpoints"], dict):
+            for k, v in data["setpoints"].items():
+                self.state.setpoints[str(k)] = max(0.0, min(1.0, float(v)))
+
+        self.state.clamp()
+
+        return self._commit(
+            action="body_state_loaded",
+            payload={"path": path},
+        )
+
+    # ------------------------------------------------------------
+    # Status
+    # ------------------------------------------------------------
+
+    def status(self) -> Dict[str, Any]:
+        return sanitize_json({
+            "engineer_id": self.engineer_id,
+            "mode": self.mode.value,
+            "state_root": self.state_root(),
+            "markers": self.state.markers,
+            "setpoints": self.state.setpoints,
+            "genome_nodes": list(self.genomes.keys()),
+            "offline_queue_size": len(self.offline_queue),
+            "hardware_endpoints": self.hardware.list_endpoints(),
+            "safety": self.safety.to_json(),
+        })
