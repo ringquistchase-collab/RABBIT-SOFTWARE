@@ -1,0 +1,759 @@
+# ============================================================
+# MAXWELL <-> BIO / CROSS-CHAIN NETWORK BRIDGE
+# ============================================================
+
+import zlib
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+
+# ------------------------------------------------------------
+# Utility functions
+# ------------------------------------------------------------
+
+def sanitize_json(obj: Any) -> Any:
+    """
+    Make an object JSON-safe by forcing it through JSON serialization.
+    This prevents numpy types, sets, bytes, etc. from breaking block hashes.
+    """
+    return json.loads(json.dumps(obj, sort_keys=True, default=str))
+
+
+def deterministic_hash(obj: Any) -> str:
+    """Deterministic SHA-256 hash of a JSON-serializable object."""
+    return hashlib.sha256(
+        json.dumps(obj, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+
+
+def merkle_root(hashes: List[str]) -> str:
+    """
+    Simple Merkle root builder.
+
+    This is used to bind:
+      - packet hash
+      - DNA payload hash
+      - RF checksum hash
+    into one cross-chain integrity root.
+    """
+    if not hashes:
+        return hashlib.sha256(b"empty_merkle_root").hexdigest()
+
+    level = [h for h in hashes if h]
+
+    if not level:
+        return hashlib.sha256(b"empty_merkle_root").hexdigest()
+
+    while len(level) > 1:
+        if len(level) % 2 == 1:
+            level.append(level[-1])
+
+        next_level = []
+
+        for i in range(0, len(level), 2):
+            combined = f"{level[i]}{level[i + 1]}".encode("utf-8")
+            next_level.append(hashlib.sha256(combined).hexdigest())
+
+        level = next_level
+
+    return level[0]
+
+
+# ------------------------------------------------------------
+# Simple DNA encoding for bridge use
+# ------------------------------------------------------------
+
+BRIDGE_BASES = "ACGT"
+
+
+def bridge_bytes_to_dna(data: bytes) -> str:
+    """Encode bytes into DNA using 2 bits per base."""
+    bases: List[str] = []
+
+    for byte in data:
+        bases.append(BRIDGE_BASES[(byte >> 6) & 0x03])
+        bases.append(BRIDGE_BASES[(byte >> 4) & 0x03])
+        bases.append(BRIDGE_BASES[(byte >> 2) & 0x03])
+        bases.append(BRIDGE_BASES[byte & 0x03])
+
+    return "".join(bases)
+
+
+def bridge_json_to_dna(obj: Any) -> str:
+    """Encode a JSON-compatible object into compressed DNA storage."""
+    raw = json.dumps(obj, sort_keys=True, default=str).encode("utf-8")
+    compressed = zlib.compress(raw, level=9)
+    return bridge_bytes_to_dna(compressed)
+
+
+# ------------------------------------------------------------
+# Cross-chain packet
+# ------------------------------------------------------------
+
+@dataclass
+class CrossChainPacket:
+    packet_id: str
+    source_chain: str
+    target_chain: str
+    opcode: str
+    payload: Dict[str, Any]
+    timestamp: float
+    dna_payload: Optional[str] = None
+    rf_checksum: Optional[str] = None
+    merkle_root: Optional[str] = None
+
+
+def packet_hash(packet: CrossChainPacket) -> str:
+    """
+    Hash the packet without the Merkle root.
+
+    The Merkle root is derived from this hash plus payload bindings,
+    so including it inside the hash would create a circular dependency.
+    """
+    dna_hash = None
+
+    if packet.dna_payload:
+        dna_hash = hashlib.sha256(packet.dna_payload.encode("utf-8")).hexdigest()
+
+    return deterministic_hash({
+        "packet_id": packet.packet_id,
+        "source_chain": packet.source_chain,
+        "target_chain": packet.target_chain,
+        "opcode": packet.opcode,
+        "payload": packet.payload,
+        "timestamp": packet.timestamp,
+        "dna_payload_sha256": dna_hash,
+        "rf_checksum": packet.rf_checksum,
+    })
+
+
+# ------------------------------------------------------------
+# Chain adapter base class
+# ------------------------------------------------------------
+
+class BaseChainAdapter:
+    """
+    Generic interface for any chain that can participate in the bridge network.
+    """
+
+    chain_id: str = "base"
+
+    def get_head(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def commit_packet(self, packet: CrossChainPacket, direction: str) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def validate(self) -> bool:
+        return True
+
+
+# ------------------------------------------------------------
+# Maxwell chain adapter
+# ------------------------------------------------------------
+
+class MaxwellChainAdapter(BaseChainAdapter):
+    """
+    Adapts a MaxwellBlockchain instance to the cross-chain bridge.
+    """
+
+    def __init__(self, chain: "MaxwellBlockchain", chain_id: str = "maxwell"):
+        self.chain = chain
+        self.chain_id = chain_id
+
+    def get_head(self) -> Dict[str, Any]:
+        block = self.chain.chain[-1]
+
+        return {
+            "chain_id": self.chain_id,
+            "height": block.index,
+            "hash": block.hash,
+        }
+
+    def commit_packet(self, packet: CrossChainPacket, direction: str) -> Dict[str, Any]:
+        """
+        Commit a cross-chain packet to the Maxwell chain.
+
+        The DNA payload is not stored fully here to keep blocks compact.
+        Instead, we store its SHA-256 hash and a short prefix.
+        """
+        dna_payload_hash = None
+        dna_prefix = ""
+
+        if packet.dna_payload:
+            dna_payload_hash = hashlib.sha256(packet.dna_payload.encode("utf-8")).hexdigest()
+            dna_prefix = packet.dna_payload[:128]
+
+        data = sanitize_json({
+            "type": "CrossChainPacket",
+            "bridge_network": True,
+            "direction": direction,
+            "packet_id": packet.packet_id,
+            "source_chain": packet.source_chain,
+            "target_chain": packet.target_chain,
+            "opcode": packet.opcode,
+            "payload": packet.payload,
+            "dna_payload_sha256": dna_payload_hash,
+            "dna_prefix": dna_prefix,
+            "rf_checksum": packet.rf_checksum,
+            "merkle_root": packet.merkle_root,
+        })
+
+        block = self.chain.add_block(data)
+
+        return {
+            "chain_id": self.chain_id,
+            "height": block.index,
+            "hash": block.hash,
+        }
+
+    def validate(self) -> bool:
+        return self.chain.validate_chain()
+
+
+# ------------------------------------------------------------
+# Bio chain adapter
+# ------------------------------------------------------------
+
+class BioChainAdapter(BaseChainAdapter):
+    """
+    Adapts the DNA/RNA BioNodeIntegrationSystem to the bridge.
+
+    If the full bio system is not available, this adapter still works
+    as a standalone DNA ledger.
+    """
+
+    def __init__(self, bio_system: Optional[Any] = None, chain_id: str = "bio"):
+        self.bio_system = bio_system
+        self.chain_id = chain_id
+        self.height = 0
+        self.prev_hash = "0" * 64
+        self.records: List[Dict[str, Any]] = []
+
+    def get_head(self) -> Dict[str, Any]:
+        return {
+            "chain_id": self.chain_id,
+            "height": self.height,
+            "hash": self.prev_hash,
+        }
+
+    def commit_packet(self, packet: CrossChainPacket, direction: str) -> Dict[str, Any]:
+        """
+        Commit a packet into the DNA/Bio ledger.
+
+        If the BioNodeIntegrationSystem exists, use its DNA storage system.
+        Otherwise, fall back to local compressed DNA encoding.
+        """
+        payload_record = sanitize_json({
+            "type": "BioCrossChainRecord",
+            "direction": direction,
+            "packet_id": packet.packet_id,
+            "source_chain": packet.source_chain,
+            "target_chain": packet.target_chain,
+            "opcode": packet.opcode,
+            "payload": packet.payload,
+            "rf_checksum": packet.rf_checksum,
+            "merkle_root": packet.merkle_root,
+            "timestamp": packet.timestamp,
+        })
+
+        dna = None
+        record_id = None
+
+        if self.bio_system is not None and hasattr(self.bio_system, "store_payload"):
+            try:
+                record_id, dna = self.bio_system.store_payload(
+                    payload_record,
+                    namespace=f"bridge:{packet.source_chain}->{packet.target_chain}"
+                )
+            except Exception:
+                dna = bridge_json_to_dna(payload_record)
+                record_id = hashlib.sha256(dna.encode("utf-8")).hexdigest()[:24]
+        else:
+            dna = bridge_json_to_dna(payload_record)
+            record_id = hashlib.sha256(dna.encode("utf-8")).hexdigest()[:24]
+
+        block_hash = hashlib.sha256(
+            f"{self.prev_hash}:{packet.packet_id}:{dna}".encode("utf-8")
+        ).hexdigest()
+
+        self.height += 1
+
+        record = {
+            "height": self.height,
+            "prev_hash": self.prev_hash,
+            "hash": block_hash,
+            "packet_id": packet.packet_id,
+            "record_id": record_id,
+            "dna": dna,
+            "direction": direction,
+            "source_chain": packet.source_chain,
+            "target_chain": packet.target_chain,
+            "opcode": packet.opcode,
+        }
+
+        self.records.append(record)
+        self.prev_hash = block_hash
+
+        return {
+            "chain_id": self.chain_id,
+            "height": self.height,
+            "hash": block_hash,
+            "record_id": record_id,
+            "dna_length": len(dna),
+        }
+
+    def validate(self) -> bool:
+        """
+        Validate the local Bio ledger hash chain.
+        """
+        prev = "0" * 64
+
+        for record in self.records:
+            if record["prev_hash"] != prev:
+                return False
+
+            expected = hashlib.sha256(
+                f"{prev}:{record['packet_id']}:{record['dna']}".encode("utf-8")
+            ).hexdigest()
+
+            if record["hash"] != expected:
+                return False
+
+            prev = record["hash"]
+
+        return True
+
+
+# ------------------------------------------------------------
+# External chain adapter
+# ------------------------------------------------------------
+
+class ExternalChainAdapter(BaseChainAdapter):
+    """
+    Adapter for external chains such as Bitcoin, Ethereum, Solana, etc.
+
+    This is a local anchor model. For production, you would replace this
+    with RPC calls, SPV proofs, Merkle proofs, or a relayer/oracle system.
+    """
+
+    def __init__(self, chain_id: str, height: int = 0, head_hash: str = "0" * 64):
+        self.chain_id = chain_id
+        self.height = height
+        self.head_hash = head_hash
+        self.anchors: List[Dict[str, Any]] = []
+
+    def get_head(self) -> Dict[str, Any]:
+        return {
+            "chain_id": self.chain_id,
+            "height": self.height,
+            "hash": self.head_hash,
+        }
+
+    def import_head(self, height: int, head_hash: str) -> None:
+        """
+        Import an external chain head.
+        """
+        self.height = max(self.height, int(height))
+        self.head_hash = head_hash
+
+        self.anchors.append({
+            "type": "external_head",
+            "height": height,
+            "head_hash": head_hash,
+            "imported_at": time.time(),
+        })
+
+    def commit_packet(self, packet: CrossChainPacket, direction: str) -> Dict[str, Any]:
+        """
+        Record a bridge packet as an external-chain anchor.
+        """
+        anchor_hash = hashlib.sha256(
+            f"{self.head_hash}:{packet_hash(packet)}:{direction}".encode("utf-8")
+        ).hexdigest()
+
+        self.height += 1
+        self.head_hash = anchor_hash
+
+        self.anchors.append({
+            "type": "bridge_packet",
+            "direction": direction,
+            "packet_id": packet.packet_id,
+            "anchor_hash": anchor_hash,
+            "timestamp": time.time(),
+        })
+
+        return {
+            "chain_id": self.chain_id,
+            "height": self.height,
+            "hash": anchor_hash,
+        }
+
+    def validate(self) -> bool:
+        return True
+
+
+# ------------------------------------------------------------
+# Cross-chain network
+# ------------------------------------------------------------
+
+class CrossChainNetwork:
+    """
+    Local cross-chain message bus and bridge ledger.
+
+    Every packet is committed to:
+      1. source chain
+      2. bridge chain
+      3. destination chain
+
+    This creates a verifiable multi-chain route.
+    """
+
+    def __init__(
+        self,
+        network_id: str = "maxwell-bio-network",
+        bridge_owner: str = "Maxwell-Bio Bridge",
+        difficulty: int = 1,
+    ):
+        self.network_id = network_id
+        self.adapters: Dict[str, BaseChainAdapter] = {}
+        self.links = set()
+        self.packet_log: List[Dict[str, Any]] = []
+
+        # Dedicated bridge blockchain.
+        self.bridge_chain = MaxwellBlockchain(
+            owner=bridge_owner,
+            difficulty=difficulty
+        )
+
+        self.bridge_adapter = MaxwellChainAdapter(
+            chain=self.bridge_chain,
+            chain_id="bridge"
+        )
+
+        self.register_chain(self.bridge_adapter)
+
+    def register_chain(self, adapter: BaseChainAdapter) -> BaseChainAdapter:
+        if adapter.chain_id in self.adapters:
+            return self.adapters[adapter.chain_id]
+
+        self.adapters[adapter.chain_id] = adapter
+
+        if adapter.chain_id != "bridge":
+            self.connect("bridge", adapter.chain_id)
+
+        return adapter
+
+    def connect(self, chain_a: str, chain_b: str) -> None:
+        self.links.add(frozenset((chain_a, chain_b)))
+
+    def build_packet(
+        self,
+        source_chain: str,
+        target_chain: str,
+        opcode: str,
+        payload: Dict[str, Any],
+        dna_payload: Optional[str] = None,
+        rf_checksum: Optional[str] = None,
+    ) -> CrossChainPacket:
+        """
+        Build a packet and bind it with a Merkle root.
+        """
+        timestamp = time.time()
+
+        packet_id = deterministic_hash({
+            "network": self.network_id,
+            "time_ns": time.time_ns(),
+            "source_chain": source_chain,
+            "target_chain": target_chain,
+            "opcode": opcode,
+            "payload": sanitize_json(payload or {}),
+        })[:32]
+
+        packet = CrossChainPacket(
+            packet_id=packet_id,
+            source_chain=source_chain,
+            target_chain=target_chain,
+            opcode=opcode,
+            payload=sanitize_json(payload or {}),
+            timestamp=timestamp,
+            dna_payload=dna_payload,
+            rf_checksum=rf_checksum,
+            merkle_root=None,
+        )
+
+        hashes = [packet_hash(packet)]
+
+        if dna_payload:
+            hashes.append(hashlib.sha256(dna_payload.encode("utf-8")).hexdigest())
+
+        if rf_checksum:
+            hashes.append(hashlib.sha256(str(rf_checksum).encode("utf-8")).hexdigest())
+
+        packet.merkle_root = merkle_root(hashes)
+
+        return packet
+
+    def send_packet(
+        self,
+        source_chain: str,
+        target_chain: str,
+        opcode: str,
+        payload: Dict[str, Any],
+        dna_payload: Optional[str] = None,
+        rf_checksum: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Route a packet from source chain to target chain through the bridge.
+        """
+        if source_chain not in self.adapters:
+            raise KeyError(f"Unknown source chain: {source_chain}")
+
+        if target_chain not in self.adapters:
+            raise KeyError(f"Unknown target chain: {target_chain}")
+
+        packet = self.build_packet(
+            source_chain=source_chain,
+            target_chain=target_chain,
+            opcode=opcode,
+            payload=payload,
+            dna_payload=dna_payload,
+            rf_checksum=rf_checksum,
+        )
+
+        # Commit to source chain.
+        source_commit = self.adapters[source_chain].commit_packet(packet, "outbound")
+
+        # Commit to bridge chain if the bridge is not already source/target.
+        bridge_commit = None
+
+        if source_chain != "bridge" and target_chain != "bridge":
+            bridge_commit = self.bridge_adapter.commit_packet(packet, "bridge-relay")
+
+        # Commit to target chain.
+        target_commit = None
+
+        if target_chain != source_chain:
+            target_commit = self.adapters[target_chain].commit_packet(packet, "inbound")
+
+        entry = sanitize_json({
+            "packet_id": packet.packet_id,
+            "packet_hash": packet_hash(packet),
+            "source_chain": source_chain,
+            "target_chain": target_chain,
+            "opcode": opcode,
+            "merkle_root": packet.merkle_root,
+            "source_commit": source_commit,
+            "bridge_commit": bridge_commit,
+            "target_commit": target_commit,
+            "routed_at": time.time(),
+        })
+
+        self.packet_log.append(entry)
+
+        return entry
+
+    def anchor_external_chain(
+        self,
+        chain_id: str,
+        height: int,
+        head_hash: str,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> "MaxwellBlock":
+        """
+        Anchor an external chain head into the Maxwell bridge chain.
+        """
+        if chain_id not in self.adapters:
+            self.register_chain(ExternalChainAdapter(chain_id, height, head_hash))
+        else:
+            adapter = self.adapters[chain_id]
+
+            if hasattr(adapter, "import_head"):
+                adapter.import_head(height, head_hash)
+
+        block = self.bridge_chain.add_block(sanitize_json({
+            "type": "ExternalChainAnchor",
+            "external_chain": chain_id,
+            "height": height,
+            "head_hash": head_hash,
+            "extra": extra or {},
+            "anchored_at": time.time(),
+        }))
+
+        return block
+
+    def report(self) -> None:
+        print("\n=== CROSS-CHAIN NETWORK REPORT ===")
+        print(f"Network ID: {self.network_id}")
+        print(f"Registered chains: {len(self.adapters)}")
+        print(f"Routed packets: {len(self.packet_log)}")
+
+        for chain_id, adapter in self.adapters.items():
+            head = adapter.get_head()
+            height = head.get("height", 0)
+            head_hash = str(head.get("hash", ""))[:24]
+            print(f"  {chain_id:<12} height={height:<6} head={head_hash}...")
+
+        print("\nBridge chain validation:")
+        self.bridge_chain.validate_chain()
+
+        print("\nAdapter validation:")
+
+        for adapter in self.adapters.values():
+            if adapter.chain_id == "bridge":
+                continue
+
+            try:
+                ok = adapter.validate()
+                print(f"  {adapter.chain_id:<12} valid={ok}")
+            except Exception as exc:
+                print(f"  {adapter.chain_id:<12} validation_error={exc}")
+
+
+# ------------------------------------------------------------
+# High-level Maxwell/Bio bridge
+# ------------------------------------------------------------
+
+class MaxwellBioBridge:
+    """
+    Convenience wrapper connecting:
+
+      - Maxwell primary chain
+      - Bio DNA/RNA chain
+      - Bridge chain
+      - External chains
+    """
+
+    def __init__(
+        self,
+        maxwell_chain: "MaxwellBlockchain",
+        bio_system: Optional[Any] = None,
+        network_id: str = "maxwell-bio-network",
+        difficulty: int = 1,
+    ):
+        self.maxwell_chain = maxwell_chain
+        self.bio_system = bio_system
+
+        self.network = CrossChainNetwork(
+            network_id=network_id,
+            bridge_owner="Maxwell-Bio Bridge",
+            difficulty=difficulty,
+        )
+
+        self.maxwell_adapter = MaxwellChainAdapter(
+            chain=self.maxwell_chain,
+            chain_id="maxwell"
+        )
+
+        self.bio_adapter = BioChainAdapter(
+            bio_system=self.bio_system,
+            chain_id="bio"
+        )
+
+        self.network.register_chain(self.maxwell_adapter)
+        self.network.register_chain(self.bio_adapter)
+
+        # Register common external chain placeholders.
+        for external_chain in ("bitcoin", "ethereum", "solana", "polkadot", "hyperledger"):
+            self.network.register_chain(ExternalChainAdapter(external_chain))
+
+        self.network.connect("maxwell", "bio")
+
+    def send_bio_to_maxwell(
+        self,
+        payload: Dict[str, Any],
+        dna_payload: Optional[str] = None,
+        rf_checksum: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return self.network.send_packet(
+            source_chain="bio",
+            target_chain="maxwell",
+            opcode="bio_to_maxwell",
+            payload=payload,
+            dna_payload=dna_payload,
+            rf_checksum=rf_checksum,
+        )
+
+    def send_maxwell_to_bio(
+        self,
+        payload: Dict[str, Any],
+        dna_payload: Optional[str] = None,
+        rf_checksum: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return self.network.send_packet(
+            source_chain="maxwell",
+            target_chain="bio",
+            opcode="maxwell_to_bio",
+            payload=payload,
+            dna_payload=dna_payload,
+            rf_checksum=rf_checksum,
+        )
+
+    def send_bio_command_to_maxwell(
+        self,
+        node_id: str,
+        command: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        If the BioNodeIntegrationSystem is available, encode the node command
+        into DNA/RF form, then route it into the Maxwell chain.
+        """
+        payload = {
+            "node_id": node_id,
+            "command": sanitize_json(command),
+        }
+
+        dna_payload = None
+        rf_checksum = None
+
+        if self.bio_system is not None:
+            try:
+                if hasattr(self.bio_system, "register_node"):
+                    if not hasattr(self.bio_system, "nodes") or node_id not in self.bio_system.nodes:
+                        self.bio_system.register_node(node_id)
+
+                packet = self.bio_system.encode_command(node_id, command)
+
+                dna_payload = packet.sequence
+                rf_checksum = packet.checksum
+
+                payload["rf_symbols"] = len(packet.frequencies)
+                payload["rf_packet_checksum"] = packet.checksum
+
+                if hasattr(self.bio_system, "mapper"):
+                    payload["rf_center_frequency"] = self.bio_system.mapper.center_frequency
+
+            except Exception as exc:
+                payload["bio_encode_error"] = str(exc)
+
+        return self.send_bio_to_maxwell(
+            payload=payload,
+            dna_payload=dna_payload,
+            rf_checksum=rf_checksum,
+        )
+
+    def send_maxwell_field_to_bio(
+        self,
+        field_record: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Route a Maxwell electromagnetic record into the Bio DNA ledger.
+        """
+        return self.send_maxwell_to_bio(field_record)
+
+    def anchor_external_chain(
+        self,
+        chain_id: str,
+        height: int,
+        head_hash: str,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> "MaxwellBlock":
+        return self.network.anchor_external_chain(
+            chain_id=chain_id,
+            height=height,
+            head_hash=head_hash,
+            extra=extra,
+        )
+
+    def report(self) -> None:
+        self.network.report()
