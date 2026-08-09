@@ -1,0 +1,23 @@
+Raw data / event
+       │
+       ▼
+┌──────────────────────┐
+│  Canonical Payload   │  ← JSON (sorted keys)
+└──────────────────────┘
+       │
+       ├──► SHA-256 / multi-hash  ──────────────────────────┐
+       │                                                     │
+       ├──► DNA encoding (A=00, C=01, G=10, T=11)            │
+       │         │                                           │
+       │         ▼                                           │
+       │   DNA sequence + DNA fingerprint                    │
+       │                                                     │
+       └──► Maxwell field construction                       │
+                 │                                           │
+                 ▼                                           │
+           E, H, B, curl, div, S, Z                          │
+                 │                                           │
+                 └──────────────┬────────────────────────────┘
+                                ▼
+                     Maxwell Block (mined)
+                     (contains payload hash + DNA CID/fingerprint + full signature)
