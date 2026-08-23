@@ -1,0 +1,98 @@
+{
+  "generated_at": 1787508042.633943,
+  "genome_anchor": "b3ba3ff8ff7d5128443d410f295cdc3b",
+  "person_hash": "e1de8a8c7509bb29f64f",
+  "total_blocks": 15,
+  "chain": [
+    {
+      "index": 1,
+      "hash": "000477d263eefb393c2a",
+      "diff": 3,
+      "label": "Hormone window: Marcus P300 83%"
+    },
+    {
+      "index": 2,
+      "hash": "000bc6ee7094857b0c3c",
+      "diff": 3,
+      "label": "Family: Mirror neuron baseline (30min)"
+    },
+    {
+      "index": 3,
+      "hash": "00007c9ddff3934c3cb3",
+      "diff": 4,
+      "label": "Family: Interpersonal EEG synchrony (45min)"
+    },
+    {
+      "index": 4,
+      "hash": "0000443b60a041ee84a8",
+      "diff": 4,
+      "label": "Family: Gamma aha moments (20min)"
+    },
+    {
+      "index": 5,
+      "hash": "000074e81b4926b72acc",
+      "diff": 3,
+      "label": "Family: Family voice recording (90min)"
+    },
+    {
+      "index": 6,
+      "hash": "0000e14f3eeb35b8b9ab",
+      "diff": 4,
+      "label": "Voice path 1: Voice banking (ANY existing voice) quality=0.95"
+    },
+    {
+      "index": 7,
+      "hash": "00006e3e37234e4af982",
+      "diff": 4,
+      "label": "Voice path 2: Old recordings (archive mining) quality=0.85"
+    },
+    {
+      "index": 8,
+      "hash": "0000cb54fd88336cf493",
+      "diff": 3,
+      "label": "Voice path 3: Sibling voice donation quality=0.80"
+    },
+    {
+      "index": 9,
+      "hash": "000160b21a5db23e88ef",
+      "diff": 3,
+      "label": "Voice path 4: EEG imagined speech synthesis quality=0.65"
+    },
+    {
+      "index": 10,
+      "hash": "000975bc5dbc5dfd3b33",
+      "diff": 3,
+      "label": "Voice path 5: Neural voice prosthesis (implanted) quality=0.97"
+    },
+    {
+      "index": 11,
+      "hash": "00009b114ed5a70e28c9",
+      "diff": 4,
+      "label": "Plan: Marcus,8,autism \u2192 Session 1 TODAY \u2014 Mum Denise EEG mi"
+    },
+    {
+      "index": 12,
+      "hash": "0000cfeb30f10c7ac034",
+      "diff": 4,
+      "label": "Plan: Rosario,52,ALS \u2192 Use 847 banked phrases for synthesi"
+    },
+    {
+      "index": 13,
+      "hash": "00009cedc760d69dfe77",
+      "diff": 4,
+      "label": "Plan: Elspeth,7,Rett \u2192 Eye gaze calibration NOW trofinetid"
+    },
+    {
+      "index": 14,
+      "hash": "00006a713ad3b943d2c7",
+      "diff": 4,
+      "label": "Plan: David,67,dementia \u2192 Barbara collects ALL recordings TOD"
+    },
+    {
+      "index": 15,
+      "hash": "0000aa6f3e5eb874ed93",
+      "diff": 4,
+      "label": "Plan: Keisha,34,SCI \u2192 Voice intact \u2014 focus on output spee"
+    }
+  ]
+}
