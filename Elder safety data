@@ -1,0 +1,113 @@
+{
+  "generated_at": 1787510150.334825,
+  "genome_anchor": "b3ba3ff8ff7d5128443d410f295cdc3b",
+  "person_hash": "e1de8a8c7509bb29f64f",
+  "total_blocks": 17,
+  "person": "David",
+  "case_id": "5eb3e98d9ac352730d27",
+  "evidence_items": 6,
+  "chain": [
+    {
+      "index": 1,
+      "hash": "000045a7293bfdefa44b",
+      "diff": 4,
+      "label": "Baseline: David 30-day normal \u2014 dementia safeguarding reference"
+    },
+    {
+      "index": 2,
+      "hash": "0000a1e067f4eee0e666",
+      "diff": 4,
+      "label": "CONCERN: Week 1 Tuesday [Carer_A] cortisol=28.4 agitation=4/10"
+    },
+    {
+      "index": 3,
+      "hash": "00002c28f188fbc279a7",
+      "diff": 4,
+      "label": "CONCERN: Week 2 Tuesday [Carer_A] cortisol=31.2 agitation=6/10"
+    },
+    {
+      "index": 4,
+      "hash": "00002b5563f19e407b64",
+      "diff": 4,
+      "label": "CONCERN: Week 3 Tuesday [Carer_A] cortisol=29.8 agitation=5/10"
+    },
+    {
+      "index": 5,
+      "hash": "0000b91f964bf535bff9",
+      "diff": 4,
+      "label": "CONCERN: Week 4 Tuesday [Carer_A] cortisol=33.1 agitation=7/10"
+    },
+    {
+      "index": 6,
+      "hash": "000078e549d7ab8aac7b",
+      "diff": 4,
+      "label": "CONCERN: Week 5 Tuesday [Carer_A] cortisol=30.5 agitation=6/10"
+    },
+    {
+      "index": 7,
+      "hash": "0000cffbb07a896798f2",
+      "diff": 4,
+      "label": "CONCERN: Week 6 Tuesday [Carer_A] cortisol=34.8 agitation=8/10"
+    },
+    {
+      "index": 8,
+      "hash": "000002a835ec64d0cca9",
+      "diff": 5,
+      "label": "ABUSE PATTERN CONFIRMED: David \u2014 cortisol 31.3 vs baseline 14.2 \u00b7 unexplained bruise \u00b7 care record gaps"
+    },
+    {
+      "index": 9,
+      "hash": "00000586d88d9337b7c7",
+      "diff": 5,
+      "label": "DEAD MAN SWITCH: David \u2014 silence IS the signal \u2014 all 4 triggers active"
+    },
+    {
+      "index": 10,
+      "hash": "0000029baaed59cfbfad",
+      "diff": 5,
+      "label": "LEGAL EVIDENCE PACKAGE: David case 5eb3e98d9ac352730d27 \u2014 APS + CQC + SAB"
+    },
+    {
+      "index": 11,
+      "hash": "00006edad60bdcc70c57",
+      "diff": 3,
+      "label": "Safeguarding alert \u2192 Barbara (family chain) [immediate]"
+    },
+    {
+      "index": 12,
+      "hash": "000bed9bc68eeab8b6ad",
+      "diff": 3,
+      "label": "Safeguarding alert \u2192 Adult Protective Services [urgent]"
+    },
+    {
+      "index": 13,
+      "hash": "00073a6c3bb36912440f",
+      "diff": 3,
+      "label": "Safeguarding alert \u2192 Care Quality Commission (CQC) [urgent]"
+    },
+    {
+      "index": 14,
+      "hash": "0001a34852c08176c2b5",
+      "diff": 3,
+      "label": "Safeguarding alert \u2192 Local Safeguarding Adults Boar [urgent]"
+    },
+    {
+      "index": 15,
+      "hash": "000d51a49b6b9f3d9168",
+      "diff": 3,
+      "label": "Safeguarding alert \u2192 GP safeguarding lead [same_day]"
+    },
+    {
+      "index": 16,
+      "hash": "000b8eb63626a2cae551",
+      "diff": 3,
+      "label": "Safeguarding alert \u2192 Police welfare check [conditional]"
+    },
+    {
+      "index": 17,
+      "hash": "00084bd471476d8e4348",
+      "diff": 3,
+      "label": "Safeguarding alert \u2192 Legal advocate [advisory]"
+    }
+  ]
+}
