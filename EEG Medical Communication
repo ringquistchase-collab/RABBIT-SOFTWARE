@@ -1,0 +1,46 @@
+{
+  "generated_at": 1787508696.6460173,
+  "genome_anchor": "b3ba3ff8ff7d5128443d410f295cdc3b",
+  "person_hash": "e1de8a8c7509bb29f64f",
+  "total_blocks": 6,
+  "pain_level": "SEVERE",
+  "pain_score": 12,
+  "chain": [
+    {
+      "index": 1,
+      "hash": "00000d9ce0d6e82eb6c9",
+      "diff": 5,
+      "label": "IDENTITY GENESIS: Rosario \u2014 who she IS at the core, not her diagnosis"
+    },
+    {
+      "index": 2,
+      "hash": "0000296714a5741cc997",
+      "diff": 4,
+      "label": "Medical current: Rosario \u2014 riluzole+tofersen+NIV+PEG \u2014 FVC 52%"
+    },
+    {
+      "index": 3,
+      "hash": "000087f89e10aadb912f",
+      "diff": 4,
+      "label": "PAIN DETECTED: Rosario \u2014 SEVERE score=12/12 \u2192 alert Miguel"
+    },
+    {
+      "index": 4,
+      "hash": "0000fe7e54cad49a4936",
+      "diff": 4,
+      "label": "Personality model: Rosario \u2014 built from 22 blocks + 847 phrases + family"
+    },
+    {
+      "index": 5,
+      "hash": "0007b714fd685cf9ced4",
+      "diff": 3,
+      "label": "Family portal: Miguel sees Rosario pain alert + today summary"
+    },
+    {
+      "index": 6,
+      "hash": "0000b51389520fe5bb2d",
+      "diff": 4,
+      "label": "Comm guide: new nurse + Rosario \u2014 pain alert + 5 essential rules"
+    }
+  ]
+}
