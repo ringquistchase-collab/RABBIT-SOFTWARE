@@ -1,0 +1,69 @@
+C:\Users\odaat>systeminfo
+
+Host Name:                     RABBITSOFTWARE
+OS Name:                       Microsoft Windows 11 Home
+OS Version:                    10.0.26200 N/A Build 26200
+OS Manufacturer:               Microsoft Corporation
+OS Configuration:              Standalone Workstation
+OS Build Type:                 Multiprocessor Free
+Registered Owner:              odaatconstruction@gmail.com
+Registered Organization:       N/A
+Product ID:                    00342-21627-71308-AAOEM
+Original Install Date:         7/18/2026, 9:43:38 PM
+System Boot Time:              8/23/2026, 7:49:41 PM
+System Manufacturer:           Dell Inc.
+System Model:                  Dell 15 DC15250
+System Type:                   x64-based PC
+Processor(s):                  1 Processor(s) Installed.
+                               [01]: Intel64 Family 6 Model 186 Stepping 3 GenuineIntel ~1200 Mhz
+BIOS Version:                  Dell Inc. 1.11.0, 5/27/2026
+Windows Directory:             C:\windows
+System Directory:              C:\windows\system32
+Boot Device:                   \Device\HarddiskVolume1
+System Locale:                 en-us;English (United States)
+Input Locale:                  en-us;English (United States)
+Time Zone:                     (UTC-06:00) Central Time (US & Canada)
+Total Physical Memory:         7,877 MB
+Available Physical Memory:     480 MB
+Virtual Memory: Max Size:      32,453 MB
+Virtual Memory: Available:     16,407 MB
+Virtual Memory: In Use:        16,046 MB
+Page File Location(s):         C:\pagefile.sys
+Domain:                        WORKGROUP
+Logon Server:                  \\RABBITSOFTWARE
+Hotfix(s):                     5 Hotfix(s) Installed.
+                               [01]: KB5120708
+                               [02]: KB5054156
+                               [03]: KB5095189
+                               [04]: KB5121003
+                               [05]: KB5123304
+Network Card(s):               2 NIC(s) Installed.
+                               [01]: Realtek RTL8852BE WiFi 6 802.11ax PCIe Adapter
+                                     Connection Name: Wi-Fi
+                                     DHCP Enabled:    Yes
+                                     DHCP Server:     192.168.1.1
+                                     IP address(es)
+                                     [01]: 192.168.1.179
+                                     [02]: fe80::4d01:8379:8570:3f10
+                               [02]: Bluetooth Device (Personal Area Network)
+                                     Connection Name: Bluetooth Network Connection
+                                     Status:          Media disconnected
+Virtualization-based security: Status: Running
+                               Required Security Properties:
+                                     Base Virtualization Support
+                               Available Security Properties:
+                                     Base Virtualization Support
+                                     Secure Boot
+                                     DMA Protection
+                                     UEFI Code Readonly
+                                     SMM Security Mitigations 1.0
+                                     Mode Based Execution Control
+                                     APIC Virtualization
+                               Services Configured:
+                                     Hypervisor enforced Code Integrity
+                               Services Running:
+                                     Hypervisor enforced Code Integrity
+                               App Control for Business policy: Enforced
+                               App Control for Business user mode policy: Off
+                               Security Features Enabled:
+Hyper-V Requirements:          A hypervisor has been detected. Features required for Hyper-V will not be displayed.
