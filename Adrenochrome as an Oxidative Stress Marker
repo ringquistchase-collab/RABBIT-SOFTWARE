@@ -1,0 +1,50 @@
+class AdrenochromeIntegration:
+    """
+    Integrates adrenochrome as an oxidative stress marker
+    and redox-state indicator within the DNA-EEG-Hormone system
+    """
+    
+    def __init__(self):
+        self.adrenochrome_level = 0.0
+        self.oxidative_stress_marker = 0.0
+        self.glutathione_level = 1.0
+        self.ros_generation_rate = 0.0
+    
+    def compute_adrenochrome_from_hormones(self, hormone_profile: Dict[str, float]) -> float:
+        """
+        Adrenochrome is formed from adrenaline oxidation.
+        Higher adrenaline + oxidative stress = higher adrenochrome
+        """
+        adrenaline = hormone_profile.get('adrenaline', 0.5)
+        cortisol = hormone_profile.get('cortisol', 0.5)
+        
+        # Redox potential from combined factors
+        oxidative_potential = (adrenaline * 0.7 + cortisol * 0.3)
+        
+        # Adrenochrome formation (simplified model)
+        adrenochrome = oxidative_potential * 0.5
+        
+        return min(1.0, adrenochrome)
+    
+    def eeg_to_redox_state(self, band_powers: Dict[str, float]) -> Dict[str, float]:
+        """
+        Different EEG states correlate with oxidative stress markers
+        """
+        redox_state = {
+            'oxidative_stress': 0.0,
+            'neuroprotective_potential': 0.0,
+            'adrenochrome_formation_risk': 0.0
+        }
+        
+        # High gamma + low alpha suggests oxidative stress
+        gamma = band_powers.get('gamma', 0.1)
+        alpha = band_powers.get('alpha', 0.3)
+        
+        redox_state['oxidative_stress'] = (gamma * 1.5) - (alpha * 0.5)
+        redox_state['oxidative_stress'] = max(0.0, min(1.0, redox_state['oxidative_stress']))
+        
+        # High theta suggests neuroprotective state
+        theta = band_powers.get('theta', 0.2)
+        redox_state['neuroprotective_potential'] = theta * 1.2
+        
+        return redox_state
