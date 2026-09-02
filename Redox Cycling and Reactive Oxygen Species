@@ -1,0 +1,26 @@
+class RedoxCyclingModel:
+    """
+    Models adrenochrome redox cycling
+    Based on research showing Complex I reduction [citation:12]
+    """
+    
+    def __init__(self):
+        self.semiquinone_formation = 0.0
+        self.superoxide_generation = 0.0
+        
+    def compute_redox_cycle_activity(self, adrenochrome_level: float,
+                                     mitochondrial_activity: float) -> Dict[str, float]:
+        """
+        Adrenochrome participates in redox cycling:
+        1. Reduced by Complex I to semiquinone radical
+        2. Semiquinone reduces oxygen to superoxide
+        3. Superoxide oxidizes epinephrine to adrenochrome [citation:12]
+        """
+        # Redox cycling activity
+        cycle_activity = adrenochrome_level * mitochondrial_activity * 0.8
+        
+        return {
+            'semiquinone_radical': cycle_activity * 0.7,
+            'superoxide_production': cycle_activity * 0.5,
+            'redox_cycle_rate': cycle_activity
+        }
