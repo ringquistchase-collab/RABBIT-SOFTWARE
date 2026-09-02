@@ -1,0 +1,37 @@
+class AdrenochromeNeurotoxicityModel:
+    """
+    Models the neurotoxic potential of adrenochrome
+    based on research showing concentration-dependent effects
+    """
+    
+    def __init__(self):
+        # From research: toxic effects at 10-150 µM [citation:2]
+        self.toxicity_threshold = 10.0  # µM
+        self.lethal_concentration = 150.0  # µM
+        
+    def compute_neurotoxicity_score(self, adrenochrome_level: float, 
+                                   glutathione_level: float) -> float:
+        """
+        Neurotoxicity is modulated by glutathione [citation:1]
+        """
+        # Adrenochrome depletes glutathione
+        effective_toxin = adrenochrome_level * (1.0 / (glutathione_level + 0.1))
+        
+        # Sigmoid toxicity model
+        toxicity = 1.0 / (1.0 + np.exp(-(effective_toxin * 5 - 2.5)))
+        
+        return toxicity
+    
+    def brain_state_impact(self, adrenochrome_level: float) -> Dict[str, str]:
+        """
+        Research showed adrenochrome:
+        - Increases EEG abnormalities [citation:10]
+        - Disintegrates alpha activity [citation:8]
+        - Produces theta wave appearance [citation:8]
+        """
+        impact = {
+            'alpha_integrity': 'decreased' if adrenochrome_level > 0.3 else 'normal',
+            'theta_activity': 'increased' if adrenochrome_level > 0.4 else 'normal',
+            'eeg_abnormality_risk': 'high' if adrenochrome_level > 0.5 else 'low'
+        }
+        return impact
