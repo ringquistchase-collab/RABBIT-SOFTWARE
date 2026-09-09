@@ -1,0 +1,116 @@
+"""
+node_view_visualizer.py
+================
+Real data visualizations (matplotlib) showing how two nodes/agents
+"see" the network differently — literally comparable charts, not
+artistic renderings. Useful for the AI-gossip discussion/experimentation
+you described: node A and node B can generate these independently and
+compare, which is a genuine way to "explain how it's being viewed on
+each end."
+
+For the artistic/AI-generated-image half of your question, see
+research_art_generator.py — a different tool, on purpose, since
+"explain what a node sees" and "generate an artistic image" need very
+different guarantees (one needs to be accurate, the other doesn't).
+
+Usage
+-----
+    from node_view_visualizer import plot_mos_comparison, plot_topic_overlap
+
+    plot_mos_comparison({"Node A": node_a.mos_score(), "Node B": node_b.mos_score()},
+                         "mos_comparison.png")
+
+    plot_topic_overlap({"Node A": agent_a.topics, "Node B": agent_b.topics},
+                        "topic_overlap.png")
+"""
+
+from __future__ import annotations
+import matplotlib
+matplotlib.use("Agg")   # no display needed — just writes files
+import matplotlib.pyplot as plt
+
+
+def plot_mos_comparison(node_scores: dict[str, dict], output_path: str) -> str:
+    """
+    node_scores: {"label": mos_score_dict} where mos_score_dict is what
+    NetworkNode.mos_score() actually returns (quality/connectivity/agreement/mos).
+    Real bar chart, real numbers — no invented data.
+    """
+    labels = list(node_scores.keys())
+    components = ["quality", "connectivity", "agreement", "mos"]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    x = range(len(components))
+    width = 0.8 / len(labels)
+
+    for i, label in enumerate(labels):
+        values = [node_scores[label].get(c, 0) for c in components]
+        offset = (i - len(labels) / 2 + 0.5) * width
+        ax.bar([p + offset for p in x], values, width, label=label)
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(components)
+    ax.set_ylabel("Score (0-5)")
+    ax.set_title("How each node's MOS score is composed")
+    ax.legend()
+    ax.set_ylim(0, 5.2)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=120)
+    plt.close(fig)
+    return output_path
+
+
+def plot_topic_overlap(node_topics: dict[str, dict], output_path: str) -> str:
+    """
+    node_topics: {"label": agent.topics} — the real topic dicts from
+    GrowingResearchAgent instances. Shows which topics each node knows
+    about vs. which are shared, as a real set comparison (not a
+    generic-looking Venn diagram with made-up numbers).
+    """
+    label_sets = {label: set(topics.keys()) for label, topics in node_topics.items()}
+    all_topics = sorted(set().union(*label_sets.values())) if label_sets else []
+
+    fig, ax = plt.subplots(figsize=(9, max(3, len(all_topics) * 0.4)))
+    labels = list(label_sets.keys())
+
+    for row, topic in enumerate(all_topics):
+        for col, label in enumerate(labels):
+            has_it = topic in label_sets[label]
+            ax.scatter(col, row, s=300, color="tab:blue" if has_it else "lightgray",
+                       marker="o" if has_it else "x")
+
+    ax.set_yticks(range(len(all_topics)))
+    ax.set_yticklabels(all_topics, fontsize=8)
+    ax.set_xticks(range(len(labels)))
+    ax.set_xticklabels(labels)
+    ax.set_title("Which topics each node actually knows about")
+    ax.set_xlim(-0.5, len(labels) - 0.5)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=120)
+    plt.close(fig)
+    return output_path
+
+
+if __name__ == "__main__":
+    # real structural test with real-shaped data (not from a live network call —
+    # this file's job is the chart, not re-fetching network state)
+    fake_mos = {
+        "Node A": {"quality": 4.2, "connectivity": 5.0, "agreement": 3.8, "mos": 4.3},
+        "Node B": {"quality": 3.9, "connectivity": 2.5, "agreement": 3.8, "mos": 3.5},
+    }
+    path1 = plot_mos_comparison(fake_mos, "/tmp/mos_comparison_test.png")
+    print(f"MOS comparison chart written to: {path1}")
+
+    fake_topics = {
+        "Node A": {"breast cancer|brca1": {}, "leukemia|kmt2a": {}},
+        "Node B": {"breast cancer|brca1": {}, "neuroblastoma|mycn": {}},
+    }
+    path2 = plot_topic_overlap(fake_topics, "/tmp/topic_overlap_test.png")
+    print(f"Topic overlap chart written to: {path2}")
+
+    import os
+    print(f"\nFile sizes (proves real image data was written, not empty files):")
+    print(f"  {path1}: {os.path.getsize(path1)} bytes")
+    print(f"  {path2}: {os.path.getsize(path2)} bytes")
