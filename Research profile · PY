@@ -1,0 +1,106 @@
+"""
+research_profile.py
+================
+A local profile YOU explicitly write, used to self-seed
+GrowingResearchAgent with every condition/biomarker combination
+automatically at startup — instead of manually calling seed_topic()
+once per run.
+
+WHAT THIS IS NOT
+------------------
+Not inferred from digital_dna.py's strand, not derived from
+keyboard_cadence/maxwell_telemetry/any other behavioral signal, not
+guessed at from anything. Every entry in this file is something you
+typed in yourself, the same as typing CONDITION/BIOMARKER into
+run_agent.py — this just lets you list several at once instead of
+one. If you want the agent to research something, you say so here,
+explicitly. That's the whole mechanism.
+
+FILE FORMAT (research_profile.json)
+----------------------------------------
+{
+  "conditions": [
+    {"condition": "breast cancer", "biomarker": "BRCA1"},
+    {"condition": "acute lymphoblastic leukemia", "biomarker": "KMT2A"},
+    {"condition": "neuroblastoma", "biomarker": null}
+  ]
+}
+
+Usage
+-----
+    from research_profile import load_profile, seed_from_profile
+
+    profile = load_profile("research_profile.json")
+    await seed_from_profile(agent, profile)   # calls seed_topic() for each entry
+"""
+
+from __future__ import annotations
+import json
+import os
+
+
+def load_profile(path: str) -> dict:
+    if not os.path.exists(path):
+        return {"conditions": []}
+    with open(path) as f:
+        return json.load(f)
+
+
+def save_profile(path: str, profile: dict) -> None:
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w") as f:
+        json.dump(profile, f, indent=2)
+    os.replace(tmp_path, path)
+
+
+def add_condition(path: str, condition: str, biomarker: str | None = None) -> dict:
+    """You explicitly stating one more thing to research — the only way entries get added."""
+    profile = load_profile(path)
+    entry = {"condition": condition, "biomarker": biomarker}
+    if entry not in profile["conditions"]:
+        profile["conditions"].append(entry)
+    save_profile(path, profile)
+    return profile
+
+
+async def seed_from_profile(agent, profile: dict) -> list[str]:
+    """Calls agent.seed_topic() once per entry — each one already-explicit,
+    already covered by the existing research_query consent description."""
+    seeded_keys = []
+    for entry in profile.get("conditions", []):
+        key = await agent.seed_topic(entry["condition"], biomarker=entry.get("biomarker"))
+        seeded_keys.append(key)
+    return seeded_keys
+
+
+if __name__ == "__main__":
+    import asyncio
+    import tempfile
+    from digital_dna import DigitalDNA
+    from network_os import NetworkNode
+    from growing_research_agent import GrowingResearchAgent
+
+    async def _demo():
+        with tempfile.TemporaryDirectory() as tmp:
+            profile_path = os.path.join(tmp, "research_profile.json")
+            store_path = os.path.join(tmp, "research_store.json")
+
+            # you explicitly stating two things to research, up front
+            add_condition(profile_path, "breast cancer", biomarker="BRCA1")
+            add_condition(profile_path, "acute lymphoblastic leukemia", biomarker="KMT2A")
+
+            dna = DigitalDNA(seed_label="profile-demo")
+            node = NetworkNode(dna, host="127.0.0.1", port=9951)
+            await node.start()
+            agent = GrowingResearchAgent(node, dna, store_path=store_path, interval_s=999)
+
+            profile = load_profile(profile_path)
+            print(f"=== Self-seeding from {len(profile['conditions'])} explicit profile entries ===")
+            keys = await seed_from_profile(agent, profile)
+            for k in keys:
+                t = agent.topics[k]
+                print(f"  {k}: {len(t['new_ids_last_run'])} real results found")
+
+            await node.stop()
+
+    asyncio.run(_demo())
