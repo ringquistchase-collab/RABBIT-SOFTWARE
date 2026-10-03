@@ -33,6 +33,8 @@ import base64, hashlib, json, os, re, socket, sqlite3, threading, time, urllib.r
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from rabbit_s3_vectors import PublicVectorIndex
+
 TWIN_UUID   = "ef5eb8ab-c6d9-40a8-a8f7-5cd510decaba"
 SUBJECT     = "CHASE_ALLEN_RINGQUIST"
 CALLSIGN    = "RABBIT"
@@ -562,6 +564,7 @@ class ChainEngine:
     def __init__(self, github_token: str = ""):
         self._gh_token  = github_token
         self._retention = MultiNetworkRetention(github_token)
+        self._vector_index = PublicVectorIndex()
         self._research: List[Dict] = []
         self._anchor: Optional[XRPLAnchor] = None
         self._db_ready  = False
@@ -649,6 +652,7 @@ class ChainEngine:
             "retention_logs":   n_ret,
             "retention_ok":     ok_ret,
             "retention_layers": rs.get("layers", {}),
+            "vector_index":     self._vector_index.status().to_dict(),
             "shows_dna_root":   False,    # INVARIANT
             "version":          VERSION,
         }

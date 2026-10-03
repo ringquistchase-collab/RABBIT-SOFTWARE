@@ -15,3 +15,12 @@ cd RABBIT-SOFTWARE
 # Save the script above as life_event_sharding.py
 pip install shamir-ss polygon-identity muselsl transformers
 python life_event_sharding.py
+
+## Public vector index
+
+`rabbit_chain.py` reports the availability of the public vector index in
+`ChainEngine.status()`. It reads `s3://amzn-s3-rabbit-software/vectors/` through
+the S3 public endpoint and does not upload data. Set `RABBIT_VECTOR_BUCKET` or
+`RABBIT_VECTOR_PREFIX` to override the default location. Do not place raw DNA
+sequences or other identifying data in this public bucket; the DNA blockchain
+stores only hashes and metadata.
